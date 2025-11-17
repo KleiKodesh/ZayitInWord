@@ -75,7 +75,7 @@ namespace Zayit
 
         /// <summary>
         /// Called from JavaScript when user selects a book from the tree
-        /// Streams book content line by line to the Vue application
+        /// Streams book content in batches to the Vue application for better performance
         /// </summary>
         /// <param name="bookId">The book ID to load</param>
         /// <param name="tabId">The tab ID to load content into (e.g., "tab-1")</param>
@@ -83,10 +83,29 @@ namespace Zayit
         {
             try
             {
-                // Stream book lines one by one to the UI
+                const int BATCH_SIZE = 1000; // Send 1000 lines at a time
+                var batch = new System.Collections.Generic.List<string>(BATCH_SIZE);
+                
+                // Stream book lines in batches to the UI
                 foreach (string lineContent in SeforimDb.DbQueries.GetBookContent(bookId))
                 {
-                    string js = $"window.addLine({JsonSerializer.Serialize(tabId)}, {JsonSerializer.Serialize(lineContent)});";
+                    batch.Add(lineContent);
+                    
+                    // When batch is full, send it
+                    if (batch.Count >= BATCH_SIZE)
+                    {
+                        string batchJson = JsonSerializer.Serialize(batch);
+                        string js = $"window.addLines({JsonSerializer.Serialize(tabId)}, {batchJson});";
+                        await ExecuteScriptAsync(js);
+                        batch.Clear();
+                    }
+                }
+                
+                // Send remaining lines if any
+                if (batch.Count > 0)
+                {
+                    string batchJson = JsonSerializer.Serialize(batch);
+                    string js = $"window.addLines({JsonSerializer.Serialize(tabId)}, {batchJson});";
                     await ExecuteScriptAsync(js);
                 }
                 
