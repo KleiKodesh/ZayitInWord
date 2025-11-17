@@ -90,7 +90,7 @@ if (!window.receiveTocData) {
   max-width: min(500px, 50vw);
   height: 100%;
   background-color: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(5px);
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
   border-left: 1px solid rgba(229, 229, 229, 0.3);
   display: flex;

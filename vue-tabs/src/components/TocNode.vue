@@ -81,6 +81,7 @@ function handleClick() {
 
 .toc-text {
   font-size: 13px;
+  font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
 }
