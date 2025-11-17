@@ -1,9 +1,9 @@
 <template>
   <Transition name="backdrop">
-    <div v-if="tocStore.isVisible" class="toc-backdrop" @click="tocStore.toggleToc()"></div>
+    <div v-if="tocStore.isVisible" class="toc-backdrop" @click="tocStore.toggleToc()" @touchend="tocStore.toggleToc()"></div>
   </Transition>
   <Transition name="slide">
-    <div v-if="tocStore.isVisible" class="toc-sidebar" @click.stop>
+    <div v-if="tocStore.isVisible" class="toc-sidebar" @click.stop @touchend.stop>
       <div class="toc-header">
         <span>תוכן עניינים</span>
         <button @click="tocStore.toggleToc()" class="close-btn">×</button>
@@ -43,7 +43,14 @@ watch(() => tabsStore.activeTabId, () => {
 })
 
 function navigateToLine(lineId: number) {
-  const lineElement = document.getElementById(`line-${lineId}`)
+  const activeTab = tabsStore.activeTab
+  if (!activeTab || activeTab.type !== 'book') return
+  
+  // Find the line element within the active tab's content container
+  const contentContainer = document.querySelector(`.content-container[data-tab-id="${activeTab.id}"]`)
+  if (!contentContainer) return
+  
+  const lineElement = contentContainer.querySelector(`#line-${lineId}`) as HTMLElement
   if (lineElement) {
     lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
     lineElement.focus()
@@ -90,7 +97,7 @@ if (!window.receiveTocData) {
   max-width: min(500px, 50vw);
   height: 100%;
   background-color: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(3px);
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
   border-left: 1px solid rgba(229, 229, 229, 0.3);
   display: flex;

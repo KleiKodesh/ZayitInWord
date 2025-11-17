@@ -1,14 +1,16 @@
 <template>
   <div class="book-viewer" ref="bookViewerRef">
     <TocSidebar />
-    <div class="content-container" :data-tab-id="tabId"></div>
+    <div v-if="isLoading" class="loading-container">
+      <div class="loading-text">טוען...</div>
+    </div>
+    <div class="content-container" :data-tab-id="tabId" :class="{ hidden: isLoading }"></div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, onActivated, ref } from 'vue'
 import { useTabsStore } from '../stores/tabs'
-import { useTocStore } from '../stores/toc'
 import TocSidebar from './TocSidebar.vue'
 
 const props = defineProps<{
@@ -16,12 +18,12 @@ const props = defineProps<{
 }>()
 
 const tabsStore = useTabsStore()
-const tocStore = useTocStore()
 const bookViewerRef = ref<HTMLElement | null>(null)
 const contentContainer = ref<HTMLElement | null>(null)
 const lineCounter = ref(0)
 const initLineIndex = ref(0)
 const savedScrollPosition = ref(0)
+const isLoading = ref(true)
 
 // Expose functions to C# with tab-specific keys
 declare global {
@@ -66,6 +68,11 @@ if (!window.addLine) {
 const addLineToThisTab = (html: string) => {
   if (!contentContainer.value) return
   
+  // Hide loading on first line
+  if (isLoading.value) {
+    isLoading.value = false
+  }
+  
   const lineElement = document.createElement('line')
   lineElement.tabIndex = 0
   lineElement.innerHTML = html
@@ -78,6 +85,11 @@ const addLineToThisTab = (html: string) => {
 
 const addLinesToThisTab = (linesArray: Array<{ id: number; html: string }>) => {
   if (!contentContainer.value) return
+  
+  // Hide loading on first batch of lines
+  if (isLoading.value) {
+    isLoading.value = false
+  }
   
   // Create a document fragment for better performance
   const fragment = document.createDocumentFragment()
@@ -108,6 +120,9 @@ const clearContentForThisTab = () => {
   }
 }
 
+// No need for any diacritics restoration logic in BookViewer
+// The DOM is preserved by KeepAlive, and filters are only applied when user clicks the button
+
 onMounted(() => {
   contentContainer.value = document.querySelector(`.content-container[data-tab-id="${props.tabId}"]`)
   
@@ -125,11 +140,7 @@ onMounted(() => {
     bookLoadComplete: () => {
       // Book finished loading, restore scroll position
       if (savedScrollPosition.value > 0 && bookViewerRef.value) {
-        requestAnimationFrame(() => {
-          if (bookViewerRef.value) {
-            bookViewerRef.value.scrollTop = savedScrollPosition.value
-          }
-        })
+        bookViewerRef.value.scrollTop = savedScrollPosition.value
       }
     }
   })
@@ -138,9 +149,11 @@ onMounted(() => {
   const tab = tabsStore.tabs.find(t => t.id === props.tabId)
   if (tab?.scrollPosition !== undefined) {
     savedScrollPosition.value = tab.scrollPosition
-    // Restore immediately if already has content
+    // Restore scroll position immediately if already has content
     if (bookViewerRef.value && contentContainer.value && contentContainer.value.children.length > 0) {
       bookViewerRef.value.scrollTop = savedScrollPosition.value
+      // Content already exists, hide loading
+      isLoading.value = false
     }
   }
   
@@ -165,11 +178,15 @@ onMounted(() => {
   }
 })
 
-// Restore scroll when component is reactivated from cache
+// Restore scroll position when component is reactivated from cache
 onActivated(() => {
+  // Restore scroll position synchronously - no animation
   if (bookViewerRef.value && savedScrollPosition.value > 0) {
+    // Set scroll immediately without any delay
     bookViewerRef.value.scrollTop = savedScrollPosition.value
   }
+  // Don't reapply diacritics filter - the DOM content is already in the correct state
+  // The KeepAlive preserves the DOM exactly as it was, including filtered text
 })
 
 onUnmounted(() => {
@@ -188,6 +205,21 @@ onUnmounted(() => {
   width: 100%;
   direction: rtl;
   overflow-y: auto;
+  position: relative;
+}
+
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+}
+
+.loading-text {
+  font-size: 18px;
+  color: var(--text-secondary);
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
 }
 
 .content-container {
@@ -195,6 +227,10 @@ onUnmounted(() => {
   text-align: justify;
   font-family: 'Times New Roman', Times, serif;
   padding: 16px;
+}
+
+.content-container.hidden {
+  display: none;
 }
 
 .content-container :deep(line:not(:has(h1, h2, h3, h4, h5, h6))) {

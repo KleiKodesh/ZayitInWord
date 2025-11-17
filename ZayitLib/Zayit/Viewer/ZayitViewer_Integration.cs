@@ -85,12 +85,11 @@ namespace Zayit
             {
                 const int BATCH_SIZE = 1000; // Send 1000 lines at a time
                 var batch = new System.Collections.Generic.List<object>(BATCH_SIZE);
-                int lineId = 0;
                 
-                // Stream book lines in batches to the UI with line IDs
-                foreach (string lineContent in SeforimDb.DbQueries.GetBookContent(bookId))
+                // Stream book lines in batches to the UI with line IDs from database
+                foreach (var (content, id) in SeforimDb.DbQueries.GetBookContentWithId(bookId))
                 {
-                    batch.Add(new { id = lineId++, html = lineContent });
+                    batch.Add(new { id = id, html = content });
                     
                     // When batch is full, send it
                     if (batch.Count >= BATCH_SIZE)

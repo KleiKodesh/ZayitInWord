@@ -10,10 +10,10 @@ namespace Zayit.SeforimDb
     {
         static readonly DbManager _db = new DbManager();
 
-        public static IEnumerable<string> GetBookContent(int bookId)
+        public static IEnumerable<(string Content, int Id)> GetBookContentWithId(int bookId)
         {
             return _db.DapperConnection
-                .Query<string>(SqlQueries.GetBookContent(bookId));
+                .Query<(string, int)>(SqlQueries.GetBookContent(bookId));
         }
 
         public static (Category[] Tree, Book[] AllBooks) BuildTree()

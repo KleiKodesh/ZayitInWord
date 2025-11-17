@@ -1,5 +1,5 @@
 <template>
-  <div class="tab-container" @click="handleOutsideClick">
+  <div class="tab-container" @click="handleOutsideClick" @touchend="handleOutsideTouch">
     <TabHeader 
       :isDropdownOpen="isDropdownOpen"
       @toggleDropdown="toggleDropdown"
@@ -11,16 +11,19 @@
     />
 
     <div class="tab-content">
-      <KeepAlive :max="10">
-        <div
-          v-if="tabsStore.activeTab"
-          :key="tabsStore.activeTab.id"
-          class="tab-pane"
-        >
-          <LandingPage v-if="tabsStore.activeTab.type === 'search'" />
-          <BookViewer v-else-if="tabsStore.activeTab.type === 'book'" :tab-id="tabsStore.activeTab.id" />
-        </div>
-      </KeepAlive>
+      <div class="tab-pane">
+        <KeepAlive :max="10">
+          <LandingPage 
+            v-if="tabsStore.activeTab && tabsStore.activeTab.type === 'search'"
+            :key="`search-${tabsStore.activeTab.id}`"
+          />
+          <BookViewer 
+            v-else-if="tabsStore.activeTab && tabsStore.activeTab.type === 'book'"
+            :key="`book-${tabsStore.activeTab.id}`"
+            :tab-id="tabsStore.activeTab.id"
+          />
+        </KeepAlive>
+      </div>
     </div>
   </div>
 </template>
@@ -40,6 +43,10 @@ const toggleDropdown = () => isDropdownOpen.value = !isDropdownOpen.value
 const closeDropdown = () => isDropdownOpen.value = false
 
 function handleOutsideClick(e: MouseEvent) {
+  if (!(e.target as HTMLElement).closest('.tab-header, .dropdown')) closeDropdown()
+}
+
+function handleOutsideTouch(e: TouchEvent) {
   if (!(e.target as HTMLElement).closest('.tab-header, .dropdown')) closeDropdown()
 }
 

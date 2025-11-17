@@ -16,7 +16,16 @@
         :class="{ active: isTocVisible }"
         title="תוכן עניינים"
       >
-        ☰
+        <img src="/assets/ic_fluent_text_bullet_list_tree_24_regular.png" alt="TOC" class="toc-icon rtl-flip" />
+      </button>
+      <button 
+        v-if="showTocButton"
+        class="diacritics-toggle-btn" 
+        @click.stop="toggleDiacritics" 
+        :class="diacriticsStateClass"
+        :title="diacriticsTitle"
+      >
+        <span class="diacritics-icon">{{ diacriticsIcon }}</span>
       </button>
       <button class="theme-toggle-btn" @click.stop="toggleTheme" title="החלף ערכת נושא">
         <div class="theme-icon"></div>
@@ -43,6 +52,40 @@ const isTocVisible = computed(() => tocStore.isVisible)
 
 const isDark = ref(false)
 
+// Store diacritics state per tab in memory (not persisted)
+// Use reactive ref to trigger updates
+const diacriticsStates = ref(new Map<string, { state: number; originalHtml: string | null }>())
+
+const getDiacriticsState = (tabId: string) => {
+  if (!diacriticsStates.value.has(tabId)) {
+    diacriticsStates.value.set(tabId, { state: 0, originalHtml: null })
+  }
+  return diacriticsStates.value.get(tabId)!
+}
+
+const diacriticsState = computed(() => {
+  if (!tabsStore.activeTab) return 0
+  return getDiacriticsState(tabsStore.activeTab.id).state
+})
+
+const diacriticsStateClass = computed(() => {
+  if (diacriticsState.value === 1) return 'state-1'
+  if (diacriticsState.value === 2) return 'state-2'
+  return ''
+})
+
+const diacriticsIcon = computed(() => {
+  if (diacriticsState.value === 1) return 'א̇'  // With cantillation mark
+  if (diacriticsState.value === 2) return 'א'   // Plain letter
+  return 'אָ֑'  // With both nikkud and cantillation
+})
+
+const diacriticsTitle = computed(() => {
+  if (diacriticsState.value === 0) return 'הסר טעמים'
+  if (diacriticsState.value === 1) return 'הסר גם ניקוד'
+  return 'שחזר טעמים וניקוד'
+})
+
 const handleNewTab = () => {
   tabsStore.createTab()
 }
@@ -54,6 +97,69 @@ const toggleToc = () => {
   if (tocStore.isVisible && tabsStore.activeTab?.type === 'book' && tabsStore.activeTab.bookId) {
     tocStore.requestToc(tabsStore.activeTab.bookId)
   }
+}
+
+const toggleDiacritics = () => {
+  const activeTab = tabsStore.activeTab
+  if (!activeTab || activeTab.type !== 'book') return
+
+  const contentContainer = document.querySelector(`.content-container[data-tab-id="${activeTab.id}"]`)
+  if (!contentContainer) return
+
+  // Get current state from local Map
+  const tabState = getDiacriticsState(activeTab.id)
+
+  // Store original HTML on first toggle
+  if (tabState.state === 0 && !tabState.originalHtml) {
+    tabState.originalHtml = contentContainer.innerHTML
+  }
+
+  // Cycle through states: 0 -> 1 -> 2 -> 0
+  tabState.state = (tabState.state + 1) % 3
+
+  if (tabState.state === 0) {
+    // Restore original
+    if (tabState.originalHtml) {
+      contentContainer.innerHTML = tabState.originalHtml
+      tabState.originalHtml = null // Clear stored HTML to release memory
+    }
+  } else {
+    // Apply filter
+    applyDiacriticsFilter(contentContainer, tabState.state)
+  }
+
+  // Force reactivity update by creating a new Map reference
+  diacriticsStates.value = new Map(diacriticsStates.value)
+}
+
+const applyDiacriticsFilter = (container: Element, state: number) => {
+  const walker = document.createTreeWalker(
+    container,
+    NodeFilter.SHOW_TEXT,
+    null
+  )
+
+  const textNodes: Text[] = []
+  let node: Node | null
+  while ((node = walker.nextNode())) {
+    textNodes.push(node as Text)
+  }
+
+  textNodes.forEach((textNode) => {
+    let text = textNode.nodeValue || ''
+    
+    // State 1: Remove cantillations only (U+0591-U+05AF)
+    if (state >= 1) {
+      text = text.replace(/[\u0591-\u05AF]/g, '')
+    }
+    
+    // State 2: Remove nikkud as well (U+05B0-U+05BD, U+05C1, U+05C2, U+05C4, U+05C5)
+    if (state >= 2) {
+      text = text.replace(/[\u05B0-\u05BD\u05C1\u05C2\u05C4\u05C5]/g, '')
+    }
+    
+    textNode.nodeValue = text
+  })
 }
 
 const toggleTheme = () => {
@@ -133,10 +239,10 @@ onMounted(() => {
   gap: 8px;
 }
 
-.toc-toggle-btn {
+.toc-toggle-btn,
+.diacritics-toggle-btn {
   padding: 6px;
   cursor: pointer;
-  font-size: 18px;
   background: transparent;
   border: none;
   border-radius: 4px;
@@ -146,17 +252,63 @@ onMounted(() => {
   justify-content: center;
   width: 32px;
   height: 32px;
-  color: var(--text-primary);
 }
 
-.toc-toggle-btn:hover {
+.toc-toggle-btn:hover,
+.diacritics-toggle-btn:hover {
   background: var(--hover-bg);
   transform: scale(1.05);
 }
 
 .toc-toggle-btn.active {
   background: var(--accent-bg);
-  color: var(--accent-color);
+}
+
+.diacritics-toggle-btn.state-1 {
+  background: rgba(255, 165, 0, 0.15);
+}
+
+.diacritics-toggle-btn.state-2 {
+  background: rgba(255, 69, 0, 0.15);
+}
+
+.toc-icon {
+  width: 20px;
+  height: 20px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.diacritics-icon {
+  font-size: 18px;
+  font-family: 'Times New Roman', Times, serif;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  user-select: none;
+}
+
+.toc-toggle-btn:hover .toc-icon,
+.diacritics-toggle-btn:hover .diacritics-icon {
+  opacity: 1;
+}
+
+.toc-toggle-btn.active .toc-icon {
+  opacity: 1;
+  filter: brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(180deg) brightness(95%) contrast(101%);
+}
+
+.diacritics-toggle-btn.state-1 .diacritics-icon {
+  opacity: 1;
+  color: #ff8c00;
+}
+
+.diacritics-toggle-btn.state-2 .diacritics-icon {
+  opacity: 1;
+  color: #ff4500;
+}
+
+.rtl-flip {
+  transform: scaleX(-1);
 }
 
 .theme-toggle-btn {
@@ -185,8 +337,8 @@ onMounted(() => {
 }
 
 .theme-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: linear-gradient(90deg, var(--text-primary) 50%, transparent 50%);
   border: 1.5px solid var(--text-primary);
