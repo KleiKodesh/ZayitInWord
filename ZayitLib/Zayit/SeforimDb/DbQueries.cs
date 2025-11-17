@@ -1,0 +1,75 @@
+﻿using Dapper;
+using System.Collections.Generic;
+using System.Linq;
+using Zayit.Models;
+
+namespace Zayit.SeforimDb
+{
+    public static class DbQueries
+    {
+        static readonly DbManager _db = new DbManager();
+
+        public static IEnumerable<string> GetBookContent(int bookId)
+        {
+            return _db.DapperConnection
+                .Query<string>(SqlQueries.GetBookContent(bookId));
+        }
+
+        public static (Category[] Tree, Book[] AllBooks) BuildTree()
+        {
+            // Categories must already be sorted in preorder
+            var allCategories = _db.DapperConnection
+                .Query<Category>(SqlQueries.GetAllCategories)
+                .ToArray();
+
+            var allBooks = new List<Book>();
+            var roots = new List<Category>();
+            var stack = new Stack<Category>();
+
+            foreach (var cat in allCategories)
+            {
+                // Pop finished parent categories
+                while (stack.Count > 0 && stack.Peek().Id != cat.ParentId)
+                {
+                    var finishedParent = stack.Pop();
+                    AssignBooksToCategory(finishedParent, allBooks);
+                }
+
+                if (stack.Count == 0)
+                    roots.Add(cat);
+                else
+                {
+                    var parent = stack.Peek();
+                    parent.Children.Add(cat);
+                    cat.FullCategory = parent.FullCategory + parent.Title + " / ";
+                }
+
+                stack.Push(cat);
+            }
+
+            // Handle remaining items in the stack
+            while (stack.Count > 0)
+            {
+                var leaf = stack.Pop();
+                AssignBooksToCategory(leaf, allBooks);
+            }
+
+            return (roots.ToArray(), allBooks.ToArray());
+        }
+
+        private static void AssignBooksToCategory(Category category, List<Book> allBooks)
+        {
+            if (category.Children.Count == 0) // Only assign to leaf categories
+            {
+                category.Books = _db.DapperConnection
+                    .Query<Book>(SqlQueries.GetBooksByCategoryId(category.Id))
+                    .ToArray();
+
+                foreach (var book in category.Books)
+                    book.FullCategory = category.FullCategory + category.Title + " / ";
+
+                allBooks.AddRange(category.Books);
+            }
+        }
+    }
+}
