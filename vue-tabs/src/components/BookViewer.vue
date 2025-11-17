@@ -1,6 +1,5 @@
 <template>
   <div class="book-viewer" ref="bookViewerRef">
-    <TocSidebar />
     <div v-if="isLoading" class="loading-container">
       <div class="loading-text">טוען...</div>
     </div>
@@ -11,7 +10,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, onActivated, ref } from 'vue'
 import { useTabsStore } from '../stores/tabs'
-import TocSidebar from './TocSidebar.vue'
 
 const props = defineProps<{
   tabId: string
@@ -298,7 +296,10 @@ onUnmounted(() => {
   background: var(--hover-bg);
 }
 
-:root.dark .content-container :deep(line:focus) {
+:root.dark .content-container :deep(line:not(:has(h1, h2, h3, h4, h5, h6)):focus) {
   border-right: 3px solid var(--accent-color);
+  padding-right: 3px;
+  margin-right: -3px;
+  outline: none;
 }
 </style>

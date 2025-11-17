@@ -10,6 +10,8 @@
       @close="closeDropdown"
     />
 
+    <TocSidebar />
+
     <div class="tab-content">
       <div class="tab-pane">
         <KeepAlive :max="10">
@@ -33,6 +35,7 @@ import { ref, onMounted } from 'vue'
 import { useTabsStore } from './stores/tabs'
 import TabHeader from './components/TabHeader.vue'
 import TabDropdown from './components/TabDropdown.vue'
+import TocSidebar from './components/TocSidebar.vue'
 import LandingPage from './components/LandingPage.vue'
 import BookViewer from './components/BookViewer.vue'
 
@@ -164,5 +167,15 @@ html, body {
   to {
     opacity: 1;
   }
+}
+
+/* Global themed icon class for PNG images */
+.themed-icon {
+  filter: brightness(0) saturate(100%) invert(0%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(23%) contrast(100%);
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+:root.dark .themed-icon {
+  filter: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(80%) contrast(100%);
 }
 </style>

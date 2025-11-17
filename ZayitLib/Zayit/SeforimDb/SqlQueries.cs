@@ -131,14 +131,15 @@ namespace Zayit.SeforimDb
         public static string GetLinks(int lineId) => $@"
         SELECT
             l.targetLineId,
+            l.targetBookId,
             l.connectionTypeId,
             bk.title,
             ln.content
         FROM link AS l
         JOIN line AS ln
             ON ln.id = l.targetLineId
-        join book as bk
-          on bk.id = l.targetBookId
+        JOIN book AS bk
+          ON bk.id = l.targetBookId
         WHERE l.sourceLineId = 3
         ORDER BY l.connectionTypeId, bk.title
         ";        

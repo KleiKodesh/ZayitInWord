@@ -16,7 +16,7 @@
         :class="{ active: isTocVisible }"
         title="תוכן עניינים"
       >
-        <img src="/assets/ic_fluent_text_bullet_list_tree_24_regular.png" alt="TOC" class="toc-icon rtl-flip" />
+        <img src="/assets/ic_fluent_text_bullet_list_tree_24_regular.png" alt="TOC" class="toc-icon themed-icon rtl-flip" />
       </button>
       <button 
         v-if="showTocButton"
@@ -91,12 +91,15 @@ const handleNewTab = () => {
 }
 
 const toggleToc = () => {
-  tocStore.toggleToc()
+  const activeTab = tabsStore.activeTab
+  if (!activeTab || activeTab.type !== 'book' || !activeTab.bookId) return
   
-  // Request TOC if visible and we have a book
-  if (tocStore.isVisible && tabsStore.activeTab?.type === 'book' && tabsStore.activeTab.bookId) {
-    tocStore.requestToc(tabsStore.activeTab.bookId)
+  // If opening TOC, request data first if needed
+  if (!tocStore.isVisible) {
+    tocStore.requestToc(activeTab.bookId)
   }
+  
+  tocStore.toggleToc()
 }
 
 const toggleDiacritics = () => {
@@ -276,14 +279,14 @@ onMounted(() => {
   width: 20px;
   height: 20px;
   opacity: 0.7;
-  transition: opacity 0.2s ease;
 }
 
 .diacritics-icon {
   font-size: 18px;
   font-family: 'Times New Roman', Times, serif;
+  color: var(--text-primary);
   opacity: 0.7;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, color 0.2s ease;
   user-select: none;
 }
 
@@ -294,7 +297,7 @@ onMounted(() => {
 
 .toc-toggle-btn.active .toc-icon {
   opacity: 1;
-  filter: brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(180deg) brightness(95%) contrast(101%);
+  filter: brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(180deg) brightness(95%) contrast(101%) !important;
 }
 
 .diacritics-toggle-btn.state-1 .diacritics-icon {
@@ -337,8 +340,8 @@ onMounted(() => {
 }
 
 .theme-icon {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: linear-gradient(90deg, var(--text-primary) 50%, transparent 50%);
   border: 1.5px solid var(--text-primary);

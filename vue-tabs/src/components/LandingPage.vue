@@ -13,7 +13,7 @@
 
     <div class="search-bar">
       <button @click="resetTree" class="reset-btn" title="איפוס עץ">
-        <img src="/assets/ic_fluent_text_bullet_list_tree_24_regular.png" alt="Reset" class="rtl-flip" />
+        <img src="/assets/ic_fluent_text_bullet_list_tree_24_regular.png" alt="Reset" class="themed-icon rtl-flip" />
       </button>
       <input 
         ref="searchInputRef"
@@ -243,25 +243,9 @@ const selectBook = (book: Book) => {
   transform: scale(0.95);
 }
 
-.search-bar button img {
-  width: 20px;
-  opacity: 0.7;
-  filter: var(--img-filter, none);
-}
-
-.search-bar button:hover img {
-  opacity: 1;
-}
-
-:root.dark .search-bar button img {
-  filter: invert(1);
-}
-
 .reset-btn img {
   width: 20px;
   opacity: 0.7;
-  filter: var(--img-filter, none);
-  transition: all 0.2s ease;
 }
 
 .reset-btn:hover img {
@@ -270,10 +254,6 @@ const selectBook = (book: Book) => {
 
 .rtl-flip {
   transform: scaleX(-1);
-}
-
-:root.dark .reset-btn img {
-  filter: invert(1);
 }
 
 @media (max-width: 768px) {

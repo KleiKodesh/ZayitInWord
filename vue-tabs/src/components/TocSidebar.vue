@@ -69,7 +69,7 @@ if (!window.receiveTocData) {
 /* Semi-transparent backdrop - click to close */
 .toc-backdrop {
   position: fixed;
-  top: 0;
+  top: 48px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -90,12 +90,12 @@ if (!window.receiveTocData) {
 
 /* TOC Sidebar - compact semi-transparent overlay */
 .toc-sidebar {
-  position: absolute;
-  top: 0;
+  position: fixed;
+  top: 48px;
   right: 0;
   width: fit-content;
   max-width: min(500px, 50vw);
-  height: 100%;
+  height: calc(100vh - 48px);
   background-color: rgba(255, 255, 255, 0.5);
   backdrop-filter: blur(3px);
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
