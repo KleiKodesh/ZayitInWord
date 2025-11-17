@@ -108,5 +108,23 @@ namespace Zayit.SeforimDb
                 );
             ";
         }
+
+        public static string GetToc(int docId) => $@"
+        SELECT 
+            te.id,
+            te.bookId,
+            te.parentId,
+            te.textId,
+            te.level,
+            te.lineId,
+            te.isLastChild,
+            te.hasChildren,
+            tt.text AS Text
+        FROM tocEntry AS te
+        LEFT JOIN tocText AS tt 
+            ON te.textId = tt.id
+        WHERE te.bookId = {docId};
+        ";
+        
     }
 }

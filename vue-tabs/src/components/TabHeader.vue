@@ -1,14 +1,26 @@
 <template>
   <div class="tab-header" :class="{ open: isDropdownOpen }" @click="emit('toggleDropdown')">
-    <div class="tab-header-content">
-      <span class="tab-header-text">{{ headerText }}</span>
-      <span class="tab-header-icon">▼</span>
+    <div class="tab-header-left">
+      <div class="tab-header-content">
+        <span class="tab-header-icon">▼</span>
+        <span class="tab-header-text">{{ headerText }}</span>
+        <button class="add-tab-btn" @click.stop="handleNewTab" title="כרטיסייה חדשה">+</button>
+      </div>
     </div>
+
     <div class="header-actions">
+      <button 
+        v-if="showTocButton"
+        class="toc-toggle-btn" 
+        @click.stop="toggleToc" 
+        :class="{ active: isTocVisible }"
+        title="תוכן עניינים"
+      >
+        ☰
+      </button>
       <button class="theme-toggle-btn" @click.stop="toggleTheme" title="החלף ערכת נושא">
         <div class="theme-icon"></div>
       </button>
-      <button class="add-tab-btn" @click.stop="handleNewTab">+ חדש</button>
     </div>
   </div>
 </template>
@@ -16,17 +28,32 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { useTabsStore } from '../stores/tabs'
+import { useTocStore } from '../stores/toc'
 
 const props = defineProps<{ isDropdownOpen: boolean }>()
 const emit = defineEmits<{ toggleDropdown: [] }>()
 const isDropdownOpen = computed(() => props.isDropdownOpen)
 const tabsStore = useTabsStore()
+const tocStore = useTocStore()
 const headerText = computed(() => tabsStore.activeTab?.title || 'כרטיסייה חדשה')
+
+// Show TOC button only for book tabs
+const showTocButton = computed(() => tabsStore.activeTab?.type === 'book')
+const isTocVisible = computed(() => tocStore.isVisible)
 
 const isDark = ref(false)
 
 const handleNewTab = () => {
   tabsStore.createTab()
+}
+
+const toggleToc = () => {
+  tocStore.toggleToc()
+  
+  // Request TOC if visible and we have a book
+  if (tocStore.isVisible && tabsStore.activeTab?.type === 'book' && tabsStore.activeTab.bookId) {
+    tocStore.requestToc(tabsStore.activeTab.bookId)
+  }
 }
 
 const toggleTheme = () => {
@@ -65,13 +92,17 @@ onMounted(() => {
   background: var(--active-bg);
 }
 
+.tab-header-left {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
 .tab-header-content {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex: 1;
+  gap: 4px;
   min-width: 0;
-  flex-direction: row-reverse;
 }
 
 .tab-header-text {
@@ -81,14 +112,15 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
 }
 
 .tab-header-icon {
-  font-size: 12px;
+  font-size: 10px;
   color: var(--text-secondary);
   transition: transform 0.2s ease;
   flex-shrink: 0;
+  opacity: 0.7;
+  margin-left: 4px;
 }
 
 .tab-header.open .tab-header-icon {
@@ -99,6 +131,32 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.toc-toggle-btn {
+  padding: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--text-primary);
+}
+
+.toc-toggle-btn:hover {
+  background: var(--hover-bg);
+  transform: scale(1.05);
+}
+
+.toc-toggle-btn.active {
+  background: var(--accent-bg);
+  color: var(--accent-color);
 }
 
 .theme-toggle-btn {
@@ -136,19 +194,30 @@ onMounted(() => {
 }
 
 .add-tab-btn {
-  padding: 6px 12px;
+  padding: 4px 8px;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--accent-color);
-  background: var(--accent-bg);
-  border-radius: 4px;
-  transition: all 0.1s ease;
-  border: none;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  background: transparent;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 8px;
+  opacity: 0.8;
 }
 
 .add-tab-btn:hover {
+  color: var(--accent-color);
   background: var(--hover-bg);
+  border-color: var(--border-color);
+  opacity: 1;
+  transform: scale(1.05);
 }
 
 .add-tab-btn:active {

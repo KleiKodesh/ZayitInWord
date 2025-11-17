@@ -84,12 +84,13 @@ namespace Zayit
             try
             {
                 const int BATCH_SIZE = 1000; // Send 1000 lines at a time
-                var batch = new System.Collections.Generic.List<string>(BATCH_SIZE);
+                var batch = new System.Collections.Generic.List<object>(BATCH_SIZE);
+                int lineId = 0;
                 
-                // Stream book lines in batches to the UI
+                // Stream book lines in batches to the UI with line IDs
                 foreach (string lineContent in SeforimDb.DbQueries.GetBookContent(bookId))
                 {
-                    batch.Add(lineContent);
+                    batch.Add(new { id = lineId++, html = lineContent });
                     
                     // When batch is full, send it
                     if (batch.Count >= BATCH_SIZE)
@@ -118,6 +119,32 @@ namespace Zayit
             catch (Exception ex)
             {
                 Debug.Assert(false, $"OpenBook error: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Called from JavaScript to get the table of contents for a book
+        /// </summary>
+        /// <param name="bookId">The book ID to get TOC for</param>
+        private async void GetToc(int bookId)
+        {
+            try
+            {
+                var (tree, _) = SeforimDb.DbQueries.GetTocTree(bookId);
+                
+                string json = JsonSerializer.Serialize(tree, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+                
+                string js = $"window.receiveTocData({bookId}, {json});";
+                await ExecuteScriptAsync(js);
+                
+                Debug.WriteLine($"TOC for book {bookId} sent successfully");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetToc error: {ex}");
             }
         }
     }

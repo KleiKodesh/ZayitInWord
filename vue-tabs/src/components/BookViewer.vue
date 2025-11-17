@@ -1,29 +1,37 @@
 <template>
-  <div class="book-viewer">
+  <div class="book-viewer" ref="bookViewerRef">
+    <TocSidebar />
     <div class="content-container" :data-tab-id="tabId"></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, onActivated, ref } from 'vue'
 import { useTabsStore } from '../stores/tabs'
+import { useTocStore } from '../stores/toc'
+import TocSidebar from './TocSidebar.vue'
 
 const props = defineProps<{
   tabId: string
 }>()
 
 const tabsStore = useTabsStore()
+const tocStore = useTocStore()
+const bookViewerRef = ref<HTMLElement | null>(null)
 const contentContainer = ref<HTMLElement | null>(null)
 const lineCounter = ref(0)
 const initLineIndex = ref(0)
+const savedScrollPosition = ref(0)
 
 // Expose functions to C# with tab-specific keys
 declare global {
   interface Window {
     addLine: (tabId: string, html: string) => void
+    addLines: (tabId: string, linesArray: Array<{ id: number; html: string }>) => void
     setInitLineIndex: (tabId: string, index: number) => void
     clearBookContent: (tabId: string) => void
     bookLoadComplete: (tabId: string) => void
+    receiveTocData: (bookId: number, tocTree: any[]) => void
   }
 }
 
@@ -35,6 +43,10 @@ if (!window.addLine) {
   window.addLine = (tabId: string, html: string) => {
     const handler = tabHandlers.get(tabId)
     if (handler?.addLine) handler.addLine(html)
+  }
+  window.addLines = (tabId: string, linesArray: Array<{ id: number; html: string }>) => {
+    const handler = tabHandlers.get(tabId)
+    if (handler?.addLines) handler.addLines(linesArray)
   }
   window.setInitLineIndex = (tabId: string, index: number) => {
     const handler = tabHandlers.get(tabId)
@@ -64,6 +76,27 @@ const addLineToThisTab = (html: string) => {
   }
 }
 
+const addLinesToThisTab = (linesArray: Array<{ id: number; html: string }>) => {
+  if (!contentContainer.value) return
+  
+  // Create a document fragment for better performance
+  const fragment = document.createDocumentFragment()
+  
+  linesArray.forEach(({ id, html }) => {
+    const lineElement = document.createElement('line')
+    lineElement.tabIndex = 0
+    lineElement.id = `line-${id}`
+    lineElement.innerHTML = html
+    fragment.appendChild(lineElement)
+    
+    if (lineCounter.value++ === initLineIndex.value) {
+      lineElement.scrollIntoView()
+    }
+  })
+  
+  contentContainer.value.appendChild(fragment)
+}
+
 const setInitLineIndexForThisTab = (index: number) => {
   initLineIndex.value = index
 }
@@ -80,33 +113,38 @@ onMounted(() => {
   
   // Clear any existing handlers for this tab to prevent duplicates
   if (tabHandlers.has(props.tabId)) {
-    console.warn(`Handler already exists for ${props.tabId}, replacing...`)
     tabHandlers.delete(props.tabId)
   }
   
-  // Register this tab's handlers FIRST before any book loading
+  // Register this tab's handlers
   tabHandlers.set(props.tabId, {
     addLine: addLineToThisTab,
+    addLines: addLinesToThisTab,
     setInitLineIndex: setInitLineIndexForThisTab,
     clearBookContent: clearContentForThisTab,
     bookLoadComplete: () => {
       // Book finished loading, restore scroll position
-      const tab = tabsStore.tabs.find(t => t.id === props.tabId)
-      const tabPane = document.querySelector(`.tab-pane[data-tab-id="${props.tabId}"]`) as HTMLElement
-      if (tab?.scrollPosition !== undefined && tabPane) {
-        const savedPosition = tab.scrollPosition
-        // Use requestAnimationFrame to ensure DOM is fully updated
+      if (savedScrollPosition.value > 0 && bookViewerRef.value) {
         requestAnimationFrame(() => {
-          if (tabPane) {
-            tabPane.scrollTop = savedPosition
+          if (bookViewerRef.value) {
+            bookViewerRef.value.scrollTop = savedScrollPosition.value
           }
         })
       }
     }
   })
   
-  // Request book content if container is empty
+  // Load saved scroll position from store
   const tab = tabsStore.tabs.find(t => t.id === props.tabId)
+  if (tab?.scrollPosition !== undefined) {
+    savedScrollPosition.value = tab.scrollPosition
+    // Restore immediately if already has content
+    if (bookViewerRef.value && contentContainer.value && contentContainer.value.children.length > 0) {
+      bookViewerRef.value.scrollTop = savedScrollPosition.value
+    }
+  }
+  
+  // Request book content if container is empty
   if (tab?.type === 'book' && tab.bookId && contentContainer.value?.children.length === 0) {
     if (window.chrome?.webview) {
       window.chrome.webview.postMessage({
@@ -115,10 +153,31 @@ onMounted(() => {
       })
     }
   }
+  
+  // Save scroll position on scroll
+  if (bookViewerRef.value) {
+    bookViewerRef.value.addEventListener('scroll', () => {
+      if (bookViewerRef.value) {
+        savedScrollPosition.value = bookViewerRef.value.scrollTop
+        tabsStore.saveScrollPosition(props.tabId, savedScrollPosition.value)
+      }
+    })
+  }
+})
+
+// Restore scroll when component is reactivated from cache
+onActivated(() => {
+  if (bookViewerRef.value && savedScrollPosition.value > 0) {
+    bookViewerRef.value.scrollTop = savedScrollPosition.value
+  }
 })
 
 onUnmounted(() => {
-  // Clean up handlers when component unmounts
+  // Save final scroll position
+  if (bookViewerRef.value) {
+    tabsStore.saveScrollPosition(props.tabId, bookViewerRef.value.scrollTop)
+  }
+  // Clean up handlers
   tabHandlers.delete(props.tabId)
 })
 </script>
@@ -128,6 +187,7 @@ onUnmounted(() => {
   height: 100%;
   width: 100%;
   direction: rtl;
+  overflow-y: auto;
 }
 
 .content-container {

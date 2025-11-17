@@ -97,6 +97,7 @@
   <ItemGroup>
     <Compile Include="Models\Book.cs" />
     <Compile Include="Models\Category.cs" />
+    <Compile Include="Models\TocEntry.cs" />
     <Compile Include="SeforimDb\DbManager.cs" />
     <Compile Include="SeforimDb\DbQueries.cs" />
     <Compile Include="Program.cs" />

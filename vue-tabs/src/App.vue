@@ -11,22 +11,22 @@
     />
 
     <div class="tab-content">
-      <div
-        v-for="tab in tabsStore.tabs"
-        :key="tab.id"
-        v-show="tab.id === tabsStore.activeTabId"
-        class="tab-pane"
-        :data-tab-id="tab.id"
-      >
-        <LandingPage v-if="tab.type === 'search'" :key="`search-${tab.id}`" />
-        <BookViewer v-else-if="tab.type === 'book'" :key="`book-${tab.id}-${tab.bookId}`" :tab-id="tab.id" />
-      </div>
+      <KeepAlive :max="10">
+        <div
+          v-if="tabsStore.activeTab"
+          :key="tabsStore.activeTab.id"
+          class="tab-pane"
+        >
+          <LandingPage v-if="tabsStore.activeTab.type === 'search'" />
+          <BookViewer v-else-if="tabsStore.activeTab.type === 'book'" :tab-id="tabsStore.activeTab.id" />
+        </div>
+      </KeepAlive>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useTabsStore } from './stores/tabs'
 import TabHeader from './components/TabHeader.vue'
 import TabDropdown from './components/TabDropdown.vue'
@@ -43,27 +43,6 @@ function handleOutsideClick(e: MouseEvent) {
   if (!(e.target as HTMLElement).closest('.tab-header, .dropdown')) closeDropdown()
 }
 
-// Save scroll position when switching away from a tab
-watch(() => tabsStore.activeTabId, async (newTabId, oldTabId) => {
-  // Save scroll position of the old tab
-  if (oldTabId) {
-    const oldPane = document.querySelector(`.tab-pane[data-tab-id="${oldTabId}"]`) as HTMLElement
-    if (oldPane) {
-      tabsStore.saveScrollPosition(oldTabId, oldPane.scrollTop)
-    }
-  }
-  
-  // Restore scroll position of the new tab
-  if (newTabId) {
-    await nextTick()
-    const newPane = document.querySelector(`.tab-pane[data-tab-id="${newTabId}"]`) as HTMLElement
-    const tab = tabsStore.tabs.find(t => t.id === newTabId)
-    if (newPane && tab?.scrollPosition !== undefined) {
-      newPane.scrollTop = tab.scrollPosition
-    }
-  }
-})
-
 onMounted(() => {
   // Restore theme from localStorage
   const savedTheme = localStorage.getItem('zayit-theme')
@@ -73,26 +52,6 @@ onMounted(() => {
   
   // Restore tabs from localStorage or create default tab
   tabsStore.restoreTabs()
-  
-  // Set up scroll listeners for all tab panes
-  const observer = new MutationObserver(() => {
-    document.querySelectorAll('.tab-pane').forEach((pane) => {
-      const tabId = (pane as HTMLElement).dataset.tabId
-      if (tabId && !(pane as any).__scrollListenerAdded) {
-        pane.addEventListener('scroll', () => {
-          if (tabsStore.activeTabId === tabId) {
-            tabsStore.saveScrollPosition(tabId, (pane as HTMLElement).scrollTop)
-          }
-        })
-        ;(pane as any).__scrollListenerAdded = true
-      }
-    })
-  })
-  
-  observer.observe(document.querySelector('.tab-content')!, {
-    childList: true,
-    subtree: true
-  })
 })
 
 // Save theme when it changes
@@ -111,11 +70,15 @@ function saveTheme(isDark: boolean) {
 :root {
   /* VS Code Light Theme */
   --bg-primary: #ffffff;
+  --bg-primary-rgb: 255, 255, 255;
   --bg-secondary: #f3f3f3;
+  --bg-secondary-rgb: 243, 243, 243;
   --text-primary: #3b3b3b;
   --text-secondary: #6c6c6c;
   --border-color: #e5e5e5;
+  --border-color-rgb: 229, 229, 229;
   --hover-bg: rgba(90, 93, 94, 0.1);
+  --hover-bg-rgb: 90, 93, 94;
   --active-bg: rgba(90, 93, 94, 0.15);
   --accent-color: #007acc;
   --accent-color-rgb: 0, 122, 204;
@@ -125,11 +88,15 @@ function saveTheme(isDark: boolean) {
 :root.dark {
   /* VS Code Dark Theme */
   --bg-primary: #1e1e1e;
+  --bg-primary-rgb: 30, 30, 30;
   --bg-secondary: #252526;
+  --bg-secondary-rgb: 37, 37, 38;
   --text-primary: #cccccc;
   --text-secondary: #858585;
   --border-color: #3e3e42;
+  --border-color-rgb: 62, 62, 66;
   --hover-bg: rgba(90, 93, 94, 0.31);
+  --hover-bg-rgb: 90, 93, 94;
   --active-bg: rgba(90, 93, 94, 0.5);
   --accent-color: #0e639c;
   --accent-color-rgb: 14, 99, 156;
@@ -173,19 +140,14 @@ html, body {
   flex: 1;
   overflow: hidden;
   background: var(--bg-primary);
-  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .tab-pane {
-  position: absolute;
-  top: 0;
-  left: 0;
   height: 100%;
   width: 100%;
   overflow-y: auto;
-  will-change: transform;
-  backface-visibility: hidden;
-  transform: translateZ(0);
 }
 
 @keyframes fadeIn {

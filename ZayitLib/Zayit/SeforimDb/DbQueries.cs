@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Zayit.Models;
@@ -70,6 +71,39 @@ namespace Zayit.SeforimDb
 
                 allBooks.AddRange(category.Books);
             }
+        }
+
+        public static (TocEntry[] Tree, TocEntry AllTocs) GetTocTree(int docId)
+        {
+            var allEntries = _db.DapperConnection
+                .Query<TocEntry>(SqlQueries.GetToc(docId))
+                .ToArray();
+
+            // Build tree directly from list
+            var tree = BuildChildren(null, allEntries).ToArray();
+
+            // Create a root holder for "AllTocs"
+            var root = new TocEntry
+            {
+                Id = 0,
+                Children = tree
+            };
+
+            return (tree, root);
+        }
+
+        private static TocEntry[] BuildChildren(int? parentId, TocEntry[] items)
+        {
+            // Find direct children
+            var children = items
+                .Where(t => t.ParentId == parentId)
+                .ToArray();
+
+            foreach (var child in children)
+                if (child.HasChildren)
+                    child.Children = BuildChildren(child.Id, items) ?? Array.Empty<TocEntry>();
+
+            return children;
         }
     }
 }

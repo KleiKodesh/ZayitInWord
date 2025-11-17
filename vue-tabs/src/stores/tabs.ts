@@ -27,7 +27,7 @@ export const useTabsStore = defineStore('tabs', () => {
     tabCounter++
     const newTab: Tab = {
       id: `tab-${tabCounter}`,
-      title: title || (type === 'search' ? 'חיפוש' : `ספר ${tabCounter}`),
+      title: title || (type === 'search' ? 'איתור' : `ספר ${tabCounter}`),
       type,
       bookId
     }
