@@ -1,0 +1,39 @@
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f3f3f3;
+  --text-primary: #3b3b3b;
+  --text-secondary: #6c6c6c;
+  --border-color: #e5e5e5;
+  --hover-bg: rgba(90, 93, 94, 0.1);
+  --active-bg: rgba(90, 93, 94, 0.15);
+  --accent-color: #007acc;
+}
+
+:root.dark {
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #252526;
+  --text-primary: #cccccc;
+  --text-secondary: #858585;
+  --border-color: #3e3e42;
+  --hover-bg: rgba(90, 93, 94, 0.31);
+  --active-bg: rgba(90, 93, 94, 0.5);
+  --accent-color: #0e639c;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+#app {
+  height: 100vh;
+}

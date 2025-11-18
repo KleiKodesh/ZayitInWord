@@ -105,7 +105,6 @@ export const useTabsStore = defineStore('tabs', () => {
         activeTabId.value = data.activeTabId || null
         tabCounter = data.tabCounter || 0
         
-        // If no tabs, create default
         if (tabs.value.length === 0) {
           createTab()
         }
@@ -118,7 +117,6 @@ export const useTabsStore = defineStore('tabs', () => {
     }
   }
 
-  // Auto-save tabs whenever they change
   function createTabWithSave(type: 'search' | 'book' = 'search', title?: string, bookId?: number) {
     const tab = createTab(type, title, bookId)
     saveTabs()

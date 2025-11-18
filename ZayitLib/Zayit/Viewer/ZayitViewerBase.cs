@@ -1,17 +1,17 @@
 ﻿using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 using System;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Windows.Forms;
 
-namespace Zayit
+namespace Zayit.Viewer
 {
     public class ZayitViewerBase : WebView2
     {
         private readonly object _commandHandler;
+        CoreWebView2Environment _environment;
 
         public ZayitViewerBase(object commandHandler = null)
         {
@@ -20,6 +20,19 @@ namespace Zayit
             // Optional external handler
             _commandHandler = commandHandler ?? this;
             WebMessageReceived += ZayitViewer_WebMessageReceived;
+
+            EnsurCoreAsync();
+        }
+
+        public async void EnsurCoreAsync()
+        {
+            if (_environment == null)
+            {
+                string tempWebCacheDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                _environment = await CoreWebView2Environment.CreateAsync(userDataFolder: tempWebCacheDir);
+            }
+
+            await EnsureCoreWebView2Async(_environment);
         }
 
         private void ZayitViewer_WebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)

@@ -26,7 +26,7 @@
 
     <div class="tab-content">
       <div class="tab-pane">
-        <KeepAlive :max="10">
+        <KeepAlive :max="15">
           <LandingPage 
             v-if="tabsStore.activeTab && tabsStore.activeTab.type === 'search'"
             :key="`search-${tabsStore.activeTab.id}`"

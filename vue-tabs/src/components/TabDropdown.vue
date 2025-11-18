@@ -6,8 +6,9 @@
         :key="tab.id"
         class="tab-item"
         :class="{ active: tab.id === tabsStore.activeTabId }"
+        @click="activateTab(tab.id)"
       >
-        <span class="tab-item-title" @click="activateTab(tab.id)">{{ tab.title }}</span>
+        <span class="tab-item-title">{{ tab.title }}</span>
         <div class="close-btn" @click.stop="tabsStore.closeTab(tab.id)">×</div>
       </div>
     </div>

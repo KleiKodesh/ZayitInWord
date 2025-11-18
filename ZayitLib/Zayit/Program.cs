@@ -22,10 +22,10 @@ namespace Zayit
                 AutoScaleMode = AutoScaleMode.Dpi
             };
 
-            var viewer = new ZayitViewer();
-            var uc = new UserControl { Dock = DockStyle.Fill };
-            uc.Controls.Add(viewer);
-            form.Controls.Add(uc);
+            //var viewer = new ZayitViewer();
+            //var uc = new UserControl { Dock = DockStyle.Fill };
+            //uc.Controls.Add(viewer);
+            form.Controls.Add(new Zayit.Viewer.ZayitViewerHost());
             //form.Controls.Add(viewer);
 
             Application.Run(form);
