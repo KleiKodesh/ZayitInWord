@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Text.Json;
 using System.Windows.Forms;
-using Zayit.Models;
-using Zayit.SeforimDb;
 
 namespace Zayit
 {
@@ -26,7 +23,10 @@ namespace Zayit
             };
 
             var viewer = new ZayitViewer();
-            form.Controls.Add(viewer);
+            var uc = new UserControl { Dock = DockStyle.Fill };
+            uc.Controls.Add(viewer);
+            form.Controls.Add(uc);
+            //form.Controls.Add(viewer);
 
             Application.Run(form);
         }

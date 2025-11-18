@@ -223,8 +223,9 @@ onUnmounted(() => {
 .content-container {
   color: #111;
   text-align: justify;
-  font-family: 'Times New Roman', Times, serif;
+  font-family: var(--text-font);
   padding: 16px;
+  font-size: 100%; /* Default, will be overridden by settings */
 }
 
 .content-container.hidden {
@@ -243,7 +244,7 @@ onUnmounted(() => {
 .content-container :deep(line h4),
 .content-container :deep(line h5),
 .content-container :deep(line h6) {
-  font-family: 'Guttman Mantova', Tahoma, sans-serif;
+  font-family: var(--header-font);
   padding-block-start: 0.3em;
   color: #1a1a1a;
 }

@@ -146,6 +146,80 @@ namespace Zayit
                 Debug.WriteLine($"GetToc error: {ex}");
             }
         }
+
+        /// <summary>
+        /// Check if the viewer is hosted in a UserControl
+        /// </summary>
+        private async void CheckHostingMode()
+        {
+            try
+            {
+                bool isInUserControl = Parent is System.Windows.Forms.UserControl;
+                string js = $"window.setHostingMode && window.setHostingMode({isInUserControl.ToString().ToLower()});";
+                await ExecuteScriptAsync(js);
+                Debug.WriteLine($"Hosting mode sent: isInUserControl={isInUserControl}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"CheckHostingMode error: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Toggle between UserControl and standalone Form
+        /// </summary>
+        private void TogglePopOut()
+        {
+            try
+            {
+                if (Parent is System.Windows.Forms.UserControl userControl)
+                {
+                    // Pop out to new form
+                    var form = new System.Windows.Forms.Form
+                    {
+                        Text = "Zayit Viewer",
+                        Width = 1200,
+                        Height = 800,
+                        StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+                    };
+
+                    // Remove from UserControl
+                    userControl.Controls.Remove(this);
+                    
+                    // Add to Form
+                    form.Controls.Add(this);
+                    
+                    // Store reference to original parent
+                    form.Tag = userControl;
+                    
+                    // Handle form closing - pop back in
+                    form.FormClosing += (s, e) =>
+                    {
+                        form.Controls.Remove(this);
+                        userControl.Controls.Add(this);
+                    };
+                    
+                    form.Show();
+                    Debug.WriteLine("Popped out to standalone form");
+                }
+                else if (Parent is System.Windows.Forms.Form form)
+                {
+                    // Pop back into UserControl
+                    if (form.Tag is System.Windows.Forms.UserControl originalParent)
+                    {
+                        form.Controls.Remove(this);
+                        originalParent.Controls.Add(this);
+                        form.Close();
+                        Debug.WriteLine("Popped back into UserControl");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"TogglePopOut error: {ex}");
+                System.Windows.Forms.MessageBox.Show($"Error toggling pop-out: {ex.Message}");
+            }
+        }
     }
 }
 

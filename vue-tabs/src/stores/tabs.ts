@@ -65,6 +65,13 @@ export const useTabsStore = defineStore('tabs', () => {
     }
   }
 
+  function closeAllTabs() {
+    tabs.value = []
+    activeTabId.value = null
+    // Auto-create new tab when all tabs are closed
+    createTab()
+  }
+
   function activateTab(id: string) {
     if (tabs.value.find(tab => tab.id === id)) {
       activeTabId.value = id
@@ -123,6 +130,11 @@ export const useTabsStore = defineStore('tabs', () => {
     saveTabs()
   }
 
+  function closeAllTabsWithSave() {
+    closeAllTabs()
+    saveTabs()
+  }
+
   function activateTabWithSave(id: string) {
     activateTab(id)
     saveTabs()
@@ -150,6 +162,7 @@ export const useTabsStore = defineStore('tabs', () => {
     createTab: createTabWithSave,
     convertTabToBook: convertTabToBookWithSave,
     closeTab: closeTabWithSave,
+    closeAllTabs: closeAllTabsWithSave,
     activateTab: activateTabWithSave,
     setTreeData,
     setLoadingTree,

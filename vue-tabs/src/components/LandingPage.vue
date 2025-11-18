@@ -168,15 +168,15 @@ const selectBook = (book: Book) => {
 }
 
 .content::before {
-  background: url('/assets/logo_search.png') no-repeat center center;
- background-size: clamp(250px, 40vw, 500px);
+  background: url('/assets/zayit_transparent.png') no-repeat center center;
+ background-size: clamp(50px, 40vw, 250px);
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  opacity: 0.05;
+  opacity: 0.2;
   pointer-events: none;
 }
 

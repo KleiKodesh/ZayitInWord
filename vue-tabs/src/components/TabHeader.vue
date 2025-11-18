@@ -4,43 +4,77 @@
       <div class="tab-header-content">
         <span class="tab-header-icon">▼</span>
         <span class="tab-header-text">{{ headerText }}</span>
-        <button class="add-tab-btn" @click.stop="handleNewTab" title="כרטיסייה חדשה">+</button>
+        <button class="add-tab-btn" @click.stop="handleNewTab" title="כרטיסייה חדשה (Ctrl+N)">+</button>
       </div>
     </div>
 
     <div class="header-actions">
       <button 
         v-if="showTocButton"
+        class="diacritics-toggle-btn" 
+        @click.stop="toggleDiacritics" 
+        :class="diacriticsStateClass"
+        :title="diacriticsTitle + ' (Ctrl+D)'"
+      >
+        <span class="diacritics-icon">{{ diacriticsIcon }}</span>
+      </button>
+      <button 
+        v-if="showTocButton"
+        class="line-display-toggle-btn" 
+        @click.stop="toggleLineDisplay" 
+        :class="{ active: isLineDisplayInline }"
+        title="החלף תצוגת שורות (Ctrl+L)"
+      >
+        <img 
+          v-if="isLineDisplayInline"
+          src="/assets/ic_fluent_text_align_right_24_regular.png" 
+          alt="Line Display" 
+          class="line-display-icon themed-icon" 
+        />
+        <img 
+          v-else
+          src="/assets/ic_fluent_text_align_justify_24_regular.png" 
+          alt="Line Display" 
+          class="line-display-icon themed-icon" 
+        />
+      </button>
+      <button 
+        v-if="showTocButton"
         class="toc-toggle-btn" 
         @click.stop="toggleToc" 
         :class="{ active: isTocVisible }"
-        title="תוכן עניינים"
+        title="תוכן עניינים (Ctrl+H)"
       >
         <img src="/assets/ic_fluent_text_bullet_list_tree_24_regular.png" alt="TOC" class="toc-icon themed-icon rtl-flip" />
       </button>
       <button 
-        v-if="showTocButton"
-        class="diacritics-toggle-btn" 
-        @click.stop="toggleDiacritics" 
-        :class="diacriticsStateClass"
-        :title="diacriticsTitle"
+        v-if="isInUserControl"
+        class="popout-toggle-btn" 
+        @click.stop="togglePopOut" 
+        :title="(isPopOut ? 'חזור לחלון ראשי' : 'פתח בחלון נפרד') + ' (Ctrl+P)'"
       >
-        <span class="diacritics-icon">{{ diacriticsIcon }}</span>
+        <svg class="popout-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M14 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6V10M10 14L20 4M8 4H4V20H20V16" 
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </button>
-      <button class="theme-toggle-btn" @click.stop="toggleTheme" title="החלף ערכת נושא">
-        <div class="theme-icon"></div>
+      <button class="settings-toggle-btn" @click.stop="toggleSettings" title="הגדרות">
+        <img src="/assets/ic_fluent_settings_24_regular.png" alt="Settings" class="settings-icon themed-icon" />
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useTabsStore } from '../stores/tabs'
 import { useTocStore } from '../stores/toc'
 
 const props = defineProps<{ isDropdownOpen: boolean }>()
-const emit = defineEmits<{ toggleDropdown: [] }>()
+const emit = defineEmits<{ 
+  toggleDropdown: []
+  toggleSettings: []
+}>()
 const isDropdownOpen = computed(() => props.isDropdownOpen)
 const tabsStore = useTabsStore()
 const tocStore = useTocStore()
@@ -49,8 +83,6 @@ const headerText = computed(() => tabsStore.activeTab?.title || 'כרטיסיי�
 // Show TOC button only for book tabs
 const showTocButton = computed(() => tabsStore.activeTab?.type === 'book')
 const isTocVisible = computed(() => tocStore.isVisible)
-
-const isDark = ref(false)
 
 // Store diacritics state per tab in memory (not persisted)
 // Use reactive ref to trigger updates
@@ -62,6 +94,27 @@ const getDiacriticsState = (tabId: string) => {
   }
   return diacriticsStates.value.get(tabId)!
 }
+
+// Store line display state per tab (false = block, true = inline)
+const lineDisplayStates = ref(new Map<string, boolean>())
+
+const getLineDisplayState = (tabId: string) => {
+  if (!lineDisplayStates.value.has(tabId)) {
+    lineDisplayStates.value.set(tabId, false) // Default to block
+  }
+  return lineDisplayStates.value.get(tabId)!
+}
+
+const isLineDisplayInline = computed(() => {
+  if (!tabsStore.activeTab) return false
+  return getLineDisplayState(tabsStore.activeTab.id)
+})
+
+const lineDisplayIconSrc = computed(() => {
+  return isLineDisplayInline.value 
+    ? '/assets/ic_fluent_text_align_right_24_regular.png'
+    : '/assets/ic_fluent_text_align_justify_24_regular.png'
+})
 
 const diacriticsState = computed(() => {
   if (!tabsStore.activeTab) return 0
@@ -100,6 +153,37 @@ const toggleToc = () => {
   }
   
   tocStore.toggleToc()
+}
+
+const toggleLineDisplay = () => {
+  const activeTab = tabsStore.activeTab
+  if (!activeTab || activeTab.type !== 'book') return
+
+  const contentContainer = document.querySelector(`.content-container[data-tab-id="${activeTab.id}"]`)
+  if (!contentContainer) return
+
+  // Toggle state
+  const currentState = getLineDisplayState(activeTab.id)
+  const newState = !currentState
+  lineDisplayStates.value.set(activeTab.id, newState)
+
+  // Apply CSS change to all line elements
+  const lines = contentContainer.querySelectorAll('line:not(:has(h1, h2, h3, h4, h5, h6))')
+  lines.forEach((line) => {
+    const lineElement = line as HTMLElement
+    if (newState) {
+      // Inline mode: add margin-left
+      lineElement.style.display = 'inline'
+      lineElement.style.marginLeft = '0.2em'
+    } else {
+      // Block mode: remove margin-left
+      lineElement.style.display = 'block'
+      lineElement.style.marginLeft = ''
+    }
+  })
+
+  // Force reactivity update
+  lineDisplayStates.value = new Map(lineDisplayStates.value)
 }
 
 const toggleDiacritics = () => {
@@ -165,18 +249,86 @@ const applyDiacriticsFilter = (container: Element, state: number) => {
   })
 }
 
-const toggleTheme = () => {
-  isDark.value = !isDark.value
-  document.documentElement.classList.toggle('dark', isDark.value)
-  localStorage.setItem('theme', isDark.value ? 'כהה' : 'בהיר')
+const toggleSettings = () => {
+  emit('toggleSettings')
+}
+
+// Pop-out functionality
+const isInUserControl = ref(false)
+const isPopOut = ref(false)
+
+// Expose function to C# to set hosting mode
+;(window as any).setHostingMode = (inUserControl: boolean) => {
+  isInUserControl.value = inUserControl
+  isPopOut.value = false
+}
+
+const togglePopOut = () => {
+  if (window.chrome?.webview) {
+    window.chrome.webview.postMessage({
+      command: 'TogglePopOut',
+      args: []
+    })
+    // Toggle state
+    isPopOut.value = !isPopOut.value
+  }
+}
+
+// Keyboard shortcuts
+const handleKeyDown = (e: KeyboardEvent) => {
+  // Check if Ctrl key is pressed
+  if (e.ctrlKey) {
+    switch (e.key.toLowerCase()) {
+      case 'n':
+        e.preventDefault()
+        handleNewTab()
+        break
+      case 'w':
+        e.preventDefault()
+        if (tabsStore.activeTab) {
+          tabsStore.closeTab(tabsStore.activeTab.id)
+        }
+        break
+      case 'x':
+        e.preventDefault()
+        tabsStore.closeAllTabs()
+        break
+      case 'h':
+        e.preventDefault()
+        if (showTocButton.value) toggleToc()
+        break
+      case 'l':
+        e.preventDefault()
+        if (showTocButton.value) toggleLineDisplay()
+        break
+      case 'd':
+        e.preventDefault()
+        if (showTocButton.value) toggleDiacritics()
+        break
+      case 'p':
+        e.preventDefault()
+        if (isInUserControl.value) togglePopOut()
+        break
+    }
+  }
 }
 
 onMounted(() => {
-  const savedTheme = localStorage.getItem('theme')
-  isDark.value = savedTheme === 'כהה' || savedTheme === 'dark'
-  if (isDark.value) {
-    document.documentElement.classList.add('dark')
+  // Request hosting mode from C#
+  if (window.chrome?.webview) {
+    window.chrome.webview.postMessage({
+      command: 'CheckHostingMode',
+      args: []
+    })
   }
+  
+  // Add keyboard event listener
+  window.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+  // Clean up keyboard event listener
+  window.removeEventListener('keydown', handleKeyDown)
 })
 </script>
 
@@ -243,6 +395,7 @@ onMounted(() => {
 }
 
 .toc-toggle-btn,
+.line-display-toggle-btn,
 .diacritics-toggle-btn {
   padding: 6px;
   cursor: pointer;
@@ -258,12 +411,14 @@ onMounted(() => {
 }
 
 .toc-toggle-btn:hover,
+.line-display-toggle-btn:hover,
 .diacritics-toggle-btn:hover {
   background: var(--hover-bg);
   transform: scale(1.05);
 }
 
-.toc-toggle-btn.active {
+.toc-toggle-btn.active,
+.line-display-toggle-btn.active {
   background: var(--accent-bg);
 }
 
@@ -281,6 +436,12 @@ onMounted(() => {
   opacity: 0.7;
 }
 
+.line-display-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+
 .diacritics-icon {
   font-size: 18px;
   font-family: 'Times New Roman', Times, serif;
@@ -291,11 +452,17 @@ onMounted(() => {
 }
 
 .toc-toggle-btn:hover .toc-icon,
+.line-display-toggle-btn:hover .line-display-icon,
 .diacritics-toggle-btn:hover .diacritics-icon {
   opacity: 1;
 }
 
 .toc-toggle-btn.active .toc-icon {
+  opacity: 1;
+  filter: brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(180deg) brightness(95%) contrast(101%) !important;
+}
+
+.line-display-toggle-btn.active .line-display-icon {
   opacity: 1;
   filter: brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(180deg) brightness(95%) contrast(101%) !important;
 }
@@ -314,10 +481,10 @@ onMounted(() => {
   transform: scaleX(-1);
 }
 
-.theme-toggle-btn {
+.popout-toggle-btn,
+.settings-toggle-btn {
   padding: 6px;
   cursor: pointer;
-  font-size: 18px;
   background: transparent;
   border: none;
   border-radius: 4px;
@@ -329,23 +496,34 @@ onMounted(() => {
   height: 32px;
 }
 
-.theme-toggle-btn:hover {
+.popout-toggle-btn:hover,
+.settings-toggle-btn:hover {
   background: var(--hover-bg);
   transform: scale(1.05);
 }
 
-.theme-toggle-btn:active {
+.popout-toggle-btn:active,
+.settings-toggle-btn:active {
   background: var(--active-bg);
   transform: scale(0.95);
 }
 
-.theme-icon {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: linear-gradient(90deg, var(--text-primary) 50%, transparent 50%);
-  border: 1.5px solid var(--text-primary);
-  transition: transform 0.3s ease;
+.popout-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-primary);
+  opacity: 0.7;
+}
+
+.settings-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+
+.popout-toggle-btn:hover .popout-icon,
+.settings-toggle-btn:hover .settings-icon {
+  opacity: 1;
 }
 
 .add-tab-btn {

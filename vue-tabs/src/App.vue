@@ -3,6 +3,7 @@
     <TabHeader 
       :isDropdownOpen="isDropdownOpen"
       @toggleDropdown="toggleDropdown"
+      @toggleSettings="toggleSettings"
     />
     
     <TabDropdown 
@@ -11,6 +12,17 @@
     />
 
     <TocSidebar />
+
+    <SettingsPane 
+      :isOpen="isSettingsOpen"
+      @close="closeSettings"
+      @openAbout="openAbout"
+    />
+
+    <AboutPane 
+      :isOpen="isAboutOpen"
+      @close="closeAbout"
+    />
 
     <div class="tab-content">
       <div class="tab-pane">
@@ -31,19 +43,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useTabsStore } from './stores/tabs'
+import { useTocStore } from './stores/toc'
 import TabHeader from './components/TabHeader.vue'
 import TabDropdown from './components/TabDropdown.vue'
 import TocSidebar from './components/TocSidebar.vue'
+import SettingsPane from './components/SettingsPane.vue'
+import AboutPane from './components/AboutPane.vue'
 import LandingPage from './components/LandingPage.vue'
 import BookViewer from './components/BookViewer.vue'
 
 const tabsStore = useTabsStore()
+const tocStore = useTocStore()
 const isDropdownOpen = ref(false)
+const isSettingsOpen = ref(false)
+const isAboutOpen = ref(false)
 
 const toggleDropdown = () => isDropdownOpen.value = !isDropdownOpen.value
 const closeDropdown = () => isDropdownOpen.value = false
+
+const toggleSettings = () => isSettingsOpen.value = !isSettingsOpen.value
+const closeSettings = () => isSettingsOpen.value = false
+
+const openAbout = () => isAboutOpen.value = true
+const closeAbout = () => isAboutOpen.value = false
 
 function handleOutsideClick(e: MouseEvent) {
   if (!(e.target as HTMLElement).closest('.tab-header, .dropdown')) closeDropdown()
@@ -62,6 +86,32 @@ onMounted(() => {
   
   // Restore tabs from localStorage or create default tab
   tabsStore.restoreTabs()
+
+  // Add ESC key handler to close panes
+  document.addEventListener('keydown', handleEscKey)
+})
+
+// Handle ESC key to close panes
+function handleEscKey(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    if (isAboutOpen.value) {
+      closeAbout()
+      // Remove focus from any button
+      ;(document.activeElement as HTMLElement)?.blur()
+    } else if (isSettingsOpen.value) {
+      closeSettings()
+      // Remove focus from any button
+      ;(document.activeElement as HTMLElement)?.blur()
+    } else if (tocStore.isVisible) {
+      tocStore.toggleToc()
+      // Remove focus from any button
+      ;(document.activeElement as HTMLElement)?.blur()
+    }
+  }
+}
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleEscKey)
 })
 
 // Save theme when it changes
@@ -93,6 +143,10 @@ function saveTheme(isDark: boolean) {
   --accent-color: #007acc;
   --accent-color-rgb: 0, 122, 204;
   --accent-bg: rgba(0, 122, 204, 0.1);
+  
+  /* Font settings */
+  --header-font: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --text-font: 'Times New Roman', Times, serif;
 }
 
 :root.dark {

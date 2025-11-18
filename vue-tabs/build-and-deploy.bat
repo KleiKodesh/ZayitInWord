@@ -15,10 +15,17 @@ echo Build complete!
 echo.
 
 echo [2/3] Copying to C# project...
-set "DEST=..\ZayitLib\Zayit\Html\index.html"
-copy /Y dist\index.html "%DEST%"
+set "DEST_HTML=..\ZayitLib\Zayit\Html\index.html"
+set "DEST_ASSETS=..\ZayitLib\Zayit\Html\assets"
+copy /Y dist\index.html "%DEST_HTML%"
 if errorlevel 1 (
-    echo ERROR: Copy failed! Check if destination path exists.
+    echo ERROR: HTML copy failed! Check if destination path exists.
+    pause
+    exit /b 1
+)
+xcopy /Y /E /I dist\assets "%DEST_ASSETS%"
+if errorlevel 1 (
+    echo ERROR: Assets copy failed! Check if destination path exists.
     pause
     exit /b 1
 )
@@ -26,10 +33,17 @@ echo Copy complete!
 echo.
 
 echo [3/3] Verifying deployment...
-if exist "%DEST%" (
-    echo SUCCESS: File deployed to %DEST%
+if exist "%DEST_HTML%" (
+    echo SUCCESS: HTML deployed to %DEST_HTML%
 ) else (
-    echo ERROR: File not found at destination!
+    echo ERROR: HTML file not found at destination!
+    pause
+    exit /b 1
+)
+if exist "%DEST_ASSETS%" (
+    echo SUCCESS: Assets deployed to %DEST_ASSETS%
+) else (
+    echo ERROR: Assets folder not found at destination!
     pause
     exit /b 1
 )
