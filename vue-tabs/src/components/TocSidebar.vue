@@ -52,7 +52,7 @@ function navigateToLine(lineId: number) {
   
   const lineElement = contentContainer.querySelector(`#line-${lineId}`) as HTMLElement
   if (lineElement) {
-    lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    lineElement.scrollIntoView({ behavior: 'auto', block: 'center' })
     lineElement.focus()
   }
 }

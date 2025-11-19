@@ -57,11 +57,11 @@ function handleClick() {
 .toc-item {
   display: inline-flex;
   align-items: center;
-  padding: 6px 8px;
+  padding: 8px 12px;
   cursor: pointer;
   border-radius: 4px;
   transition: background 0.1s ease;
-  gap: 6px;
+  gap: 8px;
   min-width: 100%;
   width: fit-content;
   background: transparent;
@@ -72,9 +72,9 @@ function handleClick() {
 }
 
 .expand-icon {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-secondary);
-  width: 12px;
+  width: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -82,7 +82,7 @@ function handleClick() {
 }
 
 .toc-text {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;

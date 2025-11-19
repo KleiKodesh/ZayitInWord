@@ -1,7 +1,20 @@
 <template>
   <div class="book-viewer" ref="bookViewerRef">
     <div v-if="isLoading" class="loading-container">
-      <div class="loading-text">טוען...</div>
+      <div class="loading-content">
+        <div class="loading-icon">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <path d="M12 8C12 7.44772 12.4477 7 13 7H23C23.5523 7 24 7.44772 24 8V40C24 40.5523 23.5523 41 23 41H13C12.4477 41 12 40.5523 12 40V8Z" stroke="currentColor" stroke-width="2.5" class="book-left"/>
+            <path d="M24 8C24 7.44772 24.4477 7 25 7H35C35.5523 7 36 7.44772 36 8V40C36 40.5523 35.5523 41 35 41H25C24.4477 41 24 40.5523 24 40V8Z" stroke="currentColor" stroke-width="2.5" class="book-right"/>
+          </svg>
+        </div>
+        <div class="loading-text">טוען ספר</div>
+        <div class="loading-dots">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
     </div>
     <div class="content-container" :data-tab-id="tabId" :class="{ hidden: isLoading }"></div>
   </div>
@@ -31,7 +44,6 @@ declare global {
     setInitLineIndex: (tabId: string, index: number) => void
     clearBookContent: (tabId: string) => void
     bookLoadComplete: (tabId: string) => void
-    receiveTocData: (bookId: number, tocTree: any[]) => void
   }
 }
 
@@ -66,31 +78,38 @@ if (!window.addLine) {
 const addLineToThisTab = (html: string) => {
   if (!contentContainer.value) return
   
-  // Hide loading on first line
-  if (isLoading.value) {
-    isLoading.value = false
-  }
-  
   const lineElement = document.createElement('line')
   lineElement.tabIndex = 0
   lineElement.innerHTML = html
   contentContainer.value.appendChild(lineElement)
   
-  if (lineCounter.value++ === initLineIndex.value) {
-    lineElement.scrollIntoView()
+  // Check if this is the target line
+  const isTargetLine = lineCounter.value === initLineIndex.value
+  
+  // Only hide loading if:
+  // 1. No target line was specified (initLineIndex is 0), OR
+  // 2. This is the target line
+  if (initLineIndex.value === 0 || isTargetLine) {
+    if (isLoading.value) {
+      isLoading.value = false
+      console.log('BookViewer: Hiding loading - target line loaded or no target specified')
+    }
   }
+  
+  if (isTargetLine) {
+    lineElement.scrollIntoView({ behavior: 'auto', block: 'center' })
+  }
+  
+  lineCounter.value++
 }
 
 const addLinesToThisTab = (linesArray: Array<{ id: number; html: string }>) => {
   if (!contentContainer.value) return
   
-  // Hide loading on first batch of lines
-  if (isLoading.value) {
-    isLoading.value = false
-  }
-  
   // Create a document fragment for better performance
   const fragment = document.createDocumentFragment()
+  let targetLineElement: HTMLElement | null = null
+  let foundTargetLine = false
   
   linesArray.forEach(({ id, html }) => {
     const lineElement = document.createElement('line')
@@ -99,12 +118,33 @@ const addLinesToThisTab = (linesArray: Array<{ id: number; html: string }>) => {
     lineElement.innerHTML = html
     fragment.appendChild(lineElement)
     
-    if (lineCounter.value++ === initLineIndex.value) {
-      lineElement.scrollIntoView()
+    // Check if this is the line we want to scroll to
+    if (initLineIndex.value > 0 && id === initLineIndex.value) {
+      targetLineElement = lineElement
+      foundTargetLine = true
+      console.log('BookViewer: Found target line', id)
     }
   })
   
   contentContainer.value.appendChild(fragment)
+  
+  // Only hide loading if:
+  // 1. No target line was specified (initLineIndex is 0), OR
+  // 2. Target line was found in this batch
+  if (initLineIndex.value === 0 || foundTargetLine) {
+    if (isLoading.value) {
+      isLoading.value = false
+      console.log('BookViewer: Hiding loading - target line loaded or no target specified')
+    }
+  }
+  
+  // Scroll to target line after appending
+  if (targetLineElement) {
+    console.log('BookViewer: Scrolling to line', initLineIndex.value)
+    setTimeout(() => {
+      targetLineElement?.scrollIntoView({ behavior: 'auto', block: 'center' })
+    }, 100)
+  }
 }
 
 const setInitLineIndexForThisTab = (index: number) => {
@@ -145,7 +185,32 @@ onMounted(() => {
   
   // Load saved scroll position from store
   const tab = tabsStore.tabs.find(t => t.id === props.tabId)
-  if (tab?.scrollPosition !== undefined) {
+  
+  // Check if there's an initial line index to scroll to
+  if (tab?.initialLineIndex !== undefined) {
+    initLineIndex.value = tab.initialLineIndex
+    console.log('BookViewer: Setting initial line index to', initLineIndex.value)
+    
+    // If content already exists, check if target line is loaded
+    if (contentContainer.value && contentContainer.value.children.length > 0) {
+      const lineElement = contentContainer.value.querySelector(`#line-${tab.initialLineIndex}`) as HTMLElement
+      if (lineElement) {
+        console.log('BookViewer: Target line already exists, scrolling to line', tab.initialLineIndex)
+        lineElement.scrollIntoView({ behavior: 'auto', block: 'center' })
+        // Target line exists, hide loading
+        isLoading.value = false
+      } else {
+        console.log('BookViewer: Target line not loaded yet, keeping loading state visible')
+        // Target line doesn't exist yet, keep loading visible
+        isLoading.value = true
+      }
+    }
+    
+    // Clear the initial line index after using it
+    tab.initialLineIndex = undefined
+    tabsStore.saveTabs()
+  } else if (tab?.scrollPosition !== undefined) {
+    // No target line, just restore scroll position
     savedScrollPosition.value = tab.scrollPosition
     // Restore scroll position immediately if already has content
     if (bookViewerRef.value && contentContainer.value && contentContainer.value.children.length > 0) {
@@ -153,6 +218,9 @@ onMounted(() => {
       // Content already exists, hide loading
       isLoading.value = false
     }
+  } else if (contentContainer.value && contentContainer.value.children.length > 0) {
+    // Content exists but no scroll position or target line, just hide loading
+    isLoading.value = false
   }
   
   // Request book content if container is empty
@@ -212,12 +280,108 @@ onUnmounted(() => {
   justify-content: center;
   height: 100%;
   width: 100%;
+  background: var(--bg-primary);
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.loading-icon {
+  color: var(--accent-color);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.05);
+  }
+}
+
+.loading-icon .book-left {
+  animation: bookOpen 1.5s ease-in-out infinite;
+  transform-origin: right center;
+}
+
+.loading-icon .book-right {
+  animation: bookOpen 1.5s ease-in-out infinite;
+  animation-delay: 0.1s;
+  transform-origin: left center;
+}
+
+@keyframes bookOpen {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .loading-text {
   font-size: 18px;
-  color: var(--text-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
   font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  direction: rtl;
+}
+
+.loading-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  height: 8px;
+}
+
+.loading-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  animation: bounce 1.4s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
 }
 
 .content-container {

@@ -4,4 +4,5 @@ export interface Tab {
   type: 'search' | 'book'
   bookId?: number
   scrollPosition?: number
+  initialLineIndex?: number
 }

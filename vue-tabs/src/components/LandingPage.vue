@@ -1,26 +1,50 @@
 <template>
   <div class="content" tabindex="-1">
-    <div class="search-results">
-      <TreeView
-        ref="treeViewRef"
-        :tree-data="treeData"
-        :is-loading="isLoadingTree"
-        :search-query="searchInput"
-        @select-book="selectBook"
-        @click="focusContent"
-      />
-    </div>
+    <Transition :name="transitionName" mode="out-in">
+      <div :key="selectedBook ? 'toc' : 'search'" class="search-results">
+        <!-- Book search view -->
+        <TreeView
+          v-if="!selectedBook"
+          ref="treeViewRef"
+          :tree-data="treeData"
+          :is-loading="isLoadingTree"
+          :search-query="debouncedSearchQuery"
+          @select-book="selectBook"
+          @click="focusContent"
+        />
+        <!-- TOC view -->
+        <TocView
+          v-else
+          ref="tocViewRef"
+          :toc-entries="currentTocEntries"
+          :is-loading="isLoadingToc"
+          :search-query="debouncedSearchQuery"
+          @select-entry="selectTocEntry"
+        />
+      </div>
+    </Transition>
 
     <div class="search-bar">
-      <button @click="resetTree" class="reset-btn">
+      <button v-if="selectedBook" @click="goBackToSearch" class="back-btn">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M12 4L6 10L12 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button v-else @click="resetTree" class="reset-btn">
         <img src="/assets/ic_fluent_text_bullet_list_tree_24_regular.png" alt="Reset" class="themed-icon rtl-flip" />
       </button>
       <input 
         ref="searchInputRef"
         v-model="searchInput" 
         type="text" 
-        placeholder="חפש ספר..."
+        :placeholder="selectedBook ? 'חפש בתוכן עניינים...' : 'חפש ספר...'"
+        @keydown.enter="handleEnterKey"
       />
+      <button v-if="selectedBook" @click="openBookAtLine(null)" class="open-start-btn" title="פתח מההתחלה">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="transform: scaleX(-1)">
+          <path d="M6 4L14 10L6 16V4Z" fill="currentColor"/>
+        </svg>
+      </button>
     </div>
   </div>
 </template>
@@ -28,15 +52,35 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import TreeView from './TreeView.vue'
+import TocView from './TocView.vue'
 import type { Book } from '../types/Book'
 import type { TreeData } from '../types/Tree'
+import type { TocEntry } from '../types/Toc'
 import { useTabsStore } from '../stores/tabs'
+import { useTocStore } from '../stores/toc'
 
 const tabsStore = useTabsStore()
+const tocStore = useTocStore()
 const searchInput = ref('')
+const debouncedSearchQuery = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const treeViewRef = ref<InstanceType<typeof TreeView> | null>(null)
-const contentRef = ref<HTMLElement | null>(null)
+const tocViewRef = ref<InstanceType<typeof TocView> | null>(null)
+const selectedBook = ref<Book | null>(null)
+const isLoadingToc = ref(false)
+const transitionName = ref('slide-right')
+let debounceTimeout: number | null = null
+
+// Debounce search input to improve responsiveness
+watch(searchInput, (newValue) => {
+  if (debounceTimeout) {
+    clearTimeout(debounceTimeout)
+  }
+  
+  debounceTimeout = window.setTimeout(() => {
+    debouncedSearchQuery.value = newValue
+  }, 250) // 250ms delay for better responsiveness
+})
 
 // Focus search input when this tab becomes active
 watch(() => tabsStore.activeTabId, (newTabId) => {
@@ -115,16 +159,126 @@ onMounted(() => {
 // Reset tree: clear search and collapse all
 const resetTree = () => {
   searchInput.value = ''
+  debouncedSearchQuery.value = ''
+  if (debounceTimeout) {
+    clearTimeout(debounceTimeout)
+  }
   treeViewRef.value?.reset()
 }
 
+// Get current TOC entries for selected book
+const currentTocEntries = computed(() => {
+  if (!selectedBook.value) return null
+  const entries = tocStore.tocData.get(selectedBook.value.id)
+  console.log('Current TOC entries for book', selectedBook.value.id, ':', entries?.length || 0)
+  return entries || null
+})
+
+// Declare global function for receiving TOC data
+declare global {
+  interface Window {
+    receiveTocData: (bookId: number, tocTree: TocEntry[]) => void
+  }
+}
+
+// Set up global TOC receiver - wrap existing one if it exists
+const originalReceiveTocData = window.receiveTocData
+window.receiveTocData = (bookId: number, tocTree: TocEntry[]) => {
+  console.log('LandingPage received TOC data for book:', bookId, 'entries:', tocTree.length)
+  tocStore.setTocData(bookId, tocTree)
+  isLoadingToc.value = false
+  
+  // Call original if it exists (for TocSidebar)
+  if (originalReceiveTocData) {
+    originalReceiveTocData(bookId, tocTree)
+  }
+}
+
 const selectBook = (book: Book) => {
-  // Convert current tab from search to book
-  // BookViewer will handle loading the book content
+  // We're in book selection mode, show TOC
+  transitionName.value = 'slide-left'
+  selectedBook.value = book
+  
+  // Clear search when switching to TOC
+  searchInput.value = ''
+  debouncedSearchQuery.value = ''
+  
+  console.log('Selected book:', book.id, book.title)
+  
+  // Request TOC if not already loaded (shared with TOC sidebar)
+  const existingToc = tocStore.tocData.get(book.id)
+  if (!existingToc || existingToc.length === 0) {
+    console.log('Requesting TOC for book:', book.id)
+    isLoadingToc.value = true
+    tocStore.requestToc(book.id)
+    
+    // Timeout after 1.5 seconds - faster response for books without TOC
+    setTimeout(() => {
+      if (isLoadingToc.value) {
+        console.log('TOC request timed out for book:', book.id)
+        isLoadingToc.value = false
+        // Auto-open book if no TOC available
+        if (selectedBook.value && (!currentTocEntries.value || currentTocEntries.value.length === 0)) {
+          openBookAtLine(null)
+        }
+      }
+    }, 1500)
+  } else {
+    console.log('TOC already loaded for book:', book.id, 'entries:', existingToc.length)
+    // Auto-open book if no TOC available
+    if (existingToc.length === 0) {
+      openBookAtLine(null)
+    }
+  }
+}
+
+// Watch for TOC loading completion and auto-open if no TOC
+watch([isLoadingToc, currentTocEntries], ([loading, entries]) => {
+  if (!loading && selectedBook.value && (!entries || entries.length === 0)) {
+    // TOC finished loading but no entries - auto-open the book
+    openBookAtLine(null)
+  }
+})
+
+const selectTocEntry = (entry: TocEntry) => {
+  console.log('Selected TOC entry:', entry.lineId, entry.text)
+  // Open the book at this line
+  openBookAtLine(entry.lineId)
+}
+
+const goBackToSearch = () => {
+  transitionName.value = 'slide-right'
+  selectedBook.value = null
+  isLoadingToc.value = false
+  searchInput.value = ''
+  debouncedSearchQuery.value = ''
+  // Refocus search input
+  setTimeout(() => {
+    searchInputRef.value?.focus()
+  }, 50)
+}
+
+const openBookAtLine = (lineIndex: number | null) => {
+  if (!selectedBook.value) return
+  
   const currentTabId = tabsStore.activeTabId
   if (!currentTabId) return
   
-  tabsStore.convertTabToBook(currentTabId, book.id, book.title)
+  // Convert tab to book with optional initial line index
+  // The book content should already be pre-loaded from selectBook
+  tabsStore.convertTabToBook(
+    currentTabId, 
+    selectedBook.value.id, 
+    selectedBook.value.title,
+    lineIndex !== null ? lineIndex : undefined
+  )
+}
+
+const handleEnterKey = () => {
+  if (selectedBook.value) {
+    // In TOC mode - open book from start
+    openBookAtLine(null)
+  }
 }
 </script>
 
@@ -226,8 +380,82 @@ const selectBook = (book: Book) => {
   opacity: 1;
 }
 
+.back-btn {
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  color: var(--text-primary);
+}
+
+.back-btn:hover {
+  background: var(--hover-bg);
+}
+
+.back-btn:active {
+  background: var(--active-bg);
+  transform: scale(0.95);
+}
+
+.open-start-btn {
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  color: var(--accent-color);
+}
+
+.open-start-btn:hover {
+  background: var(--accent-bg);
+}
+
+.open-start-btn:active {
+  background: var(--active-bg);
+  transform: scale(0.95);
+}
+
 .rtl-flip {
   transform: scaleX(-1);
+}
+
+/* Slide transitions */
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-left-enter-from {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+.slide-left-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.slide-right-enter-from {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+.slide-right-leave-to {
+  opacity: 0;
+  transform: translateX(-30px);
 }
 
 @media (max-width: 768px) {

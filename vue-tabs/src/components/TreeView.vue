@@ -5,8 +5,8 @@
     
     <!-- Tree content -->
     <div v-else-if="treeData" class="tree-container">
-      <!-- Filtered search results -->
-      <div v-if="searchQuery && filteredBooks.length > 0" class="filtered-results">
+      <!-- Filtered search results or flat list when no tree structure -->
+      <div v-if="(searchQuery && filteredBooks.length > 0) || (treeData.tree.length === 0 && filteredBooks.length > 0)" class="filtered-results">
         <div
           v-for="(book, index) in filteredBooks"
           :key="book.id"
@@ -25,10 +25,13 @@
             <p v-if="book.fullCategory" class="book-category">{{ book.fullCategory }}</p>
           </div>
         </div>
+        <div v-if="hasMoreResults" class="more-results-hint">
+          מוצגים {{ filteredBooks.length }} תוצאות ראשונות. הקלד עוד תווים לסינון נוסף.
+        </div>
       </div>
       
       <!-- No results -->
-      <div v-else-if="searchQuery && filteredBooks.length === 0" class="tree-status">
+      <div v-else-if="(searchQuery && filteredBooks.length === 0) || (treeData.tree.length === 0 && filteredBooks.length === 0)" class="tree-status">
         לא נמצאו תוצאות
       </div>
       
@@ -74,6 +77,8 @@ const showSelection = ref(false) // Controls visual highlight
 const selectedItemRef = ref<HTMLElement | null>(null)
 let selectionTimeout: number | null = null
 
+const MAX_RESULTS = 100 // Limit results for performance
+
 // Filtered books based on search
 const filteredBooks = computed(() => {
   if (!props.searchQuery || !props.treeData) {
@@ -83,18 +88,36 @@ const filteredBooks = computed(() => {
   const query = props.searchQuery.toLowerCase().trim()
   const queryWords = query.split(/\s+/) // Split by whitespace for multi-word search
   
-  return props.treeData.allBooks.filter(book => {
+  const results: Book[] = []
+  
+  // Early exit when we have enough results
+  for (const book of props.treeData.allBooks) {
+    if (results.length >= MAX_RESULTS) break
+    
     const title = book.title.toLowerCase()
     const desc = book.heShortDesc?.toLowerCase() || ''
     const category = book.fullCategory?.toLowerCase() || ''
     
     // All query words must match in at least one field
-    return queryWords.every(word => 
+    const matches = queryWords.every(word => 
       title.includes(word) || 
       desc.includes(word) || 
       category.includes(word)
     )
-  })
+    
+    if (matches) {
+      results.push(book)
+    }
+  }
+  
+  return results
+})
+
+const hasMoreResults = computed(() => {
+  if (!props.searchQuery || !props.treeData) return false
+  
+  // Quick check if there might be more results
+  return filteredBooks.value.length >= MAX_RESULTS
 })
 
 // Get flat list of visible items for keyboard navigation
@@ -353,5 +376,13 @@ defineExpose({
   white-space: nowrap;
 }
 
-
+.more-results-hint {
+  padding: 16px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: italic;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+}
 </style>

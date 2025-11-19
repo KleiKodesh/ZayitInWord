@@ -30,12 +30,13 @@ export const useTabsStore = defineStore('tabs', () => {
     return newTab
   }
 
-  function convertTabToBook(tabId: string, bookId: number, title: string) {
+  function convertTabToBook(tabId: string, bookId: number, title: string, initialLineIndex?: number) {
     const tab = tabs.value.find(t => t.id === tabId)
     if (tab) {
       tab.type = 'book'
       tab.bookId = bookId
       tab.title = title
+      tab.initialLineIndex = initialLineIndex
     }
   }
 
@@ -131,8 +132,8 @@ export const useTabsStore = defineStore('tabs', () => {
     saveTabs()
   }
 
-  function convertTabToBookWithSave(tabId: string, bookId: number, title: string) {
-    convertTabToBook(tabId, bookId, title)
+  function convertTabToBookWithSave(tabId: string, bookId: number, title: string, initialLineIndex?: number) {
+    convertTabToBook(tabId, bookId, title, initialLineIndex)
     saveTabs()
   }
 
@@ -158,6 +159,7 @@ export const useTabsStore = defineStore('tabs', () => {
     setTreeData,
     setLoadingTree,
     restoreTabs,
-    saveScrollPosition
+    saveScrollPosition,
+    saveTabs
   }
 })

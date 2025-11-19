@@ -1,17 +1,29 @@
 <template>
   <div class="tab-header" :class="{ open: isDropdownOpen }" @click="emit('toggleDropdown')">
-    <div class="tab-header-left">
-      <div class="tab-header-content">
-        <span class="tab-header-icon">▼</span>
-        <span class="tab-header-text">{{ headerText }}</span>
-        <button class="add-tab-btn" @click.stop="handleNewTab" title="כרטיסייה חדשה">+</button>
-      </div>
-    </div>
-
     <div class="header-actions">
+      <!-- Settings button: always visible on desktop, on mobile only visible when NOT in book view -->
+      <button 
+        v-if="!showTocButton"
+        class="settings-toggle-btn" 
+        @click.stop="toggleSettings" 
+        title="הגדרות"
+      >
+        <img src="/assets/ic_fluent_settings_24_regular.png" alt="Settings" class="settings-icon themed-icon" />
+      </button>
+      
       <button 
         v-if="showTocButton"
-        class="diacritics-toggle-btn" 
+        class="settings-toggle-btn desktop-only" 
+        @click.stop="toggleSettings" 
+        title="הגדרות"
+      >
+        <img src="/assets/ic_fluent_settings_24_regular.png" alt="Settings" class="settings-icon themed-icon" />
+      </button>
+
+      <!-- Buttons visible on larger screens -->
+      <button 
+        v-if="showTocButton"
+        class="diacritics-toggle-btn desktop-only" 
         @click.stop="toggleDiacritics" 
         :class="diacriticsStateClass"
         :title="diacriticsTitle"
@@ -20,7 +32,7 @@
       </button>
       <button 
         v-if="showTocButton"
-        class="line-display-toggle-btn" 
+        class="line-display-toggle-btn desktop-only" 
         @click.stop="toggleLineDisplay" 
         :class="{ active: isLineDisplayInline }"
         title="החלף תצוגת שורות"
@@ -38,6 +50,77 @@
           class="line-display-icon themed-icon" 
         />
       </button>
+      
+      <!-- More options dropdown button (only on mobile in book view) -->
+      <div class="more-options-container mobile-only" v-if="showTocButton || isInUserControl">
+        <button 
+          class="more-options-btn" 
+          @click.stop="toggleMoreOptions"
+          title="אפשרויות נוספות"
+        >
+          <svg class="more-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="5" r="2" fill="currentColor"/>
+            <circle cx="12" cy="12" r="2" fill="currentColor"/>
+            <circle cx="12" cy="19" r="2" fill="currentColor"/>
+          </svg>
+        </button>
+
+        <!-- Dropdown menu -->
+        <div v-if="isMoreOptionsOpen" class="more-options-dropdown">
+          <button 
+            v-if="showTocButton"
+            class="dropdown-item" 
+            @click.stop="handleDiacriticsClick"
+            :class="diacriticsStateClass"
+          >
+            <span class="dropdown-icon diacritics-icon">{{ diacriticsIcon }}</span>
+            <span class="dropdown-label">{{ diacriticsTitle }}</span>
+          </button>
+          
+          <button 
+            v-if="showTocButton"
+            class="dropdown-item" 
+            @click.stop="handleLineDisplayClick"
+            :class="{ active: isLineDisplayInline }"
+          >
+            <img 
+              v-if="isLineDisplayInline"
+              src="/assets/ic_fluent_text_align_right_24_regular.png" 
+              alt="Line Display" 
+              class="dropdown-icon line-display-icon themed-icon" 
+            />
+            <img 
+              v-else
+              src="/assets/ic_fluent_text_align_justify_24_regular.png" 
+              alt="Line Display" 
+              class="dropdown-icon line-display-icon themed-icon" 
+            />
+            <span class="dropdown-label">החלף תצוגת שורות</span>
+          </button>
+          
+          <button 
+            v-if="isInUserControl"
+            class="dropdown-item" 
+            @click.stop="handlePopOutClick"
+          >
+            <svg class="dropdown-icon popout-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6V10M10 14L20 4M8 4H4V20H20V16" 
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="dropdown-label">{{ isPopOut ? 'חזור לחלון ראשי' : 'פתח בחלון נפרד' }}</span>
+          </button>
+          
+          <button 
+            class="dropdown-item" 
+            @click.stop="handleSettingsClick"
+          >
+            <img src="/assets/ic_fluent_settings_24_regular.png" alt="Settings" class="dropdown-icon settings-icon themed-icon" />
+            <span class="dropdown-label">הגדרות</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TOC button always visible when applicable -->
       <button 
         v-if="showTocButton"
         class="toc-toggle-btn" 
@@ -47,9 +130,10 @@
       >
         <img src="/assets/ic_fluent_text_bullet_list_tree_24_regular.png" alt="TOC" class="toc-icon themed-icon rtl-flip" />
       </button>
+
       <button 
         v-if="isInUserControl"
-        class="popout-toggle-btn" 
+        class="popout-toggle-btn desktop-only" 
         @click.stop="togglePopOut" 
         :title="isPopOut ? 'חזור לחלון ראשי' : 'פתח בחלון נפרד'"
       >
@@ -58,9 +142,17 @@
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
-      <button class="settings-toggle-btn" @click.stop="toggleSettings" title="הגדרות">
-        <img src="/assets/ic_fluent_settings_24_regular.png" alt="Settings" class="settings-icon themed-icon" />
-      </button>
+
+    </div>
+
+    <div class="tab-header-center">
+      <span class="tab-header-icon">▼</span>
+      <span class="tab-header-text">{{ headerText }}</span>
+    </div>
+
+    <div class="header-actions-right">
+      <button class="add-tab-btn" @click.stop="handleNewTab" title="כרטיסייה חדשה">+</button>
+      <button class="close-tab-btn" @click.stop="handleCloseTab" title="סגור כרטיסייה">×</button>
     </div>
   </div>
 </template>
@@ -110,12 +202,6 @@ const isLineDisplayInline = computed(() => {
   return getLineDisplayState(tabsStore.activeTab.id)
 })
 
-const lineDisplayIconSrc = computed(() => {
-  return isLineDisplayInline.value 
-    ? '/assets/ic_fluent_text_align_right_24_regular.png'
-    : '/assets/ic_fluent_text_align_justify_24_regular.png'
-})
-
 const diacriticsState = computed(() => {
   if (!tabsStore.activeTab) return 0
   return getDiacriticsState(tabsStore.activeTab.id).state
@@ -141,6 +227,18 @@ const diacriticsTitle = computed(() => {
 
 const handleNewTab = () => {
   tabsStore.createTab()
+  if (isDropdownOpen.value) {
+    emit('toggleDropdown')
+  }
+}
+
+const handleCloseTab = () => {
+  if (tabsStore.activeTab) {
+    tabsStore.closeTab(tabsStore.activeTab.id)
+  }
+  if (isDropdownOpen.value) {
+    emit('toggleDropdown')
+  }
 }
 
 const toggleToc = () => {
@@ -153,6 +251,10 @@ const toggleToc = () => {
   }
   
   tocStore.toggleToc()
+  
+  if (isDropdownOpen.value) {
+    emit('toggleDropdown')
+  }
 }
 
 const toggleLineDisplay = () => {
@@ -184,6 +286,10 @@ const toggleLineDisplay = () => {
 
   // Force reactivity update
   lineDisplayStates.value = new Map(lineDisplayStates.value)
+  
+  if (isDropdownOpen.value) {
+    emit('toggleDropdown')
+  }
 }
 
 const toggleDiacritics = () => {
@@ -217,6 +323,10 @@ const toggleDiacritics = () => {
 
   // Force reactivity update by creating a new Map reference
   diacriticsStates.value = new Map(diacriticsStates.value)
+  
+  if (isDropdownOpen.value) {
+    emit('toggleDropdown')
+  }
 }
 
 const applyDiacriticsFilter = (container: Element, state: number) => {
@@ -251,6 +361,48 @@ const applyDiacriticsFilter = (container: Element, state: number) => {
 
 const toggleSettings = () => {
   emit('toggleSettings')
+  if (isDropdownOpen.value) {
+    emit('toggleDropdown')
+  }
+}
+
+// More options dropdown
+const isMoreOptionsOpen = ref(false)
+
+const toggleMoreOptions = () => {
+  isMoreOptionsOpen.value = !isMoreOptionsOpen.value
+  
+  if (isDropdownOpen.value) {
+    emit('toggleDropdown')
+  }
+}
+
+const handleDiacriticsClick = () => {
+  toggleDiacritics()
+  isMoreOptionsOpen.value = false
+}
+
+const handleLineDisplayClick = () => {
+  toggleLineDisplay()
+  isMoreOptionsOpen.value = false
+}
+
+const handlePopOutClick = () => {
+  togglePopOut()
+  isMoreOptionsOpen.value = false
+}
+
+const handleSettingsClick = () => {
+  toggleSettings()
+  isMoreOptionsOpen.value = false
+}
+
+// Close dropdown when clicking outside
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  if (!target.closest('.more-options-container')) {
+    isMoreOptionsOpen.value = false
+  }
 }
 
 // Pop-out functionality
@@ -272,6 +424,10 @@ const togglePopOut = () => {
     // Toggle state
     isPopOut.value = !isPopOut.value
   }
+  
+  if (isDropdownOpen.value) {
+    emit('toggleDropdown')
+  }
 }
 
 onMounted(() => {
@@ -282,10 +438,14 @@ onMounted(() => {
       args: []
     })
   }
+  
+  // Add click listener for closing dropdown
+  document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
-  // Cleanup if needed
+  // Remove click listener
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -299,28 +459,39 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--border-color);
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 8px;
   position: relative;
   cursor: pointer;
   transition: background 0.2s ease;
   direction: rtl;
+  z-index: 1000;
 }
 
 .tab-header:active {
   background: var(--active-bg);
 }
 
-.tab-header-left {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-}
-
-.tab-header-content {
+.tab-header-center {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: 1;
   min-width: 0;
+  justify-content: center;
+}
+
+.header-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tab-text-container {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .tab-header-text {
@@ -337,18 +508,22 @@ onUnmounted(() => {
   color: var(--text-secondary);
   transition: transform 0.2s ease;
   flex-shrink: 0;
-  opacity: 0.7;
-  margin-left: 4px;
+  opacity: 0.6;
+  margin-left: 6px;
+  pointer-events: none;
 }
 
 .tab-header.open .tab-header-icon {
   transform: rotate(180deg);
+  opacity: 1;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
+  z-index: 10000;
 }
 
 .toc-toggle-btn,
@@ -483,35 +658,227 @@ onUnmounted(() => {
   opacity: 1;
 }
 
-.add-tab-btn {
-  padding: 4px 8px;
+.close-tab-btn {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text-secondary);
   cursor: pointer;
-  font-size: 16px;
+  transition: all 0.1s ease;
+  flex-shrink: 0;
+  padding: 6px;
+  opacity: 0.7;
+}
+
+.close-tab-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.close-tab-btn:active {
+  background: var(--active-bg);
+  transform: scale(0.95);
+}
+
+.add-tab-btn {
+  padding: 6px;
+  cursor: pointer;
+  font-size: 20px;
   font-weight: 400;
+  line-height: 1;
   color: var(--text-secondary);
   background: transparent;
-  border-radius: 3px;
-  transition: all 0.15s ease;
-  border: 1px solid transparent;
-  height: 24px;
+  border-radius: 4px;
+  transition: all 0.1s ease;
+  border: none;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-left: 8px;
-  opacity: 0.8;
+  opacity: 0.7;
 }
 
 .add-tab-btn:hover {
-  color: var(--accent-color);
   background: var(--hover-bg);
-  border-color: var(--border-color);
+  color: var(--text-primary);
   opacity: 1;
   transform: scale(1.05);
 }
 
 .add-tab-btn:active {
   background: var(--active-bg);
-  transform: scale(0.98);
+  transform: scale(0.95);
+}
+
+/* More options dropdown */
+.more-options-container {
+  position: relative;
+  z-index: 9999;
+}
+
+.more-options-btn {
+  padding: 6px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.more-options-btn:hover {
+  background: var(--hover-bg);
+  transform: scale(1.05);
+}
+
+.more-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-primary);
+  opacity: 0.7;
+}
+
+.more-options-btn:hover .more-icon {
+  opacity: 1;
+}
+
+.more-options-dropdown {
+  position: fixed;
+  top: 48px;
+  right: 0;
+  background: var(--bg-secondary);
+  backdrop-filter: blur(40px) saturate(150%);
+  -webkit-backdrop-filter: blur(40px) saturate(150%);
+  border-left: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0 0 0 8px;
+  box-shadow: -2px 4px 8px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+/* Responsive design */
+.desktop-only {
+  display: flex;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+  
+  .mobile-only {
+    display: flex !important;
+  }
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  text-align: right;
+  direction: rtl;
+}
+
+.dropdown-item:hover {
+  background: var(--hover-bg);
+}
+
+.dropdown-item:active {
+  background: var(--active-bg);
+}
+
+.dropdown-item.active {
+  background: var(--accent-bg);
+}
+
+.dropdown-item.state-1 {
+  background: rgba(255, 165, 0, 0.15);
+}
+
+.dropdown-item.state-2 {
+  background: rgba(255, 69, 0, 0.15);
+}
+
+.dropdown-icon {
+  width: 20px;
+  height: 20px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.dropdown-icon.diacritics-icon {
+  font-size: 18px;
+  font-family: 'Times New Roman', Times, serif;
+  color: var(--text-primary);
+  width: auto;
+  height: auto;
+}
+
+.dropdown-item.state-1 .diacritics-icon {
+  opacity: 1;
+  color: #ff8c00;
+}
+
+.dropdown-item.state-2 .diacritics-icon {
+  opacity: 1;
+  color: #ff4500;
+}
+
+.dropdown-icon.line-display-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.dropdown-icon.popout-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-primary);
+}
+
+.dropdown-icon.settings-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.dropdown-label {
+  font-size: 14px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.dropdown-item:hover .dropdown-icon {
+  opacity: 1;
+}
+
+.dropdown-item.active .dropdown-icon {
+  opacity: 1;
+  filter: brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(180deg) brightness(95%) contrast(101%) !important;
 }
 </style>
