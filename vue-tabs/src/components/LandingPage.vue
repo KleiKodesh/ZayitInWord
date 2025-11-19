@@ -39,6 +39,8 @@
         type="text" 
         :placeholder="selectedBook ? 'חפש בתוכן עניינים...' : 'חפש ספר...'"
         @keydown.enter="handleEnterKey"
+        @keydown.up.prevent="handleSearchArrowUp"
+        @keydown.down.prevent="handleSearchArrowDown"
       />
       <button v-if="selectedBook" @click="openBookAtLine(null)" class="open-start-btn" title="פתח מההתחלה">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="transform: scaleX(-1)">
@@ -203,6 +205,11 @@ const selectBook = (book: Book) => {
   searchInput.value = ''
   debouncedSearchQuery.value = ''
   
+  // Focus search input when TOC loads
+  setTimeout(() => {
+    searchInputRef.value?.focus()
+  }, 200)
+  
   console.log('Selected book:', book.id, book.title)
   
   // Request TOC if not already loaded (shared with TOC sidebar)
@@ -278,6 +285,26 @@ const handleEnterKey = () => {
   if (selectedBook.value) {
     // In TOC mode - open book from start
     openBookAtLine(null)
+  }
+}
+
+const handleSearchArrowUp = () => {
+  // Focus tree/toc view and navigate
+  if (selectedBook.value && tocViewRef.value) {
+    (tocViewRef.value.$el as HTMLElement)?.focus()
+  } else if (treeViewRef.value) {
+    (treeViewRef.value.$el as HTMLElement)?.focus()
+    treeViewRef.value.focusFirstItem()
+  }
+}
+
+const handleSearchArrowDown = () => {
+  // Focus tree/toc view and navigate
+  if (selectedBook.value && tocViewRef.value) {
+    (tocViewRef.value.$el as HTMLElement)?.focus()
+  } else if (treeViewRef.value) {
+    (treeViewRef.value.$el as HTMLElement)?.focus()
+    treeViewRef.value.focusFirstItem()
   }
 }
 </script>

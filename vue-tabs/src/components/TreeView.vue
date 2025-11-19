@@ -1,5 +1,15 @@
 <template>
-  <div class="tree-view">
+  <div 
+    class="tree-view" 
+    ref="treeViewRef"
+    tabindex="-1"
+    @keydown.up.prevent="navigateUp"
+    @keydown.down.prevent="navigateDown"
+    @keydown.enter="selectCurrentItem"
+    @keydown.space.prevent="selectCurrentItem"
+    @click="focusTreeView"
+    @touchstart="focusTreeView"
+  >
     <!-- Loading state -->
     <div v-if="isLoading" class="tree-status">טוען...</div>
     
@@ -13,8 +23,10 @@
           :ref="el => { if (index === selectedIndex) selectedItemRef = el as HTMLElement }"
           class="result-item"
           :class="{ selected: index === selectedIndex && showSelection }"
-
+          tabindex="0"
           @click="handleItemClick(index, book)"
+          @keydown.enter="handleItemClick(index, book)"
+          @keydown.space.prevent="handleItemClick(index, book)"
         >
           <svg class="book-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M3 2.5C3 2.22386 3.22386 2 3.5 2H7.5C7.77614 2 8 2.22386 8 2.5V13.5C8 13.7761 7.77614 14 7.5 14H3.5C3.22386 14 3 13.7761 3 13.5V2.5Z" stroke="currentColor" stroke-width="1.2"/>
@@ -265,6 +277,29 @@ const focusFirstItem = () => {
   }
 }
 
+// Navigation methods for template
+const treeViewRef = ref<HTMLElement | null>(null)
+
+const navigateUp = () => {
+  handleArrowKey('ArrowUp')
+}
+
+const navigateDown = () => {
+  handleArrowKey('ArrowDown')
+}
+
+const selectCurrentItem = () => {
+  handleEnterKey()
+}
+
+const focusTreeView = () => {
+  treeViewRef.value?.focus()
+  if (selectedIndex.value === -1 && visibleItems.value.length > 0) {
+    selectedIndex.value = 0
+    showSelection.value = true
+  }
+}
+
 // Expose methods
 defineExpose({
   reset: () => {
@@ -282,6 +317,11 @@ defineExpose({
   height: 100%;
   overflow-y: auto;
   direction: rtl;
+  outline: none;
+}
+
+.tree-view:focus {
+  outline: none;
 }
 
 .tree-status {
@@ -329,6 +369,12 @@ defineExpose({
 .result-item:active {
   background: var(--active-bg);
   transform: scale(0.98);
+}
+
+.result-item:focus {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+  background: rgba(var(--accent-color-rgb, 0, 120, 212), 0.05);
 }
 
 .result-item .book-icon {

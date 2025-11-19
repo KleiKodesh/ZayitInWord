@@ -1,5 +1,15 @@
 <template>
-  <div class="toc-view">
+  <div 
+    class="toc-view"
+    ref="tocViewRef"
+    tabindex="-1"
+    @keydown.up.prevent="navigateUp"
+    @keydown.down.prevent="navigateDown"
+    @keydown.enter="selectCurrentItem"
+    @keydown.space.prevent="selectCurrentItem"
+    @click="focusTocView"
+    @touchstart="focusTocView"
+  >
     <!-- Loading state -->
     <div v-if="isLoading" class="toc-status">טוען תוכן עניינים...</div>
     
@@ -11,7 +21,10 @@
           v-for="(entry, index) in filteredEntries"
           :key="entry.lineId"
           class="toc-search-item"
+          tabindex="0"
           @click="handleItemClick(entry)"
+          @keydown.enter="handleItemClick(entry)"
+          @keydown.space.prevent="handleItemClick(entry)"
         >
           <span class="toc-text">{{ entry.text }}</span>
         </div>
@@ -101,6 +114,64 @@ const handleNavigate = (lineId: number) => {
     emit('select-entry', entry)
   }
 }
+
+// Keyboard navigation
+const tocViewRef = ref<HTMLElement | null>(null)
+const selectedIndex = ref(-1)
+
+const navigateUp = () => {
+  const items = filteredEntries.value.length > 0 ? filteredEntries.value : (props.tocEntries || [])
+  if (items.length === 0) return
+  
+  if (selectedIndex.value <= 0) {
+    selectedIndex.value = items.length - 1
+  } else {
+    selectedIndex.value--
+  }
+  scrollToSelected()
+}
+
+const navigateDown = () => {
+  const items = filteredEntries.value.length > 0 ? filteredEntries.value : (props.tocEntries || [])
+  if (items.length === 0) return
+  
+  if (selectedIndex.value >= items.length - 1) {
+    selectedIndex.value = 0
+  } else {
+    selectedIndex.value++
+  }
+  scrollToSelected()
+}
+
+const selectCurrentItem = () => {
+  const items = filteredEntries.value.length > 0 ? filteredEntries.value : allEntriesFlat.value
+  const entry = items[selectedIndex.value]
+  if (entry && selectedIndex.value >= 0 && selectedIndex.value < items.length) {
+    emit('select-entry', entry)
+  }
+}
+
+const focusTocView = () => {
+  if (tocViewRef.value) {
+    tocViewRef.value.focus()
+    if (selectedIndex.value === -1) {
+      selectedIndex.value = 0
+    }
+  }
+}
+
+const scrollToSelected = () => {
+  setTimeout(() => {
+    const items = document.querySelectorAll('.toc-search-item')
+    const item = items[selectedIndex.value]
+    if (item) {
+      item.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest'
+      })
+    }
+  }, 0)
+}
 </script>
 
 <style scoped>
@@ -108,6 +179,11 @@ const handleNavigate = (lineId: number) => {
   height: 100%;
   overflow-y: auto;
   direction: rtl;
+  outline: none;
+}
+
+.toc-view:focus {
+  outline: none;
 }
 
 .toc-status {
@@ -159,6 +235,12 @@ const handleNavigate = (lineId: number) => {
 
 .toc-search-item:active {
   background: var(--active-bg);
+}
+
+.toc-search-item:focus {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+  background: rgba(var(--accent-color-rgb, 0, 120, 212), 0.1);
 }
 
 .toc-text {

@@ -3,7 +3,10 @@
     <div 
       class="toc-item" 
       :style="{ paddingRight: `${entry.level * 12}px` }"
+      tabindex="0"
       @click="handleClick"
+      @keydown.enter="handleClick"
+      @keydown.space.prevent="handleClick"
     >
       <span v-if="entry.hasChildren" class="expand-icon" @click.stop="toggleExpand">
         {{ isExpanded ? '▼' : '◀' }}
@@ -69,6 +72,12 @@ function handleClick() {
 
 .toc-item:hover {
   background-color: rgba(90, 93, 94, 0.15);
+}
+
+.toc-item:focus {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+  background: rgba(var(--accent-color-rgb, 0, 120, 212), 0.1);
 }
 
 .expand-icon {

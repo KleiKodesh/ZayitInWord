@@ -1,7 +1,7 @@
 <template>
   <div class="tab-header" :class="{ open: isDropdownOpen }" @click="emit('toggleDropdown')">
     <div class="header-actions">
-      <!-- Settings button: always visible on desktop, on mobile only visible when NOT in book view -->
+      <!-- Settings button: visible when NOT in book view, or on desktop when in book view -->
       <button 
         v-if="!showTocButton"
         class="settings-toggle-btn" 
@@ -11,6 +11,7 @@
         <img src="/assets/ic_fluent_settings_24_regular.png" alt="Settings" class="settings-icon themed-icon" />
       </button>
       
+      <!-- Settings button only on desktop when in book view (hidden on mobile since it's in dropdown) -->
       <button 
         v-if="showTocButton"
         class="settings-toggle-btn desktop-only" 
