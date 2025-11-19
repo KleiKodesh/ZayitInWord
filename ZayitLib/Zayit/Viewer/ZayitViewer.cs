@@ -191,7 +191,8 @@ namespace Zayit.Viewer
 
                     // Remove from UserControl
                     userControl.Controls.Remove(this);
-                    
+                    userControl.Visible = false;
+
                     // Add to Form
                     form.Controls.Add(this);
                     
@@ -203,6 +204,7 @@ namespace Zayit.Viewer
                     {
                         form.Controls.Remove(this);
                         userControl.Controls.Add(this);
+                        userControl.Visible = true;
                     };
                     
                     form.Show();
@@ -210,14 +212,16 @@ namespace Zayit.Viewer
                 }
                 else if (Parent is System.Windows.Forms.Form form)
                 {
-                    // Pop back into UserControl
-                    if (form.Tag is System.Windows.Forms.UserControl originalParent)
-                    {
-                        form.Controls.Remove(this);
-                        originalParent.Controls.Add(this);
-                        form.Close();
-                        Debug.WriteLine("Popped back into UserControl");
-                    }
+                    form.Close();
+                    //// Pop back into UserControl
+                    //if (form.Tag is System.Windows.Forms.UserControl originalParent)
+                    //{
+                    //    form.Controls.Remove(this);
+                    //    originalParent.Controls.Add(this);
+                    //    originalParent.Visible = true;
+                    //    form.Close();
+                    //    Debug.WriteLine("Popped back into UserControl");
+                    //}
                 }
             }
             catch (Exception ex)

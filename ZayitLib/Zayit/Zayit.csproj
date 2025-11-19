@@ -103,12 +103,6 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SeforimDb\SqlQueries.cs" />
-    <Compile Include="UserControl1.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="UserControl1.Designer.cs">
-      <DependentUpon>UserControl1.cs</DependentUpon>
-    </Compile>
     <Compile Include="Viewer\ZayitViewer.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -127,9 +121,6 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <EmbeddedResource Include="UserControl1.resx">
-      <DependentUpon>UserControl1.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Viewer\ZayitViewerHost.resx">
       <DependentUpon>ZayitViewerHost.cs</DependentUpon>
     </EmbeddedResource>
