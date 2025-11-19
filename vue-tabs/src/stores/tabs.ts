@@ -1,14 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { TreeData } from '../types/Tree'
-
-export interface Tab {
-  id: string
-  title: string
-  type: 'search' | 'book'
-  bookId?: number
-  scrollPosition?: number
-}
+import type { Tab } from '@/types/Tab'
 
 export const useTabsStore = defineStore('tabs', () => {
   const tabs = ref<Tab[]>([])

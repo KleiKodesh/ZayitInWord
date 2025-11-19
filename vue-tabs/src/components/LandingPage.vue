@@ -1,5 +1,5 @@
 <template>
-  <div class="content" @keydown="handleKeyDown" tabindex="-1">
+  <div class="content" tabindex="-1">
     <div class="search-results">
       <TreeView
         ref="treeViewRef"
@@ -12,7 +12,7 @@
     </div>
 
     <div class="search-bar">
-      <button @click="resetTree" class="reset-btn" title="איפוס עץ">
+      <button @click="resetTree" class="reset-btn">
         <img src="/assets/ic_fluent_text_bullet_list_tree_24_regular.png" alt="Reset" class="themed-icon rtl-flip" />
       </button>
       <input 
@@ -111,32 +111,6 @@ onMounted(() => {
     }, 5000)
   }
 })
-
-// Global keyboard navigation
-const handleKeyDown = (event: KeyboardEvent) => {
-  // Arrow keys work anywhere
-  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-    event.preventDefault()
-    // If in search box, move focus to content
-    if (event.target === searchInputRef.value) {
-      focusContent()
-    }
-    treeViewRef.value?.handleArrowKey(event.key)
-  } 
-  // Enter key behavior
-  else if (event.key === 'Enter') {
-    // If in search input, move focus to tree
-    if (event.target === searchInputRef.value) {
-      event.preventDefault()
-      focusContent()
-    } 
-    // If in tree, activate selected item
-    else {
-      event.preventDefault()
-      treeViewRef.value?.handleEnterKey()
-    }
-  }
-}
 
 // Reset tree: clear search and collapse all
 const resetTree = () => {

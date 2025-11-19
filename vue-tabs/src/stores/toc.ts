@@ -12,6 +12,11 @@ export const useTocStore = defineStore('toc', () => {
   }
 
   function setTocData(bookId: number, toc: TocEntry[]) {
+    // Set the first item as expanded by default
+    const firstItem = toc[0]
+    if (toc.length > 0 && firstItem && firstItem.hasChildren) {
+      firstItem.isExpanded = true
+    }
     tocData.value.set(bookId, toc)
     currentBookId.value = bookId
   }

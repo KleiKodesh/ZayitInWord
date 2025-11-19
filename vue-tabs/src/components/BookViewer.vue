@@ -226,6 +226,17 @@ onUnmounted(() => {
   font-family: var(--text-font);
   padding: 16px;
   font-size: 100%; /* Default, will be overridden by settings */
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
+.content-container :deep(*) {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
 }
 
 .content-container.hidden {

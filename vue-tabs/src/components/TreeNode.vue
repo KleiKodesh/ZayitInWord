@@ -32,7 +32,7 @@
         class="book-node"
         :class="{ selected: isBookSelected(book) }"
         :style="{ paddingRight: `${(level + 1) * 20 + 16}px` }"
-        :title="book.heShortDesc || undefined"
+
         @click="$emit('select-book', book)"
       >
         <svg class="book-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">

@@ -13,7 +13,7 @@
           :ref="el => { if (index === selectedIndex) selectedItemRef = el as HTMLElement }"
           class="result-item"
           :class="{ selected: index === selectedIndex && showSelection }"
-          :title="book.heShortDesc || undefined"
+
           @click="handleItemClick(index, book)"
         >
           <svg class="book-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">

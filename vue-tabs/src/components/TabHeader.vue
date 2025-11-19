@@ -4,7 +4,7 @@
       <div class="tab-header-content">
         <span class="tab-header-icon">▼</span>
         <span class="tab-header-text">{{ headerText }}</span>
-        <button class="add-tab-btn" @click.stop="handleNewTab" title="כרטיסייה חדשה (Ctrl+N)">+</button>
+        <button class="add-tab-btn" @click.stop="handleNewTab" title="כרטיסייה חדשה">+</button>
       </div>
     </div>
 
@@ -14,7 +14,7 @@
         class="diacritics-toggle-btn" 
         @click.stop="toggleDiacritics" 
         :class="diacriticsStateClass"
-        :title="diacriticsTitle + ' (Ctrl+D)'"
+        :title="diacriticsTitle"
       >
         <span class="diacritics-icon">{{ diacriticsIcon }}</span>
       </button>
@@ -23,7 +23,7 @@
         class="line-display-toggle-btn" 
         @click.stop="toggleLineDisplay" 
         :class="{ active: isLineDisplayInline }"
-        title="החלף תצוגת שורות (Ctrl+L)"
+        title="החלף תצוגת שורות"
       >
         <img 
           v-if="isLineDisplayInline"
@@ -43,7 +43,7 @@
         class="toc-toggle-btn" 
         @click.stop="toggleToc" 
         :class="{ active: isTocVisible }"
-        title="תוכן עניינים (Ctrl+H)"
+        title="תוכן עניינים"
       >
         <img src="/assets/ic_fluent_text_bullet_list_tree_24_regular.png" alt="TOC" class="toc-icon themed-icon rtl-flip" />
       </button>
@@ -51,7 +51,7 @@
         v-if="isInUserControl"
         class="popout-toggle-btn" 
         @click.stop="togglePopOut" 
-        :title="(isPopOut ? 'חזור לחלון ראשי' : 'פתח בחלון נפרד') + ' (Ctrl+P)'"
+        :title="isPopOut ? 'חזור לחלון ראשי' : 'פתח בחלון נפרד'"
       >
         <svg class="popout-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M14 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6V10M10 14L20 4M8 4H4V20H20V16" 
@@ -274,45 +274,6 @@ const togglePopOut = () => {
   }
 }
 
-// Keyboard shortcuts
-const handleKeyDown = (e: KeyboardEvent) => {
-  // Check if Ctrl key is pressed
-  if (e.ctrlKey) {
-    switch (e.key.toLowerCase()) {
-      case 'n':
-        e.preventDefault()
-        handleNewTab()
-        break
-      case 'w':
-        e.preventDefault()
-        if (tabsStore.activeTab) {
-          tabsStore.closeTab(tabsStore.activeTab.id)
-        }
-        break
-      case 'x':
-        e.preventDefault()
-        tabsStore.closeAllTabs()
-        break
-      case 'h':
-        e.preventDefault()
-        if (showTocButton.value) toggleToc()
-        break
-      case 'l':
-        e.preventDefault()
-        if (showTocButton.value) toggleLineDisplay()
-        break
-      case 'd':
-        e.preventDefault()
-        if (showTocButton.value) toggleDiacritics()
-        break
-      case 'p':
-        e.preventDefault()
-        if (isInUserControl.value) togglePopOut()
-        break
-    }
-  }
-}
-
 onMounted(() => {
   // Request hosting mode from C#
   if (window.chrome?.webview) {
@@ -321,14 +282,10 @@ onMounted(() => {
       args: []
     })
   }
-  
-  // Add keyboard event listener
-  window.addEventListener('keydown', handleKeyDown)
 })
 
 onUnmounted(() => {
-  // Clean up keyboard event listener
-  window.removeEventListener('keydown', handleKeyDown)
+  // Cleanup if needed
 })
 </script>
 

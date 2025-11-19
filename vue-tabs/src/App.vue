@@ -172,6 +172,10 @@ function saveTheme(isDark: boolean) {
   margin: 0;
   padding: 0;
   font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 /* Scrollbar color theming only */

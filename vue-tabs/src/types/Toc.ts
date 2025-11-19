@@ -9,4 +9,5 @@ export interface TocEntry {
   hasChildren: boolean
   text: string
   children?: TocEntry[]
+  isExpanded?: boolean
 }

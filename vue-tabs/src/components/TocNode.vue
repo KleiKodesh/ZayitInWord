@@ -33,10 +33,12 @@ const emit = defineEmits<{
   navigate: [lineId: number]
 }>()
 
-const isExpanded = ref(false)
+const isExpanded = ref(props.entry.isExpanded || false)
 
 function toggleExpand() {
   isExpanded.value = !isExpanded.value
+  // Update the entry's isExpanded property
+  props.entry.isExpanded = isExpanded.value
 }
 
 function handleClick() {
