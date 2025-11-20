@@ -180,6 +180,11 @@ onMounted(() => {
       if (savedScrollPosition.value > 0 && bookViewerRef.value) {
         bookViewerRef.value.scrollTop = savedScrollPosition.value
       }
+      
+      // Apply divine name censoring if enabled
+      if ((window as any).applyCensoringIfEnabled) {
+        (window as any).applyCensoringIfEnabled()
+      }
     }
   })
   

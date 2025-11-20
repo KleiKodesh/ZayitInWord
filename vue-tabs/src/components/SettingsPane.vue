@@ -108,6 +108,27 @@
             class="setting-slider"
           />
         </div>
+
+        <!-- Divine Name Censoring -->
+        <div class="setting-group">
+          <label class="setting-label">כיסוי שם ה'</label>
+          <div class="theme-toggle">
+            <button 
+              :class="{ active: !censorDivineNames }" 
+              @click="setCensorDivineNames(false)"
+              class="theme-option"
+            >
+              כתיב מלא
+            </button>
+            <button 
+              :class="{ active: censorDivineNames }" 
+              @click="setCensorDivineNames(true)"
+              class="theme-option"
+            >
+              כיסוי (ה→ק)
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -132,6 +153,7 @@ const headerFont = ref("'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif")
 const textFont = ref("'Times New Roman', Times, serif")
 const fontSize = ref(100)
 const linePadding = ref(0.3)
+const censorDivineNames = ref(false)
 const availableFonts = ref<string[]>([])
 const isHeaderDropdownOpen = ref(false)
 const isTextDropdownOpen = ref(false)
@@ -262,13 +284,109 @@ const setTheme = (dark: boolean) => {
   localStorage.setItem('zayit-theme', dark ? 'dark' : 'light')
 }
 
+const setCensorDivineNames = (censor: boolean) => {
+  censorDivineNames.value = censor
+  localStorage.setItem('zayit-censor-divine-names', censor ? 'true' : 'false')
+  applyCensoring()
+}
+
+const applyCensoring = () => {
+  const contentContainers = document.querySelectorAll('.content-container')
+  contentContainers.forEach(container => {
+    if (censorDivineNames.value) {
+      censorDivineNamesInElement(container as HTMLElement)
+    } else {
+      // Reload the page content to restore original text
+      // This would require re-fetching from C#, so we'll just mark it
+      // The actual restoration will happen on next book load
+    }
+  })
+}
+
+const censorDivineNamesInElement = (element: HTMLElement) => {
+  const walker = document.createTreeWalker(
+    element,
+    NodeFilter.SHOW_TEXT,
+    null
+  )
+
+  const textNodes: Text[] = []
+  let node: Node | null
+  while ((node = walker.nextNode())) {
+    textNodes.push(node as Text)
+  }
+
+  // Diacritics pattern: matches any Hebrew diacritic or cantillation mark
+  const D = '[\\u0591-\\u05C7]*'
+  
+  // Patterns for divine names - capture groups preserve all diacritics
+  const patterns = [
+    // יהוה → יקוק - capture each letter with its diacritics separately
+    { 
+      regex: new RegExp(`(י${D})(ה${D})(ו${D})(ה${D})`, 'g'), 
+      replacement: (match: string, yud: string, heh1: string, vav: string, heh2: string) => {
+        return yud + heh1.replace('ה', 'ק') + vav + heh2.replace('ה', 'ק')
+      }
+    },
+    // אדני → אדנ-י
+    { 
+      regex: new RegExp(`(א${D})(ד${D})(נ${D})(י${D})`, 'g'), 
+      replacement: '$1$2$3-$4'
+    },
+    // אלהים → אלקים (but NOT אלהים אחרים)
+    { 
+      regex: new RegExp(`(א${D})(ל${D})(ה${D})(י${D})(ם${D})(?!\\s*א${D}ח${D}ר${D}י${D}ם)`, 'g'), 
+      replacement: (match: string, alef: string, lamed: string, heh: string, yud: string, mem: string) => {
+        return alef + lamed + heh.replace('ה', 'ק') + yud + mem
+      }
+    },
+    // אלוהים → אלוקים (but NOT אלוהים אחרים)
+    { 
+      regex: new RegExp(`(א${D})(ל${D})(ו${D})(ה${D})(י${D})(ם${D})(?!\\s*א${D}ח${D}ר${D}י${D}ם)`, 'g'), 
+      replacement: (match: string, alef: string, lamed: string, vav: string, heh: string, yud: string, mem: string) => {
+        return alef + lamed + vav + heh.replace('ה', 'ק') + yud + mem
+      }
+    },
+    // אלהי → אלקי
+    { 
+      regex: new RegExp(`(א${D})(ל${D})(ה${D})(י${D})`, 'g'), 
+      replacement: (match: string, alef: string, lamed: string, heh: string, yud: string) => {
+        return alef + lamed + heh.replace('ה', 'ק') + yud
+      }
+    },
+    // אלוה → אלוק (not followed by י or ם)
+    { 
+      regex: new RegExp(`(א${D})(ל${D})(ו${D})(ה${D})(?![יםא])`, 'g'), 
+      replacement: (match: string, alef: string, lamed: string, vav: string, heh: string) => {
+        return alef + lamed + vav + heh.replace('ה', 'ק')
+      }
+    },
+  ]
+
+  textNodes.forEach((textNode) => {
+    if (!textNode.nodeValue) return
+    let text = textNode.nodeValue
+    
+    patterns.forEach(({ regex, replacement }) => {
+      if (typeof replacement === 'function') {
+        text = text.replace(regex, replacement)
+      } else {
+        text = text.replace(regex, replacement)
+      }
+    })
+    
+    textNode.nodeValue = text
+  })
+}
+
 const applySettings = () => {
   // Save to localStorage
   localStorage.setItem('zayit-settings', JSON.stringify({
     headerFont: headerFont.value,
     textFont: textFont.value,
     fontSize: fontSize.value,
-    linePadding: linePadding.value
+    linePadding: linePadding.value,
+    censorDivineNames: censorDivineNames.value
   }))
 
   // Apply font size to all content containers
@@ -299,6 +417,10 @@ onMounted(() => {
   const savedTheme = localStorage.getItem('zayit-theme')
   isDark.value = savedTheme === 'dark'
 
+  // Load censoring setting
+  const savedCensoring = localStorage.getItem('zayit-censor-divine-names')
+  censorDivineNames.value = savedCensoring === 'true'
+
   // Load other settings
   const savedSettings = localStorage.getItem('zayit-settings')
   if (savedSettings) {
@@ -308,6 +430,9 @@ onMounted(() => {
       textFont.value = settings.textFont || textFont.value
       fontSize.value = settings.fontSize || fontSize.value
       linePadding.value = settings.linePadding || linePadding.value
+      if (settings.censorDivineNames !== undefined) {
+        censorDivineNames.value = settings.censorDivineNames
+      }
     } catch (e) {
       console.error('Failed to parse settings:', e)
     }
@@ -321,6 +446,17 @@ onMounted(() => {
 watch([headerFont, textFont, fontSize, linePadding], () => {
   applySettings()
 })
+
+// Expose censoring function globally for use after book loads
+;(window as any).applyCensoringIfEnabled = () => {
+  const savedCensoring = localStorage.getItem('zayit-censor-divine-names')
+  if (savedCensoring === 'true') {
+    const contentContainers = document.querySelectorAll('.content-container')
+    contentContainers.forEach(container => {
+      censorDivineNamesInElement(container as HTMLElement)
+    })
+  }
+}
 </script>
 
 <style scoped>

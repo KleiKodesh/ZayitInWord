@@ -23,6 +23,7 @@ This project provides a web-based interface for browsing and reading Jewish text
 
 ### Text Display Features
 - ✅ **Diacritics Control** - Toggle between full text, no cantillation marks, or no diacritics
+- ✅ **Divine Name Censoring** - Option to replace ה with ק in divine names (יהוה, אדני, אלהים, etc.)
 - ✅ **Line Display Modes** - Switch between block and inline line display
 - ✅ **Hierarchical Headers** - Properly styled h1-h6 headers for document structure
 - ✅ **Customizable Fonts** - Separate font selection for headers and body text
