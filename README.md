@@ -162,8 +162,7 @@ This code is based on [kdroidFilter/SeforimApp](https://github.com/kdroidFilter/
 ## Related Links
 
 - [Mitmachim Discussion](https://mitmachim.top/post/1044901)
-- [Original Zayit (Kotlin)](https://github.com/kdroidFilter/Zayit)
-- [SeforimApp](https://github.com/kdroidFilter/SeforimApp)
+- [Original Zayit (Kotlin) - SeforimApp](https://github.com/kdroidFilter/Zayit)
 
 ## Contributing
 
