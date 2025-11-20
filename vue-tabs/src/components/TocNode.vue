@@ -71,7 +71,7 @@ function handleClick() {
 }
 
 .toc-item:hover {
-  background-color: rgba(90, 93, 94, 0.15);
+  background-color: var(--hover-bg);
 }
 
 .toc-item:focus {

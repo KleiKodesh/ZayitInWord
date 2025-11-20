@@ -87,8 +87,9 @@ onMounted(() => {
   // Restore tabs from localStorage or create default tab
   tabsStore.restoreTabs()
 
-  // Add ESC key handler to close panes
+  // Add keyboard event handlers
   document.addEventListener('keydown', handleEscKey)
+  document.addEventListener('keydown', handleKeyboardShortcuts)
 })
 
 // Handle ESC key to close panes
@@ -110,8 +111,26 @@ function handleEscKey(e: KeyboardEvent) {
   }
 }
 
+// Handle keyboard shortcuts for tab management
+function handleKeyboardShortcuts(e: KeyboardEvent) {
+  // Ctrl+W: Close current tab
+  if (e.ctrlKey && e.key === 'w') {
+    e.preventDefault()
+    if (tabsStore.activeTab) {
+      tabsStore.closeTab(tabsStore.activeTab.id)
+    }
+  }
+  
+  // Ctrl+X: Close all tabs
+  if (e.ctrlKey && e.key === 'x') {
+    e.preventDefault()
+    tabsStore.closeAllTabs()
+  }
+}
+
 onUnmounted(() => {
   document.removeEventListener('keydown', handleEscKey)
+  document.removeEventListener('keydown', handleKeyboardShortcuts)
 })
 
 // Save theme when it changes

@@ -15,18 +15,22 @@
     
     <!-- TOC content -->
     <div v-else-if="tocEntries && tocEntries.length > 0" class="toc-container">
-      <!-- Filtered search results (styled like tree items) -->
+      <!-- Filtered search results -->
       <div v-if="searchQuery && filteredEntries.length > 0" class="filtered-results">
         <div
           v-for="(entry, index) in filteredEntries"
           :key="entry.lineId"
           class="toc-search-item"
+          :class="{ selected: selectedIndex === index && showSelection }"
           tabindex="0"
           @click="handleItemClick(entry)"
           @keydown.enter="handleItemClick(entry)"
           @keydown.space.prevent="handleItemClick(entry)"
         >
-          <span class="toc-text">{{ entry.text }}</span>
+          <div class="toc-item-content">
+            <div class="toc-text">{{ entry.text }}</div>
+            <div v-if="entry.path" class="toc-path">{{ entry.path }}</div>
+          </div>
         </div>
       </div>
       
@@ -35,7 +39,7 @@
         לא נמצאו תוצאות
       </div>
       
-      <!-- Full TOC tree - using same TocNode as sidebar -->
+      <!-- Full TOC tree when not searching -->
       <div v-else class="toc-tree">
         <TocNode
           v-for="entry in tocEntries"
@@ -54,12 +58,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import TocNode from './TocNode.vue'
 import type { TocEntry } from '../types/Toc'
 
 interface Props {
-  tocEntries: TocEntry[] | null
+  tocEntries: TocEntry[] | null  // Tree structure for display
+  tocEntriesFlat: TocEntry[] | null  // Flattened array for search
   isLoading: boolean
   searchQuery: string
 }
@@ -70,25 +75,12 @@ const emit = defineEmits<{
   'select-entry': [entry: TocEntry]
 }>()
 
-// Flatten all entries for search
+// Use flattened array for search
 const allEntriesFlat = computed(() => {
-  if (!props.tocEntries) return []
-  const flat: TocEntry[] = []
-  
-  const flatten = (entries: TocEntry[]) => {
-    for (const entry of entries) {
-      flat.push(entry)
-      if (entry.children && entry.children.length > 0) {
-        flatten(entry.children)
-      }
-    }
-  }
-  
-  flatten(props.tocEntries)
-  return flat
+  return props.tocEntriesFlat || []
 })
 
-// Filtered entries based on search
+// Filtered entries based on search - match all words in path + text combined
 const filteredEntries = computed(() => {
   if (!props.searchQuery) {
     return []
@@ -98,8 +90,23 @@ const filteredEntries = computed(() => {
   const queryWords = query.split(/\s+/)
   
   return allEntriesFlat.value.filter(entry => {
-    const text = entry.text.toLowerCase()
-    return queryWords.every(word => text.includes(word))
+    // Combine path and text for searching
+    const searchableText = `${entry.path || ''} ${entry.text}`.toLowerCase()
+    
+    // Split searchable text into words (by spaces, slashes, and other separators)
+    const textWords = searchableText.split(/[\s\/\-,.:;]+/).filter(w => w.length > 0)
+    
+    // Each query word must match
+    return queryWords.every(queryWord => {
+      // For single character queries, require exact word match
+      if (queryWord.length === 1) {
+        return textWords.some(textWord => textWord === queryWord)
+      }
+      // For longer queries, allow prefix matching
+      return textWords.some(textWord => 
+        textWord === queryWord || textWord.startsWith(queryWord)
+      )
+    })
   })
 })
 
@@ -118,35 +125,65 @@ const handleNavigate = (lineId: number) => {
 // Keyboard navigation
 const tocViewRef = ref<HTMLElement | null>(null)
 const selectedIndex = ref(-1)
+const showSelection = ref(false) // Controls visual highlight
+let selectionTimeout: number | null = null
+
+// Hide selection highlight after inactivity (but keep position)
+const clearSelectionAfterDelay = () => {
+  if (selectionTimeout) {
+    clearTimeout(selectionTimeout)
+  }
+  selectionTimeout = window.setTimeout(() => {
+    showSelection.value = false // Hide highlight but keep selectedIndex
+  }, 2000) // Hide after 2 seconds of inactivity
+}
 
 const navigateUp = () => {
-  const items = filteredEntries.value.length > 0 ? filteredEntries.value : (props.tocEntries || [])
-  if (items.length === 0) return
+  // Only navigate in filtered results (when searching)
+  if (!props.searchQuery || filteredEntries.value.length === 0) return
   
-  if (selectedIndex.value <= 0) {
-    selectedIndex.value = items.length - 1
+  // Show selection highlight
+  showSelection.value = true
+  
+  // If no selection, start at first item
+  if (selectedIndex.value === -1) {
+    selectedIndex.value = 0
+  } else if (selectedIndex.value === 0) {
+    // At first item, wrap to last
+    selectedIndex.value = filteredEntries.value.length - 1
   } else {
     selectedIndex.value--
   }
   scrollToSelected()
+  
+  // Reset the inactivity timer
+  clearSelectionAfterDelay()
 }
 
 const navigateDown = () => {
-  const items = filteredEntries.value.length > 0 ? filteredEntries.value : (props.tocEntries || [])
-  if (items.length === 0) return
+  // Only navigate in filtered results (when searching)
+  if (!props.searchQuery || filteredEntries.value.length === 0) return
   
-  if (selectedIndex.value >= items.length - 1) {
+  // Show selection highlight
+  showSelection.value = true
+  
+  if (selectedIndex.value >= filteredEntries.value.length - 1) {
     selectedIndex.value = 0
   } else {
     selectedIndex.value++
   }
   scrollToSelected()
+  
+  // Reset the inactivity timer
+  clearSelectionAfterDelay()
 }
 
 const selectCurrentItem = () => {
-  const items = filteredEntries.value.length > 0 ? filteredEntries.value : allEntriesFlat.value
-  const entry = items[selectedIndex.value]
-  if (entry && selectedIndex.value >= 0 && selectedIndex.value < items.length) {
+  // Only select from filtered results (when searching)
+  if (!props.searchQuery || filteredEntries.value.length === 0) return
+  
+  const entry = filteredEntries.value[selectedIndex.value]
+  if (entry && selectedIndex.value >= 0 && selectedIndex.value < filteredEntries.value.length) {
     emit('select-entry', entry)
   }
 }
@@ -154,8 +191,10 @@ const selectCurrentItem = () => {
 const focusTocView = () => {
   if (tocViewRef.value) {
     tocViewRef.value.focus()
-    if (selectedIndex.value === -1) {
+    if (selectedIndex.value === -1 && filteredEntries.value.length > 0) {
       selectedIndex.value = 0
+      showSelection.value = true
+      clearSelectionAfterDelay()
     }
   }
 }
@@ -172,6 +211,22 @@ const scrollToSelected = () => {
     }
   }, 0)
 }
+
+// Reset selection when search query changes
+watch(() => props.searchQuery, () => {
+  if (filteredEntries.value.length > 0) {
+    selectedIndex.value = 0
+    showSelection.value = false // Don't show highlight initially
+  } else {
+    selectedIndex.value = -1
+    showSelection.value = false
+  }
+})
+
+// Expose focus method for parent component
+defineExpose({
+  focusTocView
+})
 </script>
 
 <style scoped>
@@ -209,44 +264,60 @@ const scrollToSelected = () => {
 }
 
 .filtered-results {
-  padding: 12px;
-  display: inline-block;
-  min-width: min-content;
-  width: 100%;
+  padding: 0;
+  margin: 0;
 }
 
 /* Search results styled like tree items */
 .toc-search-item {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  padding: 8px 12px;
+  padding: 14px 20px;
   cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.1s ease;
-  gap: 6px;
-  min-width: 100%;
-  width: fit-content;
-  background: transparent;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .toc-search-item:hover {
-  background-color: rgba(90, 93, 94, 0.15);
+  background: var(--hover-bg);
+}
+
+.toc-search-item.selected {
+  background: rgba(var(--accent-color-rgb, 0, 120, 212), 0.1);
 }
 
 .toc-search-item:active {
   background: var(--active-bg);
+  transform: scale(0.98);
 }
 
 .toc-search-item:focus {
   outline: 2px solid var(--accent-color);
   outline-offset: -2px;
-  background: rgba(var(--accent-color-rgb, 0, 120, 212), 0.1);
+  background: rgba(var(--accent-color-rgb, 0, 120, 212), 0.05);
+}
+
+.toc-item-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .toc-text {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
+  line-height: 1.4;
+  margin: 0 0 4px 0;
+}
+
+.toc-path {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
+  opacity: 0.8;
 }
 </style>

@@ -17,6 +17,7 @@
           v-else
           ref="tocViewRef"
           :toc-entries="currentTocEntries"
+          :toc-entries-flat="currentTocFlat"
           :is-loading="isLoadingToc"
           :search-query="debouncedSearchQuery"
           @select-entry="selectTocEntry"
@@ -25,9 +26,10 @@
     </Transition>
 
     <div class="search-bar">
-      <button v-if="selectedBook" @click="goBackToSearch" class="back-btn">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M12 4L6 10L12 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <button v-if="selectedBook" @click="goBackToSearch" class="back-btn" title="חזור לחיפוש ספרים">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M9 14L4 9L9 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M20 20V13C20 11.9391 19.5786 10.9217 18.8284 10.1716C18.0783 9.42143 17.0609 9 16 9H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
       <button v-else @click="resetTree" class="reset-btn">
@@ -42,9 +44,9 @@
         @keydown.up.prevent="handleSearchArrowUp"
         @keydown.down.prevent="handleSearchArrowDown"
       />
-      <button v-if="selectedBook" @click="openBookAtLine(null)" class="open-start-btn" title="פתח מההתחלה">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="transform: scaleX(-1)">
-          <path d="M6 4L14 10L6 16V4Z" fill="currentColor"/>
+      <button v-if="selectedBook" @click="openBookAtLine(null)" class="open-start-btn" title="המשך">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M12.5 4.5L7 10L12.5 15.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
     </div>
@@ -168,31 +170,40 @@ const resetTree = () => {
   treeViewRef.value?.reset()
 }
 
-// Get current TOC entries for selected book
+// Get current TOC entries for selected book (tree for display, flat for search)
 const currentTocEntries = computed(() => {
   if (!selectedBook.value) return null
-  const entries = tocStore.tocData.get(selectedBook.value.id)
-  console.log('Current TOC entries for book', selectedBook.value.id, ':', entries?.length || 0)
+  // Always use tree structure for display
+  const entries = tocStore.getTocForBook(selectedBook.value.id)
+  console.log('Current TOC tree entries for book', selectedBook.value.id, ':', entries?.length || 0)
   return entries || null
+})
+
+// Get flattened TOC for search
+const currentTocFlat = computed(() => {
+  if (!selectedBook.value) return null
+  const flatEntries = tocStore.getTocFlatForBook(selectedBook.value.id)
+  console.log('Current TOC flat entries for book', selectedBook.value.id, ':', flatEntries?.length || 0)
+  return flatEntries || null
 })
 
 // Declare global function for receiving TOC data
 declare global {
   interface Window {
-    receiveTocData: (bookId: number, tocTree: TocEntry[]) => void
+    receiveTocData: (bookId: number, tocData: any) => void
   }
 }
 
 // Set up global TOC receiver - wrap existing one if it exists
 const originalReceiveTocData = window.receiveTocData
-window.receiveTocData = (bookId: number, tocTree: TocEntry[]) => {
-  console.log('LandingPage received TOC data for book:', bookId, 'entries:', tocTree.length)
-  tocStore.setTocData(bookId, tocTree)
+window.receiveTocData = (bookId: number, tocData: any) => {
+  console.log('LandingPage received TOC data for book:', bookId)
+  tocStore.setTocData(bookId, tocData)
   isLoadingToc.value = false
   
   // Call original if it exists (for TocSidebar)
   if (originalReceiveTocData) {
-    originalReceiveTocData(bookId, tocTree)
+    originalReceiveTocData(bookId, tocData)
   }
 }
 
@@ -291,7 +302,7 @@ const handleEnterKey = () => {
 const handleSearchArrowUp = () => {
   // Focus tree/toc view and navigate
   if (selectedBook.value && tocViewRef.value) {
-    (tocViewRef.value.$el as HTMLElement)?.focus()
+    tocViewRef.value.focusTocView()
   } else if (treeViewRef.value) {
     (treeViewRef.value.$el as HTMLElement)?.focus()
     treeViewRef.value.focusFirstItem()
@@ -301,7 +312,7 @@ const handleSearchArrowUp = () => {
 const handleSearchArrowDown = () => {
   // Focus tree/toc view and navigate
   if (selectedBook.value && tocViewRef.value) {
-    (tocViewRef.value.$el as HTMLElement)?.focus()
+    tocViewRef.value.focusTocView()
   } else if (treeViewRef.value) {
     (treeViewRef.value.$el as HTMLElement)?.focus()
     treeViewRef.value.focusFirstItem()
@@ -347,10 +358,7 @@ const handleSearchArrowDown = () => {
   gap: 8px;
   padding: 6px 12px;
   background: var(--bg-secondary);
-  backdrop-filter: blur(40px) saturate(150%);
-  -webkit-backdrop-filter: blur(40px) saturate(150%);
   border-top: 1px solid var(--border-color);
-  box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.04);
   position: relative;
   z-index: 20;
 }
@@ -421,6 +429,10 @@ const handleSearchArrowDown = () => {
   color: var(--text-primary);
 }
 
+.back-btn svg {
+  transform: scaleX(-1);
+}
+
 .back-btn:hover {
   background: var(--hover-bg);
 }
@@ -440,12 +452,14 @@ const handleSearchArrowDown = () => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.1s ease;
-  color: var(--accent-color);
+  transition: all 0.1s ease;
+  color: var(--text-primary);
+  opacity: 0.7;
 }
 
 .open-start-btn:hover {
-  background: var(--accent-bg);
+  background: var(--hover-bg);
+  opacity: 1;
 }
 
 .open-start-btn:active {

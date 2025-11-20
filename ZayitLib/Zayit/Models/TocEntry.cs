@@ -14,6 +14,8 @@
         // From TocText table
         public string Text { get; set; }
 
+        public string Path { get; set; }
+
         public TocEntry[] Children { get; set; }
     }
 }

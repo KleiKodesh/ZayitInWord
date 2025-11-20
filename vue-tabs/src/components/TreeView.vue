@@ -242,9 +242,9 @@ const handleArrowKey = (key: string) => {
       selectedIndex.value = Math.min(selectedIndex.value + 1, visibleItems.value.length - 1)
     }
   } else if (key === 'ArrowUp') {
-    // If nothing selected, start at last item, otherwise move up
+    // If nothing selected, start at first item, otherwise move up
     if (selectedIndex.value === -1) {
-      selectedIndex.value = visibleItems.value.length - 1
+      selectedIndex.value = 0
     } else {
       selectedIndex.value = Math.max(selectedIndex.value - 1, 0)
     }
@@ -403,7 +403,7 @@ defineExpose({
 
 .result-item .book-category {
   font-size: 11px;
-  color: #999;
+  color: var(--text-secondary);
   margin: 0 0 2px 0;
   line-height: 1.3;
   overflow: hidden;

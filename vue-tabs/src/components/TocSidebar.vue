@@ -59,8 +59,8 @@ function navigateToLine(lineId: number) {
 
 // Set up global receiver for TOC data from C#
 if (!window.receiveTocData) {
-  window.receiveTocData = (bookId: number, tocTree: any[]) => {
-    tocStore.setTocData(bookId, tocTree)
+  window.receiveTocData = (bookId: number, tocData: any) => {
+    tocStore.setTocData(bookId, tocData)
   }
 }
 </script>
@@ -96,10 +96,10 @@ if (!window.receiveTocData) {
   width: fit-content;
   max-width: min(500px, 50vw);
   height: calc(100vh - 48px);
-  background-color: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(3px);
+  background-color: rgba(var(--bg-primary-rgb), 0.95);
+  backdrop-filter: blur(10px);
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
-  border-left: 1px solid rgba(229, 229, 229, 0.3);
+  border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   z-index: 101;
@@ -123,7 +123,7 @@ if (!window.receiveTocData) {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(var(--border-color-rgb, 229, 229, 229), 0.3);
+  border-bottom: 1px solid var(--border-color);
   font-weight: 600;
   font-size: 14px;
   color: var(--text-primary);
@@ -148,7 +148,7 @@ if (!window.receiveTocData) {
 }
 
 .close-btn:hover {
-  background: rgba(var(--hover-bg-rgb, 90, 93, 94), 0.3);
+  background: var(--hover-bg);
   color: var(--text-primary);
   transform: scale(1.1);
 }
@@ -167,9 +167,5 @@ if (!window.receiveTocData) {
   background: transparent;
 }
 
-/* Dark theme adjustments */
-:root.dark .toc-sidebar {
-  background-color: rgba(30, 30, 30, 0.5);
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.5);
-}
+
 </style>

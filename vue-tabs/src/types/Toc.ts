@@ -8,6 +8,7 @@ export interface TocEntry {
   isLastChild: boolean
   hasChildren: boolean
   text: string
+  path?: string
   children?: TocEntry[]
   isExpanded?: boolean
 }

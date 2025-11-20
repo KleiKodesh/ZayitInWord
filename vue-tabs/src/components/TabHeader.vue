@@ -1,20 +1,10 @@
 <template>
   <div class="tab-header" :class="{ open: isDropdownOpen }" @click="emit('toggleDropdown')">
     <div class="header-actions">
-      <!-- Settings button: visible when NOT in book view, or on desktop when in book view -->
+      <!-- Settings button: hidden when more options dropdown is visible -->
       <button 
-        v-if="!showTocButton"
+        v-if="!(showTocButton || isInUserControl)"
         class="settings-toggle-btn" 
-        @click.stop="toggleSettings" 
-        title="הגדרות"
-      >
-        <img src="/assets/ic_fluent_settings_24_regular.png" alt="Settings" class="settings-icon themed-icon" />
-      </button>
-      
-      <!-- Settings button only on desktop when in book view (hidden on mobile since it's in dropdown) -->
-      <button 
-        v-if="showTocButton"
-        class="settings-toggle-btn desktop-only" 
         @click.stop="toggleSettings" 
         title="הגדרות"
       >
@@ -271,19 +261,38 @@ const toggleLineDisplay = () => {
   lineDisplayStates.value.set(activeTab.id, newState)
 
   // Apply CSS change to all line elements
-  const lines = contentContainer.querySelectorAll('line:not(:has(h1, h2, h3, h4, h5, h6))')
-  lines.forEach((line) => {
-    const lineElement = line as HTMLElement
-    if (newState) {
-      // Inline mode: add margin-left
-      lineElement.style.display = 'inline'
-      lineElement.style.marginLeft = '0.2em'
-    } else {
-      // Block mode: remove margin-left
-      lineElement.style.display = 'block'
-      lineElement.style.marginLeft = ''
+  const lines = Array.from(contentContainer.querySelectorAll('line:not(:has(h1, h2, h3, h4, h5, h6))'))
+  
+  // Process in chunks to avoid blocking UI
+  const CHUNK_SIZE = 500
+  let currentIndex = 0
+  
+  const processChunk = () => {
+    const endIndex = Math.min(currentIndex + CHUNK_SIZE, lines.length)
+    
+    for (let i = currentIndex; i < endIndex; i++) {
+      const lineElement = lines[i] as HTMLElement
+      if (newState) {
+        // Inline mode: add margin-left
+        lineElement.style.display = 'inline'
+        lineElement.style.marginLeft = '0.2em'
+      } else {
+        // Block mode: remove margin-left
+        lineElement.style.display = 'block'
+        lineElement.style.marginLeft = ''
+      }
     }
-  })
+    
+    currentIndex = endIndex
+    
+    // Continue processing if there are more lines
+    if (currentIndex < lines.length) {
+      requestAnimationFrame(processChunk)
+    }
+  }
+  
+  // Start processing
+  processChunk()
 
   // Force reactivity update
   lineDisplayStates.value = new Map(lineDisplayStates.value)
@@ -343,21 +352,42 @@ const applyDiacriticsFilter = (container: Element, state: number) => {
     textNodes.push(node as Text)
   }
 
-  textNodes.forEach((textNode) => {
-    let text = textNode.nodeValue || ''
+  // Process in chunks to avoid blocking UI
+  const CHUNK_SIZE = 500
+  let currentIndex = 0
+  
+  const processChunk = () => {
+    const endIndex = Math.min(currentIndex + CHUNK_SIZE, textNodes.length)
     
-    // State 1: Remove cantillations only (U+0591-U+05AF)
-    if (state >= 1) {
-      text = text.replace(/[\u0591-\u05AF]/g, '')
+    for (let i = currentIndex; i < endIndex; i++) {
+      const textNode = textNodes[i]
+      if (!textNode) continue
+      
+      let text = textNode.nodeValue || ''
+      
+      // State 1: Remove cantillations only (U+0591-U+05AF)
+      if (state >= 1) {
+        text = text.replace(/[\u0591-\u05AF]/g, '')
+      }
+      
+      // State 2: Remove nikkud as well (U+05B0-U+05BD, U+05C1, U+05C2, U+05C4, U+05C5)
+      if (state >= 2) {
+        text = text.replace(/[\u05B0-\u05BD\u05C1\u05C2\u05C4\u05C5]/g, '')
+      }
+      
+      textNode.nodeValue = text
     }
     
-    // State 2: Remove nikkud as well (U+05B0-U+05BD, U+05C1, U+05C2, U+05C4, U+05C5)
-    if (state >= 2) {
-      text = text.replace(/[\u05B0-\u05BD\u05C1\u05C2\u05C4\u05C5]/g, '')
-    }
+    currentIndex = endIndex
     
-    textNode.nodeValue = text
-  })
+    // Continue processing if there are more nodes
+    if (currentIndex < textNodes.length) {
+      requestAnimationFrame(processChunk)
+    }
+  }
+  
+  // Start processing
+  processChunk()
 }
 
 const toggleSettings = () => {
@@ -455,12 +485,10 @@ onUnmounted(() => {
   display: flex;
   height: 48px;
   background: var(--bg-secondary);
-  backdrop-filter: blur(40px) saturate(150%);
-  -webkit-backdrop-filter: blur(40px) saturate(150%);
   border-bottom: 1px solid var(--border-color);
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px;
+  padding: 0 4px;
   position: relative;
   cursor: pointer;
   transition: background 0.2s ease;
@@ -484,7 +512,7 @@ onUnmounted(() => {
 .header-actions-right {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .tab-text-container {
@@ -522,7 +550,7 @@ onUnmounted(() => {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   position: relative;
   z-index: 10000;
 }
@@ -763,12 +791,12 @@ onUnmounted(() => {
   top: 48px;
   right: 0;
   background: var(--bg-secondary);
-  backdrop-filter: blur(40px) saturate(150%);
-  -webkit-backdrop-filter: blur(40px) saturate(150%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-left: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
-  border-radius: 0 0 0 8px;
-  box-shadow: -2px 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 0 0 0 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   min-width: 200px;
   z-index: 9999;
   overflow: hidden;

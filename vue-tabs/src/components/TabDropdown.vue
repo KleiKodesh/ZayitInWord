@@ -32,13 +32,13 @@ const activateTab = (id: string) => { tabsStore.activateTab(id); emit('close') }
   left: 0;
   right: 0;
   background: var(--bg-secondary);
-  backdrop-filter: blur(40px) saturate(150%);
-  -webkit-backdrop-filter: blur(40px) saturate(150%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   max-height: 60vh;
   overflow-y: auto;
   z-index: 1000;
   border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   direction: rtl;
 }
 

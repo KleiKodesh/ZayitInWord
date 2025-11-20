@@ -106,7 +106,7 @@ const addLineToThisTab = (html: string) => {
 const addLinesToThisTab = (linesArray: Array<{ id: number; html: string }>) => {
   if (!contentContainer.value) return
   
-  // Create a document fragment for better performance
+  // C# already sends lines in chunks, so we can process the entire batch at once
   const fragment = document.createDocumentFragment()
   let targetLineElement: HTMLElement | null = null
   let foundTargetLine = false
@@ -385,7 +385,7 @@ onUnmounted(() => {
 }
 
 .content-container {
-  color: #111;
+  color: var(--text-primary);
   text-align: justify;
   font-family: var(--text-font);
   padding: 16px;
@@ -413,6 +413,7 @@ onUnmounted(() => {
   padding-block-start: 0.3em;
 }
 
+/* Header hierarchy styling */
 .content-container :deep(line h1),
 .content-container :deep(line h2),
 .content-container :deep(line h3),
@@ -420,62 +421,90 @@ onUnmounted(() => {
 .content-container :deep(line h5),
 .content-container :deep(line h6) {
   font-family: var(--header-font);
-  padding-block-start: 0.3em;
-  color: #1a1a1a;
+  color: var(--text-primary);
+  line-height: 1.4;
+  margin: 0;
+  text-align: right;
 }
 
+/* H1 - Main title */
 .content-container :deep(line h1) {
-  position: relative;
-  padding-bottom: 4px;
-}
-
-.content-container :deep(line h1)::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  height: 0.1px;
-  background-color: rgba(128, 128, 128, 0.2);
-}
-
-.content-container :deep(line:hover) {
-  background: rgba(0, 120, 212, 0.01); /* Very light blue */
-}
-
-.content-container :deep(line:not(:has(h1, h2, h3, h4, h5, h6)):focus) {
-  border-right: 3px solid #0078d4;
-  padding-right: 3px;
-  margin-right: -3px;
-  outline: none;
-}
-
-/* Dark theme support */
-:root.dark .content-container {
-  color: var(--text-primary);
-}
-
-:root.dark .content-container :deep(line h1),
-:root.dark .content-container :deep(line h2),
-:root.dark .content-container :deep(line h3),
-:root.dark .content-container :deep(line h4),
-:root.dark .content-container :deep(line h5),
-:root.dark .content-container :deep(line h6) {
-  color: var(--text-primary);
-}
-
-:root.dark .content-container :deep(line h1) {
+  font-size: 2em;
+  font-weight: 700;
+  padding: 0.8em 0 0.4em 0;
+  margin-bottom: 0.5em;
   border-bottom: 1px solid var(--border-color);
+  letter-spacing: -0.02em;
 }
 
-:root.dark .content-container :deep(line:hover) {
+/* H2 - Major section */
+.content-container :deep(line h2) {
+  font-size: 1.6em;
+  font-weight: 700;
+  padding: 0.7em 0 0.3em 0;
+  margin-bottom: 0.4em;
+  letter-spacing: -0.01em;
+}
+
+/* H3 - Subsection */
+.content-container :deep(line h3) {
+  font-size: 1.4em;
+  font-weight: 600;
+  padding: 0.6em 0 0.2em 0;
+  margin-bottom: 0.3em;
+}
+
+/* H4 - Minor heading */
+.content-container :deep(line h4) {
+  font-size: 1.2em;
+  font-weight: 600;
+  padding: 0.5em 0 0.2em 0;
+  margin-bottom: 0.2em;
+  color: var(--text-primary);
+  opacity: 0.95;
+}
+
+/* H5 - Small heading */
+.content-container :deep(line h5) {
+  font-size: 1.1em;
+  font-weight: 600;
+  padding: 0.4em 0 0.15em 0;
+  margin-bottom: 0.15em;
+  color: var(--text-primary);
+  opacity: 0.9;
+}
+
+/* H6 - Smallest heading */
+.content-container :deep(line h6) {
+  font-size: 1em;
+  font-weight: 600;
+  padding: 0.3em 0 0.1em 0;
+  margin-bottom: 0.1em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.9em;
+}
+
+/* Hover effects */
+.content-container :deep(line:hover) {
   background: var(--hover-bg);
 }
 
-:root.dark .content-container :deep(line:not(:has(h1, h2, h3, h4, h5, h6)):focus) {
+.content-container :deep(line:has(h1, h2, h3, h4, h5, h6):hover) {
+  background: transparent;
+}
+
+.content-container :deep(line:has(h1, h2, h3, h4, h5, h6)) {
+  cursor: default;
+}
+
+.content-container :deep(line:not(:has(h1, h2, h3, h4, h5, h6)):focus) {
   border-right: 3px solid var(--accent-color);
   padding-right: 3px;
   margin-right: -3px;
   outline: none;
 }
+
+
 </style>

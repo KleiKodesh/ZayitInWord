@@ -89,7 +89,7 @@ namespace Zayit.Viewer
         {
             try
             {
-                const int BATCH_SIZE = 1000; // Send 1000 lines at a time
+                const int BATCH_SIZE = 1500; // Send 1500 lines at a time
                 var batch = new System.Collections.Generic.List<object>(BATCH_SIZE);
                 
                 // Stream book lines in batches to the UI with line IDs from database
@@ -135,16 +135,18 @@ namespace Zayit.Viewer
         {
             try
             {
-                var (tree, _) = SeforimDb.DbQueries.GetTocTree(bookId);
-                
-                string json = JsonSerializer.Serialize(tree, new JsonSerializerOptions
+                var (tree, allTocs) = SeforimDb.DbQueries.GetTocTree(bookId);
+
+                var tocData = new { tree, allTocs };
+
+                string json = JsonSerializer.Serialize(tocData, new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                 });
-                
+
                 string js = $"window.receiveTocData({bookId}, {json});";
                 await ExecuteScriptAsync(js);
-                
+
                 Debug.WriteLine($"TOC for book {bookId} sent successfully");
             }
             catch (Exception ex)
@@ -152,6 +154,7 @@ namespace Zayit.Viewer
                 Debug.WriteLine($"GetToc error: {ex}");
             }
         }
+
 
         /// <summary>
         /// Check if the viewer is hosted in a UserControl
