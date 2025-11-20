@@ -1,4 +1,4 @@
-using Microsoft.Web.WebView2.Core;
+﻿using Microsoft.Web.WebView2.Core;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -13,9 +13,11 @@ namespace Zayit.Viewer
     /// </summary>
     public class ZayitViewer : ZayitViewerBase
     {
+        public Microsoft.Office.Interop.Word.Window _activeWindow;
         public ZayitViewer(object commandHandler = null) : base(commandHandler)
         {
             this.Dock = System.Windows.Forms.DockStyle.Fill;
+            //this._activeWindow = activeWindow;
             this.CoreWebView2InitializationCompleted += (_, __) =>
             {
                 //CoreWebView2.Navigate(GetHtmlPath());
@@ -201,6 +203,13 @@ namespace Zayit.Viewer
                     
                     // Store reference to original parent
                     form.Tag = userControl;
+
+                    // Set Word window as owner if available
+                    if (_activeWindow != null)
+                    {
+                        IntPtr wordHandle = new IntPtr(_activeWindow.Hwnd);
+                        SetWindowOwner(form.Handle, wordHandle);
+                    }
                     
                     // Handle form closing - pop back in
                     form.FormClosing += (s, e) =>
@@ -216,15 +225,6 @@ namespace Zayit.Viewer
                 else if (Parent is System.Windows.Forms.Form form)
                 {
                     form.Close();
-                    //// Pop back into UserControl
-                    //if (form.Tag is System.Windows.Forms.UserControl originalParent)
-                    //{
-                    //    form.Controls.Remove(this);
-                    //    originalParent.Controls.Add(this);
-                    //    originalParent.Visible = true;
-                    //    form.Close();
-                    //    Debug.WriteLine("Popped back into UserControl");
-                    //}
                 }
             }
             catch (Exception ex)
@@ -233,6 +233,18 @@ namespace Zayit.Viewer
                 System.Windows.Forms.MessageBox.Show($"Error toggling pop-out: {ex.Message}");
             }
         }
+        // Helper method to set window owner
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        private const int GWL_HWNDPARENT = -8;
+
+        private void SetWindowOwner(IntPtr childHandle, IntPtr ownerHandle)
+        {
+            // Set the owner window (not parent) so it stays on top of Word but remains independent
+            SetWindowLong(childHandle, GWL_HWNDPARENT, ownerHandle.ToInt32());
+        }
+
     }
 }
 

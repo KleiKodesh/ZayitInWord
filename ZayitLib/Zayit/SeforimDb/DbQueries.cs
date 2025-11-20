@@ -12,14 +12,14 @@ namespace Zayit.SeforimDb
 
         public static IEnumerable<(string Content, int Id)> GetBookContentWithId(int bookId)
         {
-            return _db.DapperConnection
+            return _db?.DapperConnection
                 .Query<(string, int)>(SqlQueries.GetBookContent(bookId));
         }
 
         public static (Category[] Tree, Book[] AllBooks) BuildTree()
         {
             // Categories must already be sorted in preorder
-            var allCategories = _db.DapperConnection
+            var allCategories = _db?.DapperConnection
                 .Query<Category>(SqlQueries.GetAllCategories)
                 .ToArray();
 
@@ -62,7 +62,7 @@ namespace Zayit.SeforimDb
         {
             if (category.Children.Count == 0) // Only assign to leaf categories
             {
-                category.Books = _db.DapperConnection
+                category.Books = _db?.DapperConnection
                     .Query<Book>(SqlQueries.GetBooksByCategoryId(category.Id))
                     .ToArray();
 
@@ -75,7 +75,7 @@ namespace Zayit.SeforimDb
 
         public static (TocEntry[] Tree, TocEntry[] AllTocs) GetTocTree(int docId)
         {
-            var allEntries = _db.DapperConnection
+            var allEntries = _db?.DapperConnection
                 .Query<TocEntry>(SqlQueries.GetToc(docId))
                 .ToArray();
 

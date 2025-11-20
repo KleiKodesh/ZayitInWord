@@ -28,8 +28,21 @@ namespace Zayit.SeforimDb
 
             if (!File.Exists(databasePath))
             {
-                throw new FileNotFoundException("Database file not found", databasePath);
+                var res = System.Windows.Forms.MessageBox.Show(
+                    "קובץ המסד לא נמצא.\nלהתקין את תוכנת זית עכשיו?",
+                    "שגיאה",
+                    System.Windows.Forms.MessageBoxButtons.YesNo,
+                    System.Windows.Forms.MessageBoxIcon.Warning);
+
+                if (res == System.Windows.Forms.DialogResult.Yes)
+                    System.Diagnostics.Process.Start("https://kdroidfilter.github.io/Zayit/");
+                else
+                    System.Windows.Forms.MessageBox.Show("בלי התקנת זית התוכנה לא תעבוד.", "שים לב");
+
+                return;
             }
+
+
             Connection = new SQLiteConnection($"Data Source={databasePath};Version=3;");
             Connection.Open();
             DapperConnection = Connection;
