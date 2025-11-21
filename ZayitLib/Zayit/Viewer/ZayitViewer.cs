@@ -2,6 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -13,7 +14,7 @@ namespace Zayit.Viewer
     /// </summary>
     public class ZayitViewer : ZayitViewerBase
     {
-        public Microsoft.Office.Interop.Word.Window _activeWindow;
+        //public Microsoft.Office.Interop.Word.Window _activeWindow;
         public ZayitViewer(object commandHandler = null) : base(commandHandler)
         {
             this.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -89,6 +90,7 @@ namespace Zayit.Viewer
         /// <param name="tabId">The tab ID to load content into (e.g., "tab-1")</param>
         private async void OpenBook(int bookId, string tabId)
         {
+            Debug.WriteLine($"OpenBook called: bookId={bookId}, tabId={tabId}");
             try
             {
                 const int BATCH_SIZE = 1500; // Send 1500 lines at a time
@@ -157,6 +159,83 @@ namespace Zayit.Viewer
             }
         }
 
+        /// <summary>
+        /// Called from JavaScript when user clicks a line to get commentary/links
+        /// </summary>
+        /// <param name="bookId">The book ID</param>
+        /// <param name="lineId">The line ID to get links for</param>
+        /// <param name="tabId">The tab ID to send links to</param>
+        private async void GetLinks(int bookId, int lineId, string tabId)
+        {
+            try
+            {
+                Debug.WriteLine($"GetLinks called: bookId={bookId}, lineId={lineId}, tabId={tabId}");
+
+                // Get links from database
+                var linksData = SeforimDb.DbQueries.GetLinks(lineId);
+
+                if (linksData == null || linksData.Length == 0)
+                {
+                    Debug.WriteLine($"No links found for bookId={bookId}, lineId={lineId}");
+                    // Send empty array
+                    string emptyJs = $"window.setLinks({JsonSerializer.Serialize(tabId)}, []);";
+                    await ExecuteScriptAsync(emptyJs);
+                    return;
+                }
+
+                // Transform to the format expected by Vue
+                var linkGroups = new System.Collections.Generic.List<object>();
+                
+                // Group links by book title (commentary source)
+                var grouped = linksData.GroupBy(link => link.Title);
+
+                foreach (var group in grouped)
+                {
+                    var links = new System.Collections.Generic.List<object>();
+                    
+                    foreach (var link in group)
+                    {
+                        links.Add(new
+                        {
+                            text = $"{link.Title} - שורה {link.TargetLineId}",
+                            html = link.Content ?? ""
+                        });
+                    }
+                    
+                    linkGroups.Add(new
+                    {
+                        groupName = group.Key,
+                        links = links
+                    });
+                }
+
+                // Serialize with camelCase for JavaScript
+                string json = JsonSerializer.Serialize(linkGroups, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+
+                Debug.WriteLine($"Sending {linkGroups.Count} link groups to Vue");
+
+                // Send to Vue application
+                string js = $"window.setLinks({JsonSerializer.Serialize(tabId)}, {json});";
+                await ExecuteScriptAsync(js);
+
+                Debug.WriteLine($"Links for bookId={bookId}, lineId={lineId} sent successfully");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetLinks error: {ex}");
+                // Send empty array on error
+                try
+                {
+                    string errorJs = $"window.setLinks({JsonSerializer.Serialize(tabId)}, []);";
+                    await ExecuteScriptAsync(errorJs);
+                }
+                catch { }
+            }
+        }
+
 
         /// <summary>
         /// Check if the viewer is hosted in a UserControl
@@ -181,69 +260,74 @@ namespace Zayit.Viewer
         /// </summary>
         private void TogglePopOut()
         {
-            try
-            {
-                if (Parent is System.Windows.Forms.UserControl userControl)
-                {
-                    // Pop out to new form
-                    var form = new System.Windows.Forms.Form
-                    {
-                        Text = "Zayit Viewer",
-                        Width = 1200,
-                        Height = 800,
-                        StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
-                    };
+            if (this.Parent is System.Windows.Forms.UserControl container)
+                container.Controls.Remove(this);
+            else if (this.Parent is System.Windows.Forms.Form form)
+                form.Close();
 
-                    // Remove from UserControl
-                    userControl.Controls.Remove(this);
-                    userControl.Visible = false;
+            //try
+            //{
+            //    if (Parent is System.Windows.Forms.UserControl userControl)
+            //    {
+            //        // Pop out to new form
+            //        var form = new System.Windows.Forms.Form
+            //        {
+            //            Text = "Zayit Viewer",
+            //            Width = 1200,
+            //            Height = 800,
+            //            StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+            //        };
 
-                    // Add to Form
-                    form.Controls.Add(this);
-                    
-                    // Store reference to original parent
-                    form.Tag = userControl;
+            //        // Remove from UserControl
+            //        userControl.Controls.Remove(this);
+            //        userControl.Visible = false;
 
-                    // Set Word window as owner if available
-                    if (_activeWindow != null)
-                    {
-                        IntPtr wordHandle = new IntPtr(_activeWindow.Hwnd);
-                        SetWindowOwner(form.Handle, wordHandle);
-                    }
-                    
-                    // Handle form closing - pop back in
-                    form.FormClosing += (s, e) =>
-                    {
-                        form.Controls.Remove(this);
-                        userControl.Controls.Add(this);
-                        userControl.Visible = true;
-                    };
-                    
-                    form.Show();
-                    Debug.WriteLine("Popped out to standalone form");
-                }
-                else if (Parent is System.Windows.Forms.Form form)
-                {
-                    form.Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"TogglePopOut error: {ex}");
-                System.Windows.Forms.MessageBox.Show($"Error toggling pop-out: {ex.Message}");
-            }
+            //        // Add to Form
+            //        form.Controls.Add(this);
+
+            //        // Store reference to original parent
+            //        form.Tag = userControl;
+
+            //        // Set Word window as owner if available
+            //        if (_activeWindow != null)
+            //        {
+            //            IntPtr wordHandle = new IntPtr(_activeWindow.Hwnd);
+            //            SetWindowOwner(form.Handle, wordHandle);
+            //        }
+
+            //        // Handle form closing - pop back in
+            //        form.FormClosing += (s, e) =>
+            //        {
+            //            form.Controls.Remove(this);
+            //            userControl.Controls.Add(this);
+            //            userControl.Visible = true;
+            //        };
+
+            //        form.Show();
+            //        Debug.WriteLine("Popped out to standalone form");
+            //    }
+            //    else if (Parent is System.Windows.Forms.Form form)
+            //    {
+            //        form.Close();
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    Debug.WriteLine($"TogglePopOut error: {ex}");
+            //    System.Windows.Forms.MessageBox.Show($"Error toggling pop-out: {ex.Message}");
+            //}
         }
-        // Helper method to set window owner
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+        //// Helper method to set window owner
+        //[System.Runtime.InteropServices.DllImport("user32.dll")]
+        //private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
-        private const int GWL_HWNDPARENT = -8;
+        //private const int GWL_HWNDPARENT = -8;
 
-        private void SetWindowOwner(IntPtr childHandle, IntPtr ownerHandle)
-        {
-            // Set the owner window (not parent) so it stays on top of Word but remains independent
-            SetWindowLong(childHandle, GWL_HWNDPARENT, ownerHandle.ToInt32());
-        }
+        //private void SetWindowOwner(IntPtr childHandle, IntPtr ownerHandle)
+        //{
+        //    // Set the owner window (not parent) so it stays on top of Word but remains independent
+        //    SetWindowLong(childHandle, GWL_HWNDPARENT, ownerHandle.ToInt32());
+        //}
 
     }
 }

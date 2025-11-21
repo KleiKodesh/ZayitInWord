@@ -10,14 +10,10 @@ namespace Zayit.Viewer
     public class ZayitViewerHost : UserControl
     {
 
-        public ZayitViewerHost(Microsoft.Office.Interop.Word.Window activeWindow = null)
+        public ZayitViewerHost()
         {
             this.Dock = DockStyle.Fill;
             var zayitViewer = new ZayitViewer();
-            zayitViewer.NavigationCompleted += (s, e) =>
-            {
-                zayitViewer._activeWindow = activeWindow;
-            };
             Controls.Add(zayitViewer);
         }
 

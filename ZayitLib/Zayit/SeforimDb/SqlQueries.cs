@@ -135,12 +135,10 @@ namespace Zayit.SeforimDb
             l.connectionTypeId,
             bk.title,
             ln.content
-        FROM link AS l
-        JOIN line AS ln
-            ON ln.id = l.targetLineId
-        JOIN book AS bk
-          ON bk.id = l.targetBookId
-        WHERE l.sourceLineId = 3
+        FROM link l
+        JOIN line ln   ON ln.id = l.targetLineId
+        JOIN book bk   ON bk.id = l.targetBookId
+        WHERE l.sourceLineId = {lineId}
         ORDER BY l.connectionTypeId, bk.title
         ";        
     }

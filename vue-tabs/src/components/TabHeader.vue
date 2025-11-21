@@ -111,6 +111,20 @@
         </div>
       </div>
 
+      <!-- Split pane button - always visible, never in overflow -->
+      <button 
+        v-if="showTocButton"
+        class="split-pane-toggle-btn" 
+        @click.stop="toggleSplitPane" 
+        :class="{ active: isSplitPaneVisible }"
+        title="פרשנות"
+      >
+        <svg class="split-pane-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="18" height="8" rx="1" stroke="currentColor" stroke-width="2"/>
+          <rect x="3" y="13" width="18" height="8" rx="1" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </button>
+
       <!-- TOC button always visible when applicable -->
       <button 
         v-if="showTocButton"
@@ -166,6 +180,42 @@ const headerText = computed(() => tabsStore.activeTab?.title || 'כרטיסיי�
 // Show TOC button only for book tabs
 const showTocButton = computed(() => tabsStore.activeTab?.type === 'book')
 const isTocVisible = computed(() => tocStore.isVisible)
+
+// Split pane state per tab
+const splitPaneStates = ref(new Map<string, boolean>())
+
+const getSplitPaneState = (tabId: string) => {
+  if (!splitPaneStates.value.has(tabId)) {
+    splitPaneStates.value.set(tabId, false)
+  }
+  return splitPaneStates.value.get(tabId)!
+}
+
+const isSplitPaneVisible = computed(() => {
+  if (!tabsStore.activeTab) return false
+  return getSplitPaneState(tabsStore.activeTab.id)
+})
+
+const toggleSplitPane = () => {
+  const activeTab = tabsStore.activeTab
+  if (!activeTab || activeTab.type !== 'book') return
+
+  const currentState = getSplitPaneState(activeTab.id)
+  const newState = !currentState
+  splitPaneStates.value.set(activeTab.id, newState)
+
+  // Emit event to BookViewer
+  window.dispatchEvent(new CustomEvent('toggleSplitPane', { 
+    detail: { tabId: activeTab.id, enabled: newState } 
+  }))
+
+  // Force reactivity update
+  splitPaneStates.value = new Map(splitPaneStates.value)
+  
+  if (isDropdownOpen.value) {
+    emit('toggleDropdown')
+  }
+}
 
 // Store diacritics state per tab in memory (not persisted)
 // Use reactive ref to trigger updates
@@ -312,7 +362,7 @@ const toggleDiacritics = () => {
   // Get current state from local Map
   const tabState = getDiacriticsState(activeTab.id)
 
-  // Store original HTML on first toggle
+  // Store original HTML on first toggle for book content
   if (tabState.state === 0 && !tabState.originalHtml) {
     tabState.originalHtml = contentContainer.innerHTML
   }
@@ -321,14 +371,18 @@ const toggleDiacritics = () => {
   tabState.state = (tabState.state + 1) % 3
 
   if (tabState.state === 0) {
-    // Restore original
+    // Restore original for book content
     if (tabState.originalHtml) {
       contentContainer.innerHTML = tabState.originalHtml
       tabState.originalHtml = null // Clear stored HTML to release memory
     }
+    // Restore commentary content
+    restoreCommentaryContent()
   } else {
-    // Apply filter
+    // Apply filter to book content
     applyDiacriticsFilter(contentContainer, tabState.state)
+    // Apply filter to commentary content
+    applyDiacriticsToCommentary(tabState.state)
   }
 
   // Force reactivity update by creating a new Map reference
@@ -336,6 +390,29 @@ const toggleDiacritics = () => {
   
   if (isDropdownOpen.value) {
     emit('toggleDropdown')
+  }
+}
+
+const applyDiacriticsToCommentary = (state: number) => {
+  const commentaryContent = document.querySelector('.commentary-content')
+  if (!commentaryContent) return
+  
+  // Store original HTML if not already stored
+  if (!commentaryContent.hasAttribute('data-original-html')) {
+    commentaryContent.setAttribute('data-original-html', commentaryContent.innerHTML)
+  }
+  
+  applyDiacriticsFilter(commentaryContent, state)
+}
+
+const restoreCommentaryContent = () => {
+  const commentaryContent = document.querySelector('.commentary-content')
+  if (!commentaryContent) return
+  
+  const originalHtml = commentaryContent.getAttribute('data-original-html')
+  if (originalHtml) {
+    commentaryContent.innerHTML = originalHtml
+    commentaryContent.removeAttribute('data-original-html')
   }
 }
 
@@ -557,7 +634,8 @@ onUnmounted(() => {
 
 .toc-toggle-btn,
 .line-display-toggle-btn,
-.diacritics-toggle-btn {
+.diacritics-toggle-btn,
+.split-pane-toggle-btn {
   padding: 6px;
   cursor: pointer;
   background: transparent;
@@ -573,13 +651,15 @@ onUnmounted(() => {
 
 .toc-toggle-btn:hover,
 .line-display-toggle-btn:hover,
-.diacritics-toggle-btn:hover {
+.diacritics-toggle-btn:hover,
+.split-pane-toggle-btn:hover {
   background: var(--hover-bg);
   transform: scale(1.05);
 }
 
 .toc-toggle-btn.active,
-.line-display-toggle-btn.active {
+.line-display-toggle-btn.active,
+.split-pane-toggle-btn.active {
   background: var(--accent-bg);
 }
 
@@ -626,6 +706,22 @@ onUnmounted(() => {
 .line-display-toggle-btn.active .line-display-icon {
   opacity: 1;
   filter: brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(180deg) brightness(95%) contrast(101%) !important;
+}
+
+.split-pane-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-primary);
+  opacity: 0.7;
+}
+
+.split-pane-toggle-btn:hover .split-pane-icon {
+  opacity: 1;
+}
+
+.split-pane-toggle-btn.active .split-pane-icon {
+  opacity: 1;
+  color: var(--accent-color);
 }
 
 .diacritics-toggle-btn.state-1 .diacritics-icon {
@@ -894,6 +990,12 @@ onUnmounted(() => {
 .dropdown-icon.settings-icon {
   width: 16px;
   height: 16px;
+}
+
+.dropdown-icon.split-pane-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--text-primary);
 }
 
 .dropdown-label {

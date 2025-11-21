@@ -234,7 +234,7 @@ html, body {
 .tab-pane {
   height: 100%;
   width: 100%;
-  overflow-y: auto;
+  overflow: hidden; /* No scroll here - let components handle their own scrolling */
 }
 
 @keyframes fadeIn {

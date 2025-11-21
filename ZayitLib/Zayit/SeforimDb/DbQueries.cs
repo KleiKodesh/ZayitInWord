@@ -1,6 +1,7 @@
 ﻿using Dapper;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using Zayit.Models;
 
@@ -111,5 +112,11 @@ namespace Zayit.SeforimDb
 
             return children;
         }
+
+        public static JoinedLink[] GetLinks(int lineId) =>
+                _db?.DapperConnection
+                    .Query<JoinedLink>(SqlQueries.GetLinks(lineId))
+                    .ToArray();
+
     }
 }
