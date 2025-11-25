@@ -1,0 +1,52 @@
+/* Global button styles - VS Code style */
+
+button {
+  width: 2rem; /* Button width (matches vue-tabs) */
+  height: 2rem; /* Button height (matches vue-tabs) */
+  padding: 0.375rem; /* Internal padding (matches vue-tabs) */
+  background: transparent; /* Transparent background by default */
+  border: none; /* No border */
+  border-radius: 0.25rem; /* Slightly rounded corners (matches vue-tabs) */
+  font-size: 1.25rem; /* Icon/text size (matches vue-tabs) */
+  color: var(--text-secondary); /* Secondary text color */
+  cursor: pointer; /* Show hand cursor */
+  transition: all 0.1s ease; /* Smooth transitions */
+  display: flex; /* Flex layout */
+  align-items: center; /* Vertically center content */
+  justify-content: center; /* Horizontally center content */
+  flex-shrink: 0; /* Prevent button from shrinking */
+}
+
+/* Button hover effect */
+button:hover {
+  background: var(--hover-bg); /* Light background on hover */
+  transform: scale(1.05); /* Slightly grow on hover (matches vue-tabs) */
+  color: var(--text-primary); /* primary text color on hover */
+}
+
+/* Button active/pressed effect */
+button:active {
+  background: var(--active-bg); /* Darker background when pressed */
+  transform: scale(0.95); /* Slightly shrink for press effect */
+}
+
+/* Images and SVGs inside buttons */
+button img,
+button svg {
+  width: 1.25rem; /* Icon size (matches vue-tabs) */
+  height: 1.25rem; /* Icon size (matches vue-tabs) */
+  pointer-events: none; /* Prevent icon from blocking clicks */
+}
+
+button img {
+    opacity: 0.8;
+}
+
+button:hover img {
+  opacity: 1; /* Full opacity on hover */
+}
+
+/* Dark mode: invert button icons automatically */
+:root.dark button img {
+  filter: invert(1) brightness(1.2); /* Invert colors and brighten slightly */
+}

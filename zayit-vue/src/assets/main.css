@@ -1,0 +1,51 @@
+/* Global styles */
+
+/* Reset and base styles */
+* {
+  box-sizing: border-box; /* Include padding and border in element's total width/height */
+  user-select: none; /* Prevent text selection for cleaner UI */
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; /* System font stack for native look */
+  background: var(--bg-primary); /* Use theme background color */
+  color: var(--text-primary); /* Use theme text color */
+  transition: background-color 0.2s ease, color 0.2s ease; /* Smooth theme transitions */
+  direction: rtl; /* Right-to-left layout for Hebrew text */
+  margin: 0; /* Remove default body margin */
+  padding: 0; /* Remove default body padding */
+}
+
+/* Global input styling */
+input {
+  color: inherit; /* Inherit text color from parent (respects theme) */
+}
+
+/* Flip icon horizontally for RTL layout */
+.rtl-flip {
+  transform: scaleX(-1); /* Mirror horizontally */
+}
+
+/* Scrollbar theming - Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 12px; /* Scrollbar width for vertical scrolling */
+  height: 12px; /* Scrollbar height for horizontal scrolling */
+}
+
+/* Scrollbar track (background area) */
+::-webkit-scrollbar-track {
+  background: var(--bg-primary); /* Match main background color */
+}
+
+/* Scrollbar thumb (draggable part) */
+::-webkit-scrollbar-thumb {
+  background: var(--border-color); /* Use border color for subtle appearance */
+  border-radius: 6px; /* Rounded corners for modern look */
+}
+
+/* Scrollbar thumb on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary); /* Darker color on hover for feedback */
+}
+
+

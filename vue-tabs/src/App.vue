@@ -82,6 +82,8 @@ onMounted(() => {
   const savedTheme = localStorage.getItem('zayit-theme')
   if (savedTheme === 'dark') {
     document.documentElement.classList.add('dark')
+  } else if (savedTheme === 'light') {
+    document.documentElement.classList.remove('dark')
   }
   
   // Restore tabs from localStorage or create default tab

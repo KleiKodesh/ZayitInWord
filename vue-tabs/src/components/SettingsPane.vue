@@ -416,10 +416,7 @@ onMounted(() => {
   // Load theme
   const savedTheme = localStorage.getItem('zayit-theme')
   isDark.value = savedTheme === 'dark'
-
-  // Load censoring setting
-  const savedCensoring = localStorage.getItem('zayit-censor-divine-names')
-  censorDivineNames.value = savedCensoring === 'true'
+  document.documentElement.classList.toggle('dark', isDark.value)
 
   // Load other settings
   const savedSettings = localStorage.getItem('zayit-settings')
@@ -440,6 +437,7 @@ onMounted(() => {
 
   // Apply settings immediately
   applySettings()
+  applyCensoring()
 })
 
 // Watch for settings changes

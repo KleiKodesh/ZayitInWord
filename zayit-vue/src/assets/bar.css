@@ -1,0 +1,16 @@
+/* Global bar styles - For headers, footers, and horizontal containers */
+
+/* Base bar class - 3rem height with consistent padding */
+.bar {
+  height: 3rem; /* Standard bar height (matches vue-tabs) */
+  padding: 0 0.375rem; /* Standard horizontal padding */
+  display: flex; /* Horizontal layout */
+  text-align: center;
+  align-items: center; /* Vertically center content */
+  background: var(--bg-secondary); /* Secondary background */
+  transition: background 0.1s ease; /* Smooth hover */
+  background: var(--bg-secondary); /* Secondary background color */
+  backdrop-filter: blur(0.625rem); /* Blur background for modern effect */
+  -webkit-backdrop-filter: blur(0.625rem); /* Safari support for backdrop blur */
+}
+

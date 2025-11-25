@@ -21,7 +21,7 @@ namespace Zayit.SeforimDb
         ";
 
         public static string GetRootCategories => @"
-            SELECT 
+            SELECT DISTINCT
                 Id,
                 ParentId,
                 Title,
@@ -31,7 +31,7 @@ namespace Zayit.SeforimDb
         ";
 
         public static string GetChildCategories(int parentId) => $@"
-            SELECT 
+            SELECT DISTINCT 
                 Id,
                 ParentId,
                 Title,
@@ -41,7 +41,7 @@ namespace Zayit.SeforimDb
         ";
 
         public static string GetBooksByCategoryId(int categoryId) => $@"
-            SELECT 
+            SELECT DISTINCT
                 Id,
                 CategoryId,
                 Title,
@@ -57,7 +57,7 @@ namespace Zayit.SeforimDb
         ";
 
         public static string GetAllCategories => @"
-            SELECT 
+            SELECT DISTINCT 
                 Id,
                 ParentId,
                 Title,
@@ -112,7 +112,7 @@ namespace Zayit.SeforimDb
         }
 
         public static string GetToc(int docId) => $@"
-        SELECT 
+        SELECT DISTINCT
             te.id,
             te.bookId,
             te.parentId,

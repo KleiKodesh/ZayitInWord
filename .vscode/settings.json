@@ -1,2 +1,40 @@
 {
+  "files.exclude": {
+    // Hide junk / auto-generated folders globally
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.vite": true,
+    "**/.cache": true,
+    "**/.temp": true,
+    "**/.turbo": true,
+
+    // Hide specific files anywhere except package.json
+    "**/.editorconfig": true,
+    "**/.gitattributes": true,
+    "**/.gitignore": true,
+    "**/env.d.ts": true,
+    "**/eslint.config.ts": true,
+    "**/package-lock.json": true,
+    "**/tsconfig.app.json": true,
+    "**/tsconfig.json": true,
+    "**/tsconfig.node.json": true,
+    "**/tsconfig.vitest.json": true,
+    "**/vite.config.ts": true,
+    "**/vitest.config.ts": true,
+
+    // Show package.json anywhere
+    "**/package.json": false
+  },
+
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.vite": true,
+    "**/.cache": true,
+    "**/.temp": true,
+    "**/.turbo": true
+  },
+
+  "explorer.compactFolders": false,
+  "explorer.excludeGitIgnore" : false
 }
