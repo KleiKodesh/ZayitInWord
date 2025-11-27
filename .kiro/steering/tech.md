@@ -18,6 +18,19 @@
 - Path alias: `@` maps to `src/`
 - Target: `esnext` with no code splitting
 
+### CSS Conventions
+- **Prefer `rem` over `px`** for sizing (padding, margin, font-size, width, height)
+- Use `rem` for scalability and accessibility (1rem = 16px by default)
+- Only use `px` for fixed values like borders (1px, 2px) or very small precise measurements
+- Example: `padding: 0.5rem` instead of `padding: 8px`
+
+### Button Styling
+- **Use default button styles** from `src/assets/button.css` - do not override with custom styles
+- Default buttons are 2rem × 2rem with 1.25rem icons
+- Only add minimal overrides when absolutely necessary (e.g., transforms for rotation)
+- Avoid overriding: padding, width, height, display, align-items, justify-content, transitions
+- The global button styles provide consistent hover/active states and sizing across the app
+
 ## Backend (C#)
 
 ### Core Technologies

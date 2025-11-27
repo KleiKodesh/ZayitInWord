@@ -5,6 +5,7 @@ export interface TocEntry {
   textId?: number
   level: number
   lineId: number
+  lineIndex: number
   isLastChild: boolean
   hasChildren: boolean
   text: string

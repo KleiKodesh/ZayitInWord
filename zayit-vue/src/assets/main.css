@@ -6,6 +6,23 @@
   user-select: none; /* Prevent text selection for cleaner UI */
 }
 
+/* IMPORTANT: Allow text selection in book content and heading elements */
+.book-content-view,
+.book-line,
+.line-content,
+.line-content *,
+.line-content h1,
+.line-content h2,
+.line-content h3,
+.line-content h4,
+.line-content h5,
+.line-content h6 {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; /* System font stack for native look */
   background: var(--bg-primary); /* Use theme background color */
@@ -26,26 +43,10 @@ input {
   transform: scaleX(-1); /* Mirror horizontally */
 }
 
-/* Scrollbar theming - Webkit browsers (Chrome, Safari, Edge) */
-::-webkit-scrollbar {
-  width: 12px; /* Scrollbar width for vertical scrolling */
-  height: 12px; /* Scrollbar height for horizontal scrolling */
-}
-
-/* Scrollbar track (background area) */
-::-webkit-scrollbar-track {
-  background: var(--bg-primary); /* Match main background color */
-}
-
-/* Scrollbar thumb (draggable part) */
-::-webkit-scrollbar-thumb {
-  background: var(--border-color); /* Use border color for subtle appearance */
-  border-radius: 6px; /* Rounded corners for modern look */
-}
-
-/* Scrollbar thumb on hover */
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary); /* Darker color on hover for feedback */
+/* Scrollbar theming - standard property (Firefox and modern browsers) */
+* {
+  scrollbar-color: var(--border-color) var(--bg-primary); /* thumb color, track color */
+  /* scrollbar-width: thin; Use thin scrollbar */
 }
 
 

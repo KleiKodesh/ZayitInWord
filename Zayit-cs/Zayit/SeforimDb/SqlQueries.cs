@@ -65,6 +65,43 @@ namespace Zayit.SeforimDb
             FROM category
         ";
 
+        public static string GetCategoriesWithPath => @"
+            WITH RECURSIVE CategoryPath AS (
+                -- Base case: root categories (Level = 0)
+                SELECT 
+                    Id,
+                    ParentId,
+                    Title,
+                    Level,
+                    '' AS Path
+                FROM category
+                WHERE Level = 0
+                
+                UNION ALL
+                
+                -- Recursive case: child categories
+                SELECT 
+                    c.Id,
+                    c.ParentId,
+                    c.Title,
+                    c.Level,
+                    CASE 
+                        WHEN cp.Path = '' THEN cp.Title
+                        ELSE cp.Path || ' > ' || cp.Title
+                    END AS Path
+                FROM category c
+                INNER JOIN CategoryPath cp ON c.ParentId = cp.Id
+            )
+            SELECT 
+                Id,
+                ParentId,
+                Title,
+                Level,
+                Path
+            FROM CategoryPath
+            ORDER BY Level, Id
+        ";
+
         public static string GetAllBooks => @"
             SELECT 
                 Id,
@@ -121,10 +158,13 @@ namespace Zayit.SeforimDb
             te.lineId,
             te.isLastChild,
             te.hasChildren,
-            tt.text AS Text
+            tt.text AS Text,
+            l.lineIndex
         FROM tocEntry AS te
         LEFT JOIN tocText AS tt 
             ON te.textId = tt.id
+        LEFT JOIN line AS l
+            ON l.id = te.lineId
         WHERE te.bookId = {docId};
         ";
 

@@ -3,7 +3,7 @@ export interface Book {
   categoryId: number
   title: string
   heShortDesc: string | null
-  fullCategory?: string | null
+  path?: string
   orderIndex: number
   totalLines: number
   hasTargumConnection: number

@@ -17,6 +17,53 @@ This pattern combines:
 - **Component autonomy** - Local state management for UI concerns
 - **Separation of concerns** - Application state (tabs) vs component state (UI)
 
+## Composables
+
+The app uses **VueUse** for common UI patterns. Custom composables are in `src/composables/`:
+
+### `useClickOutside`
+
+Handles click-outside detection for dropdowns, modals, and popovers:
+
+```vue
+<script setup>
+import { ref } from 'vue'
+import { useClickOutside } from '@/composables/useClickOutside'
+
+const dropdownRef = ref(null)
+const isOpen = ref(false)
+
+useClickOutside(dropdownRef, () => {
+  isOpen.value = false
+})
+</script>
+
+<template>
+  <div ref="dropdownRef">
+    <button @click="isOpen = !isOpen">Toggle</button>
+    <div v-if="isOpen">Dropdown content</div>
+  </div>
+</template>
+```
+
+**Note:** VueUse adds ~1-2 KB to the bundle but provides tree-shaking, so only imported utilities are included.
+
+## Build Configuration
+
+This application uses **single-file offline mode** via `vite-plugin-singlefile`:
+
+- All JavaScript, CSS, and assets (images, fonts) are inlined into a single `index.html`
+- No external dependencies or network requests required
+- Perfect for WebView2 integration and offline usage
+- Build output: `dist/index.html` (~500KB-1MB depending on assets)
+
+**Configuration highlights:**
+- `assetsInlineLimit: 100000000` - Inline all assets as base64
+- `inlineDynamicImports: true` - No code splitting
+- `cssCodeSplit: false` - Single CSS bundle
+
+**Dependency considerations:** When adding new libraries, prefer lightweight alternatives to minimize bundle size. The entire app must fit in a single HTML file.
+
 ## Theming
 
 The application uses a custom theming system that combines:

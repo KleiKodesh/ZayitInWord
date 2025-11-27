@@ -3,11 +3,11 @@
  * 
  * Abstraction layer for data sources.
  * - Production: Uses C# WebView2
- * - Development: Uses sample data when C# not available
+ * - Development: Uses SQLite database directly when C# not available
  */
 
 import type { TreeData } from '../types/Tree'
-import sampleTreeData from '../data/sampleTreeData.json'
+import * as sqliteDb from './sqliteDb'
 
 declare global {
   interface Window {
@@ -16,7 +16,9 @@ declare global {
         postMessage: (message: any) => void
       }
     }
-    receiveTreeData?: (data: TreeData) => void
+    receiveTreeData?: (data: any) => void
+    receiveTocData?: (bookId: number, data: any) => void
+    receiveLinks?: (tabId: string, bookId: number, links: any[]) => void
   }
 }
 
@@ -36,44 +38,47 @@ function isWebViewAvailable(): boolean {
 }
 
 /**
- * Send command to C# or use sample data in dev mode
+ * Send command to C# or use SQLite in dev mode
  */
 export function send(command: string, args: any[] = []) {
   log(`📤 ${command}`, args.length > 0 ? args : undefined)
   
   if (isWebViewAvailable()) {
-    // Production: Send to C#
+    // C# available: Send to C#
     window.chrome!.webview!.postMessage({ command, args })
-  } else {
-    // Development: Use sample data
-    log('⚠️  C# not available, using sample data')
+  } else if (import.meta.env.DEV) {
+    // Development mode: Use SQLite database
+    log('⚠️  C# not available, using SQLite database')
     handleDevMode(command, args)
+  } else {
+    // Production without C#: This shouldn't happen
+    log('❌ C# WebView not available in production build')
+    console.error('C# WebView is required in production builds')
   }
 }
 
 /**
- * Handle commands in dev mode with sample data
+ * Handle commands in dev mode with SQLite database
  */
 async function handleDevMode(command: string, args: any[]) {
-  setTimeout(async () => {
+  try {
     switch (command) {
       case 'GetTree':
-        log('📚 Loading sample tree data')
-        log('📦 sampleTreeData:', sampleTreeData)
+        log('📚 Loading tree data from SQLite')
+        const treeData = await sqliteDb.getTree()
         if (window.receiveTreeData) {
           log('✅ Calling window.receiveTreeData')
-          window.receiveTreeData(sampleTreeData)
+          window.receiveTreeData(treeData)
         } else {
           log('❌ window.receiveTreeData not found!')
         }
         break
         
       case 'GetToc':
-        log('📑 Loading sample TOC data')
+        log('📑 Loading TOC data from SQLite')
         const bookId = args[0]
         log('📦 bookId:', bookId)
-        const tocModule = await import('../data/sampleTocData.json')
-        const tocData = tocModule.default
+        const tocData = await sqliteDb.getToc(bookId)
         if (window.receiveTocData) {
           log('✅ Calling window.receiveTocData')
           window.receiveTocData(bookId, tocData)
@@ -82,34 +87,13 @@ async function handleDevMode(command: string, args: any[]) {
         }
         break
         
-      case 'OpenBook':
-        log('📖 Loading sample book content')
-        const openBookId = args[0]
-        const initialLineId = args[1] || 0
-        log('📦 bookId:', openBookId, 'initialLineId:', initialLineId)
-        const contentModule = await import('../data/sampleContentData.json')
-        const contentData = contentModule.default
-        
-        // Find the index of the initial line
-        if (initialLineId && window.setInitLineIndex) {
-          const lineIndex = contentData.lines.findIndex((line: any) => line.id === initialLineId)
-          if (lineIndex !== -1) {
-            log('✅ Setting init line index:', lineIndex)
-            window.setInitLineIndex(openBookId, lineIndex)
-          }
-        }
-        
-        // Simulate C# sending lines
-        if (window.addLines) {
-          log('✅ Calling window.addLines')
-          window.addLines(openBookId, contentData.lines)
-        } else {
-          log('❌ window.addLines not found!')
-        }
-        
-        if (window.bookLoadComplete) {
-          log('✅ Calling window.bookLoadComplete')
-          window.bookLoadComplete(openBookId)
+
+      case 'GetLinks':
+        log('🔗 Loading links from SQLite')
+        const linkLineId = args[0]
+        const links = await sqliteDb.getLinks(linkLineId)
+        if (window.receiveLinks) {
+          window.receiveLinks(args[1], args[2], links)
         }
         break
         
@@ -117,5 +101,8 @@ async function handleDevMode(command: string, args: any[]) {
         log(`⚠️  Unknown command: ${command}`)
         break
     }
-  }, 100)
+  } catch (error) {
+    log('❌ Error in dev mode:', error)
+    console.error(error)
+  }
 }

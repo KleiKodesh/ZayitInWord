@@ -1,28 +1,29 @@
 <template>
-  <div class="toc-node">
+  <div class="toc-wrapper">
     <div 
       class="toc-item" 
-      :style="{ paddingRight: `${entry.level * 12}px` }"
       tabindex="0"
       @click="handleClick"
-      @keydown.enter="handleClick"
-      @keydown.space.prevent="handleClick"
+      @keydown.enter.stop="handleClick"
+      @keydown.space.stop.prevent="handleSpace"
     >
-      <ChevronIconLeft 
+      <div 
         v-if="entry.hasChildren"
-        :class="{ expanded: isExpanded }"
+        class="chevron-area"
         @click.stop="toggleExpand"
-      />
+      >
+        <ChevronIconLeft :class="{ expanded: isExpanded }" />
+      </div>
       <span class="toc-text">{{ entry.text }}</span>
     </div>
-    <div v-if="isExpanded && entry.children" class="toc-children">
+    <template v-if="isExpanded && entry.children">
       <TocNode 
         v-for="child in entry.children" 
         :key="child.id" 
         :entry="child"
         @navigate="$emit('navigate', $event)"
       />
-    </div>
+    </template>
   </div>
 </template>
 
@@ -36,7 +37,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  navigate: [lineId: number]
+  navigate: [lineIndex: number]
 }>()
 
 const isExpanded = ref(props.entry.isExpanded || false)
@@ -47,31 +48,41 @@ function toggleExpand() {
 }
 
 function handleClick() {
-  emit('navigate', props.entry.lineId)
+  // Navigate to line
+  emit('navigate', props.entry.lineIndex)
+}
+
+function handleSpace() {
+  // Space key: toggle if has children, otherwise navigate
+  if (props.entry.hasChildren) {
+    toggleExpand()
+  } else {
+    emit('navigate', props.entry.lineIndex)
+  }
 }
 </script>
 
 <style scoped>
-/* TOC node container - inline-block for proper width calculation */
-.toc-node {
+/* TOC wrapper container */
+.toc-wrapper {
   user-select: none; /* Prevent text selection during interaction */
-  display: inline-block; /* Allow width to fit content while respecting parent */
-  width: 100%; /* Take full width of parent */
-  background: transparent; /* No background color */
 }
 
-/* TOC item - clickable row with indentation based on level */
+/* TOC item - clickable row with compact styling */
 .toc-item {
-  display: inline-flex; /* Horizontal layout that fits content */
+  display: flex; /* Flexbox for horizontal layout */
   align-items: center; /* Vertically center chevron and text */
-  padding: 0.5rem 0.75rem; /* 8px vertical, 12px horizontal padding */
+  padding: 0.5rem 1rem; /* 8px vertical, 16px horizontal - more compact */
   cursor: pointer; /* Show pointer cursor on hover */
+  transition: all 0.1s ease; /* Faster, simpler transition */
+  font-size: 0.8125rem; /* 13px font size - slightly smaller */
+  font-weight: 500; /* Medium weight - lighter than category */
   border-radius: 0.25rem; /* 4px rounded corners */
-  transition: background 0.1s ease; /* Smooth background color transition */
-  gap: 0.5rem; /* 8px space between chevron and text */
-  min-width: 100%; /* Ensure minimum width fills parent */
-  width: fit-content; /* Expand to fit content if needed */
-  background: transparent; /* No background by default */
+}
+
+/* Nested indentation - shows hierarchy recursively */
+.toc-wrapper .toc-wrapper .toc-item {
+  padding-inline-start: 2.5rem; /* 40px left indent for each nesting level */
 }
 
 /* Hover state - highlight background */
@@ -81,9 +92,22 @@ function handleClick() {
 
 /* Focus state - accent outline for keyboard navigation */
 .toc-item:focus {
-  outline: 2px solid var(--accent-color); /* Accent color outline */
-  outline-offset: -2px; /* Outline inside the element */
+  outline: none; /* No outline */
   background: rgba(var(--accent-color-rgb, 0, 120, 212), 0.1); /* Light accent background */
+}
+
+/* Chevron area - larger clickable area for expand/collapse */
+.chevron-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch; /* Stretch to full height */
+  min-width: 2rem; /* Larger click area */
+  margin-inline-start: -1rem; /* Extend into left padding */
+  padding-inline-end: 0.5rem; /* Extend into left padding */
+  margin-block: -0.5rem; /* Extend into top/bottom padding */
+  padding-inline-start: 1rem; /* Restore padding for chevron positioning */
+  cursor: pointer;
 }
 
 /* Chevron rotation - points right when collapsed, down when expanded */
@@ -91,16 +115,13 @@ function handleClick() {
   transform: rotate(-90deg); /* Rotate 90 degrees counterclockwise when expanded */
 }
 
-/* TOC entry text - no wrapping */
+/* TOC entry text - refined styling */
 .toc-text {
-  font-size: 0.875rem; /* 14px font size */
-  font-weight: 600; /* Semi-bold weight */
+  flex: 1; /* Take remaining space */
   color: var(--text-primary); /* Primary text color */
   white-space: nowrap; /* Prevent text wrapping */
+  line-height: 1.4; /* Line height for readability */
 }
 
-/* Children container - block display for vertical stacking */
-.toc-children {
-  display: block; /* Block display for vertical stacking of child nodes */
-}
+
 </style>

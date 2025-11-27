@@ -34,31 +34,32 @@ namespace Zayit.Viewer
 
         /// <summary>
         /// Called from JavaScript when user opens the tree view
-        /// Fetches the category tree and all books from the database
-        /// This is called once on page load to populate the tree
+        /// Fetches flat category and book data from the database
+        /// Tree building is done in JavaScript using shared treeBuilder utility
         /// </summary>
         private async void GetTree()
         {
             try
             {
-                Debug.WriteLine("GetTree called - fetching data from database");
+                Debug.WriteLine("GetTree called - fetching flat data from database");
 
-                // Get tree structure and all books from database
-                var (tree, allBooks) = SeforimDb.DbQueries.BuildTree();
+                // Get flat category and book data from database
+                var (categoriesFlat, booksFlat) = SeforimDb.DbQueries.GetTreeData();
 
-                Debug.WriteLine($"BuildTree returned: {tree?.Length ?? 0} categories, {allBooks?.Length ?? 0} books");
+                Debug.WriteLine($"GetTreeData returned: {(categoriesFlat as Array)?.Length ?? 0} categories, {(booksFlat as Array)?.Length ?? 0} books");
 
-                if (tree == null || allBooks == null)
+                if (categoriesFlat == null || booksFlat == null)
                 {
-                    Debug.WriteLine("ERROR: BuildTree returned null data");
+                    Debug.WriteLine("ERROR: GetTreeData returned null data");
                     return;
                 }
 
-                // Create response object
+                // Create response object with flat data
+                // JavaScript will build the tree using treeBuilder utility
                 var treeData = new
                 {
-                    tree = tree,
-                    allBooks = allBooks
+                    categoriesFlat = categoriesFlat,
+                    booksFlat = booksFlat
                 };
 
                 // Serialize with camelCase for JavaScript
@@ -67,7 +68,7 @@ namespace Zayit.Viewer
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                 });
 
-                Debug.WriteLine($"Serialized tree data: {json.Length} characters");
+                Debug.WriteLine($"Serialized flat data: {json.Length} characters");
 
                 // Send to Vue application
                 string js = $"window.receiveTreeData({json});";
@@ -133,15 +134,16 @@ namespace Zayit.Viewer
 
         /// <summary>
         /// Called from JavaScript to get the table of contents for a book
+        /// Returns flat TOC data - tree building is done in JavaScript using shared tocBuilder utility
         /// </summary>
         /// <param name="bookId">The book ID to get TOC for</param>
         private async void GetToc(int bookId)
         {
             try
             {
-                var (tree, allTocs) = SeforimDb.DbQueries.GetTocTree(bookId);
+                var tocEntriesFlat = SeforimDb.DbQueries.GetTocData(bookId);
 
-                var tocData = new { tree, allTocs };
+                var tocData = new { tocEntriesFlat };
 
                 string json = JsonSerializer.Serialize(tocData, new JsonSerializerOptions
                 {
@@ -151,7 +153,7 @@ namespace Zayit.Viewer
                 string js = $"window.receiveTocData({bookId}, {json});";
                 await ExecuteScriptAsync(js);
 
-                Debug.WriteLine($"TOC for book {bookId} sent successfully");
+                Debug.WriteLine($"Flat TOC data for book {bookId} sent successfully");
             }
             catch (Exception ex)
             {

@@ -7,44 +7,48 @@
     @keydown.down.prevent="navigateDown"
     @keydown.enter="selectCurrentItem"
     @keydown.space.prevent="selectCurrentItem"
+    @click="focusTreeView"
   >
-    <LoadingAnimation v-if="isLoading" message="טוען אילן ספרים"/>
+    <!-- Show loading animation while data is loading or not yet available -->
+    <LoadingAnimation v-if="isLoading || !treeData" message="טוען אילן ספרים"/>
     
-    <div v-else-if="showSearchResults" class="search-results">
-      <div 
-        v-for="(book, index) in filteredBooks" 
-        :key="book.id" 
-        class="result-item" 
-        :class="{ selected: index === selectedIndex && showSelection }"
-        @click="handleBookClick(book, index)"
-      >
-        <BookIcon class="book-icon"/>
-        <div class="book-info">
-          <h3>{{ book.title }}</h3>
-          <p v-if="book.fullCategory" class="book-category">{{ book.fullCategory }}</p>
+    <!-- Show search results when user is searching -->
+    <template v-else>
+      <div v-if="showSearchResults" class="search-results">
+        <div 
+          v-for="(book, index) in filteredBooks" 
+          :key="book.id" 
+          class="result-item" 
+          :class="{ selected: index === selectedIndex && showSelection }"
+          @click="handleBookClick(book, index)"
+        >
+          <BookIcon class="book-icon"/>
+          <div class="book-info">
+            <h3>{{ book.title }}</h3>
+            <p v-if="book.path" class="book-category">{{ book.path }}</p>
+          </div>
+        </div>
+        <div v-if="hasMoreResults" class="more-results-hint">
+          מוצגים {{ filteredBooks.length }} תוצאות ראשונות. הקלד עוד תווים לסינון נוסף.
         </div>
       </div>
-      <div v-if="hasMoreResults" class="more-results-hint">
-        מוצגים {{ filteredBooks.length }} תוצאות ראשונות. הקלד עוד תווים לסינון נוסף.
+
+      <!-- Show no results message when searching but nothing found -->
+      <div v-else-if="searchQuery && !filteredBooks.length" class="no-results">
+        לא נמצאו תוצאות
       </div>
-    </div>
 
-    <div v-else-if="searchQuery && !filteredBooks.length" class="no-results">
-      לא נמצאו תוצאות
-    </div>
-
-    <div v-else-if="treeData">
-      <CategoryNode v-for="category in treeData.tree" :key="category.id" :category="category" @select-book="handleBookClick($event, -1)"/>
-    </div>
-
-    <div v-else class="no-results">
-      שגיאת נתונים!
-    </div>
+      <!-- Show category tree when not searching -->
+      <div v-else>
+        <CategoryNode v-for="category in treeData.tree" :key="category.id" :category="category" @select-book="handleBookClick($event, -1)"/>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useCategoryTreeStore } from '../../stores/categoryTreeStore'
 import { useTabsStore } from '../../stores/tabStore'
 import { MAX_SEARCH_RESULTS } from '../../constants'
@@ -59,7 +63,7 @@ const props = defineProps<{
 
 const categoryTreeStore = useCategoryTreeStore()
 const tabsStore = useTabsStore()
-const { treeData, isLoading } = categoryTreeStore
+const { treeData, isLoading } = storeToRefs(categoryTreeStore)
 
 const filteredBooks = ref<Book[]>([])
 
@@ -79,7 +83,7 @@ watch(() => props.searchQuery, (newQuery) => {
     
     const title = book.title.toLowerCase()
     const desc = book.heShortDesc?.toLowerCase() || ''
-    const category = book.fullCategory?.toLowerCase() || ''
+    const category = book.path?.toLowerCase() || ''
     
     const matches = queryWords.every(word => 
       title.includes(word) || desc.includes(word) || category.includes(word)
@@ -128,45 +132,54 @@ const scrollToSelected = () => {
 }
 
 const navigateUp = () => {
-  if (filteredBooks.value.length === 0) return
+  // Get all focusable elements in the tree
+  const focusableElements = Array.from(
+    treeViewRef.value?.querySelectorAll('.result-item, .category-node, .book-node') || []
+  ) as HTMLElement[]
   
-  showSelection.value = true
+  if (focusableElements.length === 0) return
   
-  if (selectedIndex.value === -1) {
-    selectedIndex.value = 0
-  } else if (selectedIndex.value === 0) {
-    selectedIndex.value = filteredBooks.value.length - 1
+  const currentFocused = document.activeElement as HTMLElement
+  const currentIndex = focusableElements.indexOf(currentFocused)
+  
+  let nextIndex
+  if (currentIndex <= 0) {
+    nextIndex = focusableElements.length - 1 // Wrap to last
   } else {
-    selectedIndex.value--
+    nextIndex = currentIndex - 1
   }
   
-  scrollToSelected()
-  clearSelectionAfterDelay()
+  focusableElements[nextIndex]?.focus()
+  focusableElements[nextIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 const navigateDown = () => {
-  if (filteredBooks.value.length === 0) return
+  // Get all focusable elements in the tree
+  const focusableElements = Array.from(
+    treeViewRef.value?.querySelectorAll('.result-item, .category-node, .book-node') || []
+  ) as HTMLElement[]
   
-  showSelection.value = true
+  if (focusableElements.length === 0) return
   
-  if (selectedIndex.value === -1) {
-    selectedIndex.value = 0
-  } else if (selectedIndex.value >= filteredBooks.value.length - 1) {
-    selectedIndex.value = 0
+  const currentFocused = document.activeElement as HTMLElement
+  const currentIndex = focusableElements.indexOf(currentFocused)
+  
+  let nextIndex
+  if (currentIndex === -1 || currentIndex >= focusableElements.length - 1) {
+    nextIndex = 0 // Wrap to first or start at first
   } else {
-    selectedIndex.value++
+    nextIndex = currentIndex + 1
   }
   
-  scrollToSelected()
-  clearSelectionAfterDelay()
+  focusableElements[nextIndex]?.focus()
+  focusableElements[nextIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 const selectCurrentItem = () => {
-  if (selectedIndex.value >= 0 && selectedIndex.value < filteredBooks.value.length) {
-    const book = filteredBooks.value[selectedIndex.value]
-    if (book) {
-      handleBookClick(book, selectedIndex.value)
-    }
+  // Trigger click on currently focused element
+  const currentFocused = document.activeElement as HTMLElement
+  if (currentFocused && treeViewRef.value?.contains(currentFocused)) {
+    currentFocused.click()
   }
 }
 
@@ -175,18 +188,26 @@ const handleBookClick = (book: Book, index: number) => {
   console.log('Selected book:', book.title)
   // Set bookId in active tab to show TOC
   tabsStore.updateActiveTab(
-    tabsStore.activeTab?.title || 'איתור',
+    `תוכן עניינים - ${book.title}`,
     1, // Keep type as Landing page
     book.id // Set bookId to show TOC
   )
 }
 
 const focusTreeView = () => {
-  treeViewRef.value?.focus()
-  if (selectedIndex.value === -1 && filteredBooks.value.length > 0) {
-    selectedIndex.value = 0
-    showSelection.value = true
-    clearSelectionAfterDelay()
+  // Only focus if nothing in the tree is currently focused
+  const currentFocused = document.activeElement as HTMLElement
+  if (treeViewRef.value?.contains(currentFocused)) {
+    // Already focused on something in the tree, don't change focus
+    return
+  }
+  
+  // Focus first focusable element in tree
+  const firstFocusable = treeViewRef.value?.querySelector('.result-item, .category-node, .book-node') as HTMLElement
+  if (firstFocusable) {
+    firstFocusable.focus()
+  } else {
+    treeViewRef.value?.focus()
   }
 }
 

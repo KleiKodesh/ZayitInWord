@@ -4,7 +4,7 @@ export interface Category {
   id: number
   parentId: number
   title: string
-  fullCategory?: string | null
+  path?: string
   level: number
   books: Book[]
   children: Category[]

@@ -4,13 +4,15 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import { viteSingleFile } from 'vite-plugin-singlefile'
+import { dbServerPlugin } from './vite-plugin-db'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
     vueDevTools(),
     viteSingleFile(), // Inline all assets into single HTML file
+    ...(mode === 'development' ? [dbServerPlugin()] : []), // Serve DB in dev mode only
   ],
   resolve: {
     alias: {
@@ -31,4 +33,4 @@ export default defineConfig({
   },
   // Ensure all assets are processed
   assetsInclude: ['**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.gif', '**/*.svg', '**/*.ico'],
-})
+}))

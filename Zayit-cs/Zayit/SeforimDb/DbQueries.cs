@@ -17,100 +17,36 @@ namespace Zayit.SeforimDb
                 .Query<(string, int)>(SqlQueries.GetBookContent(bookId));
         }
 
-        public static (Category[] Tree, Book[] AllBooks) BuildTree()
+        /// <summary>
+        /// Get flat category and book data from database
+        /// Tree building is done in JavaScript using shared treeBuilder utility
+        /// </summary>
+        public static (object CategoriesFlat, object BooksFlat) GetTreeData()
         {
-            // Categories must already be sorted in preorder
-            var allCategories = _db?.DapperConnection
-                .Query<Category>(SqlQueries.GetAllCategories)
+            // Use recursive CTE to get all categories with their full path
+            var categoriesFlat = _db?.DapperConnection
+                .Query(SqlQueries.GetCategoriesWithPath)
                 .ToArray();
 
-            var allBooks = new List<Book>();
-            var roots = new List<Category>();
-            var stack = new Stack<Category>();
-
-            foreach (var cat in allCategories)
-            {
-                // Pop finished parent categories
-                while (stack.Count > 0 && stack.Peek().Id != cat.ParentId)
-                {
-                    var finishedParent = stack.Pop();
-                    AssignBooksToCategory(finishedParent, allBooks);
-                }
-
-                if (stack.Count == 0)
-                    roots.Add(cat);
-                else
-                {
-                    var parent = stack.Peek();
-                    parent.Children.Add(cat);
-                    cat.FullCategory = parent.FullCategory + parent.Title + " / ";
-                }
-
-                stack.Push(cat);
-            }
-
-            // Handle remaining items in the stack
-            while (stack.Count > 0)
-            {
-                var leaf = stack.Pop();
-                AssignBooksToCategory(leaf, allBooks);
-            }
-
-            return (roots.ToArray(), allBooks.ToArray());
-        }
-
-        private static void AssignBooksToCategory(Category category, List<Book> allBooks)
-        {
-            if (category.Children.Count == 0) // Only assign to leaf categories
-            {
-                category.Books = _db?.DapperConnection
-                    .Query<Book>(SqlQueries.GetBooksByCategoryId(category.Id))
-                    .ToArray();
-
-                foreach (var book in category.Books)
-                    book.FullCategory = category.FullCategory + category.Title + " / ";
-
-                allBooks.AddRange(category.Books);
-            }
-        }
-
-        public static (TocEntry[] Tree, TocEntry[] AllTocs) GetTocTree(int docId)
-        {
-            var allEntries = _db?.DapperConnection
-                .Query<TocEntry>(SqlQueries.GetToc(docId))
+            // Get all books in a single query
+            var booksFlat = _db?.DapperConnection
+                .Query(SqlQueries.GetAllBooks)
                 .ToArray();
 
-            // Build tree directly from list
-            var tree = BuildChildren(null, allEntries).ToArray();
-
-            return (tree, allEntries);
+            return (categoriesFlat, booksFlat);
         }
 
-        private static TocEntry[] BuildChildren(int? parentId, TocEntry[] items)
+        /// <summary>
+        /// Get flat TOC data from database
+        /// Tree building is done in JavaScript using shared tocBuilder utility
+        /// </summary>
+        public static object GetTocData(int docId)
         {
-            var parent = items.FirstOrDefault(t => t.Id == parentId);
-
-            // Find direct children
-            var children = items
-                .Where(t => t.ParentId == parentId)
+            var tocEntriesFlat = _db?.DapperConnection
+                .Query(SqlQueries.GetToc(docId))
                 .ToArray();
 
-            foreach (var child in children)
-            {
-                // Build path from parent's path + parent's text
-                if (parent != null)
-                {
-                    if (!string.IsNullOrEmpty(parent.Path))
-                        child.Path = parent.Path + parent.Text + " / ";
-                    else
-                        child.Path = parent.Text + " / ";
-                }
-
-                if (child.HasChildren)
-                    child.Children = BuildChildren(child.Id, items) ?? Array.Empty<TocEntry>();
-            }
-
-            return children;
+            return tocEntriesFlat;
         }
 
         public static JoinedLink[] GetLinks(int lineId) =>

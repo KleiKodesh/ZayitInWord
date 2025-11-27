@@ -23,22 +23,24 @@ defineProps<{ isOpen: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const tabsStore = useTabsStore()
+
 const handleActivate = (id: number) => {
   tabsStore.activateTab(id)
   emit('close')
 }
 
-const handleClose = (id:number) => {
+const handleClose = (id: number) => {
   tabsStore.closeTab(id)
 }
 </script>
 
 <style scoped>
-/* Dropdown container - Positioned below tab header */
+/* Dropdown container - Positioned absolutely within parent */
 .dropdown {
-  position: absolute; /* Position relative to parent */
-  top: 3rem; /* Position below tab header */
-  width: 100%; /* Full width of parent */
+  position: absolute; /* Position relative to parent with position: relative */
+  top: 100%; /* Position directly below parent (tab header) */
+  left: 0; /* Align to left edge of parent */
+  right: 0; /* Align to right edge of parent */
   max-height: 60vh; /* Maximum height is 60% of viewport */
   overflow-y: auto; /* Enable vertical scrolling if content exceeds max-height */
   z-index: 1000; /* Stack above other content */

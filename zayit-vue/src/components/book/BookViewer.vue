@@ -1,9 +1,19 @@
 <template>
   <div class="book-viewer">
-    <BookContentView
-      :book-id="bookId"
-      :initial-line-id="initialLineId"
-    />
+    <!-- 
+      IMPORTANT: KeepAlive preserves BookContentView scroll position
+      - Key by bookId so different books get separate cached instances
+      - When switching tabs viewing same book, scroll position is maintained
+      - DO NOT REMOVE: Critical for preserving reading position
+    -->
+    <KeepAlive>
+      <BookContentView
+        :key="bookId"
+        :book-id="bookId"
+        :initial-line-index="initialLineIndex"
+        :saved-line-index="savedLineIndex"
+      />
+    </KeepAlive>
   </div>
 </template>
 
@@ -12,8 +22,16 @@ import BookContentView from './BookContentView.vue'
 
 defineProps<{
   bookId: number
-  initialLineId?: number
+  initialLineIndex?: number
+  savedLineIndex?: number
 }>()
+</script>
+
+<script lang="ts">
+// IMPORTANT: Explicit name required for KeepAlive to cache this component
+export default {
+  name: 'BookViewer'
+}
 </script>
 
 <style scoped>
@@ -21,7 +39,6 @@ defineProps<{
 .book-viewer {
   height: 100%; /* Full height of parent */
   width: 100%; /* Full width of parent */
-  direction: rtl; /* Right-to-left text direction for Hebrew */
   position: relative; /* Positioning context for children */
   overflow: hidden; /* Hide overflow content */
 }

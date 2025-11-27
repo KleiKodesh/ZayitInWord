@@ -8,6 +8,7 @@
         public int? TextId { get; set; }
         public int Level { get; set; }
         public int LineId { get; set; }
+        public int LineIndex { get; set; }
         public bool IsLastChild { get; set; }
         public bool HasChildren { get; set; }
 

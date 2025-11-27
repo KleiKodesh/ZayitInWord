@@ -6,7 +6,8 @@
     @keydown.up.prevent="navigateUp"
     @keydown.down.prevent="navigateDown"
     @keydown.enter="selectCurrentItem"
-    @keydown.space.prevent="selectCurrentItem"
+    @keydown.space.prevent="toggleCurrentItem"
+    @click="focusTreeView"
   >
     <LoadingAnimation v-if="isLoading" message="טוען תוכן עניינים"/>
     
@@ -51,6 +52,7 @@ import { useTabsStore } from '../../stores/tabStore'
 import TocNode from './TocNode.vue'
 import LoadingAnimation from '../shared/LoadingAnimation.vue'
 import type { TocEntry } from '../../types/Toc'
+import { buildTocFromFlat } from '../../utils/tocBuilder'
 
 const props = defineProps<{
   searchQuery: string
@@ -63,14 +65,23 @@ const isLoading = ref(false)
 // Setup global callback for receiving TOC data
 declare global {
   interface Window {
-    receiveTocData?: (bookId: number, data: { tree: TocEntry[], allTocs: TocEntry[] }) => void
+    receiveTocData?: (bookId: number, data: any) => void
   }
 }
 
-window.receiveTocData = (bookId: number, data: { tree: TocEntry[], allTocs: TocEntry[] }) => {
+window.receiveTocData = (bookId: number, data: any) => {
   if (bookId === tabsStore.activeTab?.bookId) {
     console.log('Received TOC data for book:', bookId, data)
-    tocData.value = data
+    
+    // Both C# and SQLite now return flat data in same format
+    if (data.tocEntriesFlat) {
+      console.log('📦 Building TOC tree from flat data...')
+      tocData.value = buildTocFromFlat(data.tocEntriesFlat)
+      console.log('✅ TOC tree built successfully')
+    } else {
+      console.error('❌ Invalid TOC data format:', data)
+    }
+    
     isLoading.value = false
   }
 }
@@ -106,22 +117,25 @@ const showSearchResults = computed(() => {
   return props.searchQuery.trim().length > 0 && filteredEntries.value.length > 0
 })
 
-const handleNavigate = (lineId: number) => {
-  const entry = tocData.value?.allTocs.find(e => e.lineId === lineId)
+const handleNavigate = (lineIndex: number) => {
+  const entry = tocData.value?.allTocs.find(e => e.lineIndex === lineIndex)
   if (entry) {
     handleEntrySelect(entry)
   }
 }
 
 const handleEntrySelect = (entry: TocEntry) => {
-  console.log('Selected TOC entry:', entry.text, 'lineId:', entry.lineId)
-  // Update the current tab to show book viewer with bookId and lineId
+  console.log('Selected TOC entry:', entry.text, 'lineIndex:', entry.lineIndex)
+  // Update the current tab to show book viewer with bookId and lineIndex
   if (tabsStore.activeTab?.bookId) {
+    // Extract book title by removing "תוכן עניינים - " prefix if present
+    const bookTitle = tabsStore.activeTab.title.replace(/^תוכן עניינים - /, '')
+    
     tabsStore.updateActiveTab(
-      entry.text,
+      bookTitle, // Just the book title without TOC prefix
       2, // Type 2 = Book Viewer
       tabsStore.activeTab.bookId,
-      entry.lineId
+      entry.lineIndex
     )
   }
 }
@@ -155,44 +169,65 @@ const scrollToSelected = () => {
 }
 
 const navigateUp = () => {
-  if (filteredEntries.value.length === 0) return
+  // Get all focusable elements in the tree
+  const focusableElements = Array.from(
+    tocViewRef.value?.querySelectorAll('.toc-search-item, .toc-item') || []
+  ) as HTMLElement[]
   
-  showSelection.value = true
+  if (focusableElements.length === 0) return
   
-  if (selectedIndex.value === -1) {
-    selectedIndex.value = 0
-  } else if (selectedIndex.value === 0) {
-    selectedIndex.value = filteredEntries.value.length - 1
+  const currentFocused = document.activeElement as HTMLElement
+  const currentIndex = focusableElements.indexOf(currentFocused)
+  
+  let nextIndex
+  if (currentIndex <= 0) {
+    nextIndex = focusableElements.length - 1 // Wrap to last
   } else {
-    selectedIndex.value--
+    nextIndex = currentIndex - 1
   }
   
-  scrollToSelected()
-  clearSelectionAfterDelay()
+  focusableElements[nextIndex]?.focus()
+  focusableElements[nextIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 const navigateDown = () => {
-  if (filteredEntries.value.length === 0) return
+  // Get all focusable elements in the tree
+  const focusableElements = Array.from(
+    tocViewRef.value?.querySelectorAll('.toc-search-item, .toc-item') || []
+  ) as HTMLElement[]
   
-  showSelection.value = true
+  if (focusableElements.length === 0) return
   
-  if (selectedIndex.value === -1) {
-    selectedIndex.value = 0
-  } else if (selectedIndex.value >= filteredEntries.value.length - 1) {
-    selectedIndex.value = 0
+  const currentFocused = document.activeElement as HTMLElement
+  const currentIndex = focusableElements.indexOf(currentFocused)
+  
+  let nextIndex
+  if (currentIndex === -1 || currentIndex >= focusableElements.length - 1) {
+    nextIndex = 0 // Wrap to first or start at first
   } else {
-    selectedIndex.value++
+    nextIndex = currentIndex + 1
   }
   
-  scrollToSelected()
-  clearSelectionAfterDelay()
+  focusableElements[nextIndex]?.focus()
+  focusableElements[nextIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 const selectCurrentItem = () => {
-  if (selectedIndex.value >= 0 && selectedIndex.value < filteredEntries.value.length) {
-    const entry = filteredEntries.value[selectedIndex.value]
-    if (entry) {
-      handleEntryClick(entry, selectedIndex.value)
+  // Enter key: navigate to the TOC entry
+  const currentFocused = document.activeElement as HTMLElement
+  if (currentFocused && tocViewRef.value?.contains(currentFocused)) {
+    currentFocused.click()
+  }
+}
+
+const toggleCurrentItem = () => {
+  // Space key: toggle expand/collapse if it has children
+  const currentFocused = document.activeElement as HTMLElement
+  if (currentFocused && currentFocused.classList.contains('toc-item')) {
+    const chevron = currentFocused.querySelector('.chevron-icon') as HTMLElement
+    if (chevron) {
+      // Has children, toggle expand
+      chevron.click()
     }
   }
 }
@@ -203,11 +238,19 @@ const handleEntryClick = (entry: TocEntry, index: number) => {
 }
 
 const focusTreeView = () => {
-  tocViewRef.value?.focus()
-  if (selectedIndex.value === -1 && filteredEntries.value.length > 0) {
-    selectedIndex.value = 0
-    showSelection.value = true
-    clearSelectionAfterDelay()
+  // Only focus if nothing in the tree is currently focused
+  const currentFocused = document.activeElement as HTMLElement
+  if (tocViewRef.value?.contains(currentFocused)) {
+    // Already focused on something in the tree, don't change focus
+    return
+  }
+  
+  // Focus first focusable element in tree
+  const firstFocusable = tocViewRef.value?.querySelector('.toc-search-item, .toc-item') as HTMLElement
+  if (firstFocusable) {
+    firstFocusable.focus()
+  } else {
+    tocViewRef.value?.focus()
   }
 }
 
@@ -306,7 +349,7 @@ onMounted(() => {
 
 /* TOC tree container - inline-block for proper width calculation */
 .toc-tree {
-  padding: 0.75rem; /* 12px padding on all sides */
+  padding: 0; /* No padding to fill container */
   display: inline-block; /* Allow width to fit content */
   min-width: min-content; /* Minimum width based on content */
   width: 100%; /* Take full width of parent */

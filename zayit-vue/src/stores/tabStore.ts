@@ -39,7 +39,7 @@ export const useTabsStore = defineStore('tabStore', () => {
     localStorage.setItem('tabs', JSON.stringify(tabs.value))
   }
 
-  function createTab(title: string = 'איתור', type : 1 | 2 | 3 | 4 = 1, bookId?: number, initialLineId?: number) {
+  function createTab(title: string = 'איתור', type : 1 | 2 | 3 | 4 = 1, bookId?: number, initialLineIndex?: number) {
      if (activeTab.value)
         activeTab.value.isActive = false
     
@@ -50,7 +50,7 @@ export const useTabsStore = defineStore('tabStore', () => {
         isActive : true,
         type,
         bookId,
-        initialLineId
+        initialLineIndex
     })
   }
 
@@ -77,12 +77,12 @@ export const useTabsStore = defineStore('tabStore', () => {
       })
   }
 
-  function updateActiveTab(title: string, type: 1 | 2 | 3 | 4, bookId?: number, initialLineId?: number) {
+  function updateActiveTab(title: string, type: 1 | 2 | 3 | 4, bookId?: number, initialLineIndex?: number) {
     if (activeTab.value) {
       activeTab.value.title = title
       activeTab.value.type = type
       activeTab.value.bookId = bookId
-      activeTab.value.initialLineId = initialLineId
+      activeTab.value.initialLineIndex = initialLineIndex
     }
   }
 

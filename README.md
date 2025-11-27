@@ -43,6 +43,21 @@ This project provides a web-based interface for browsing and reading Jewish text
 - ✅ **Chunked Processing** - Non-blocking text processing for large documents
 - ✅ **WebView2 Integration** - Seamless C# backend communication
 
+## Architecture
+
+This application follows a **container/presentational pattern** with **centralized routing state**:
+
+- **Tab Store (Pinia)** - Manages application-level navigation state (active tab, content type, book selection). Acts as a lightweight router coordinating between components.
+
+- **Smart Components** - Self-contained components (CategoryTree, TocTree, BookViewer) that read from and write to the tab store for navigation, while maintaining their own local UI state (keyboard navigation, search filtering, animations).
+
+- **Functional Composition** - Each component is independently functional and can work in isolation. The tab store provides coordination without tight coupling.
+
+This pattern combines:
+- **Flux/Redux principles** - Unidirectional data flow for navigation state
+- **Component autonomy** - Local state management for UI concerns
+- **Separation of concerns** - Application state (tabs) vs component state (UI)
+
 ## Technology Stack
 
 ### Frontend
@@ -55,9 +70,18 @@ This project provides a web-based interface for browsing and reading Jewish text
 - **Message Passing** - Bidirectional communication between C# and JavaScript
 
 ### Design System
-- **VS Code Theme** - Professional light/dark themes
+- **Windows 11 Fluent Design** - Color palette and design language
+- **VS Code Theme** - Professional light/dark themes and layout
 - **Fluent Design** - Microsoft Fluent icons and patterns
 - **RTL Support** - Full right-to-left layout for Hebrew text
+
+### Theming
+
+All colors are defined as CSS variables in `src/assets/main.css`. For image files (PNG/SVG), use the `themed-icon` class to automatically invert colors in dark mode:
+
+```vue
+<img src="icon.png" class="themed-icon" />
+```
 
 ## Project Structure
 

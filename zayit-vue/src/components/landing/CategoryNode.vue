@@ -1,6 +1,6 @@
 <template>
   <div class="category-wrapper">
-    <div class="category-node" @click="toggleExpand">
+    <div class="category-node" tabindex="0" @click="toggleExpand" @keydown.enter.stop="toggleExpand" @keydown.space.stop.prevent="toggleExpand">
       <ChevronIconLeft 
         v-if="category.children.length > 0 || category.books.length > 0"
         :class="{ expanded: isExpanded }"
@@ -21,7 +21,10 @@
         v-for="book in category.books"
         :key="book.id"
         class="book-node"
+        tabindex="0"
         @click="$emit('select-book', book)"
+        @keydown.enter.stop="$emit('select-book', book)"
+        @keydown.space.stop.prevent="$emit('select-book', book)"
       >
         <BookIcon class="book-icon"/>
         <span class="book-title">{{ book.title }}</span>
@@ -89,6 +92,13 @@
 .book-node:active {
   transform: scale(0.98); /* Slight scale down for press effect */
   background: var(--active-bg); /* Darker background when pressed */
+}
+
+/* Focus state for keyboard navigation */
+.category-node:focus,
+.book-node:focus {
+  outline: none; /* No outline */
+  background: rgba(var(--accent-color-rgb, 0, 120, 212), 0.1); /* Light accent background */
 }
 
 /* Nested indentation - shows hierarchy */

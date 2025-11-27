@@ -2,17 +2,26 @@
   <div class="landing-page">
 
     <div class="content-container">
-      <CategoryTree 
-        v-if="!tabsStore.activeTab?.bookId"
-        ref="categoryTreeRef"
-        :search-query="debouncedSearchQuery"
-      />
-      
-      <TocTree
-        v-else
-        ref="tocTreeRef"
-        :search-query="debouncedSearchQuery"
-      />
+      <!-- 
+        IMPORTANT: KeepAlive preserves CategoryTree and TocTree state
+        - When navigating Book->TOC->CategoryTree, scroll position is maintained
+        - DO NOT REMOVE or replace with Transition - breaks state preservation
+      -->
+      <KeepAlive>
+        <CategoryTree 
+          v-if="!tabsStore.activeTab?.bookId"
+          :key="`category-${treeKey}`"
+          ref="categoryTreeRef"
+          :search-query="debouncedSearchQuery"
+        />
+        
+        <TocTree
+          v-else
+          key="toc"
+          ref="tocTreeRef"
+          :search-query="debouncedSearchQuery"
+        />
+      </KeepAlive>
     </div>
 
     <div class="bar search-bar">
@@ -30,10 +39,20 @@
           @keydown.up.prevent="handleSearchArrowUp"
           @keydown.down.prevent="handleSearchArrowDown"
         />
+        <button v-if="tabsStore.activeTab?.bookId" @click="goToBook" title="עבור לספר" class="forward-button">
+          <ChevronIconLeft />
+        </button>
     </div>
 
   </div>
 </template>
+
+<script lang="ts">
+// IMPORTANT: Explicit name required for KeepAlive to cache this component
+export default {
+  name: 'LandingPage'
+}
+</script>
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
@@ -42,8 +61,6 @@ import { useTabsStore } from '../../stores/tabStore'
 import CategoryTree from './CategoryTree.vue'
 import TocTree from '../toc/TocTree.vue'
 import ChevronIconLeft from '../icons/ChevronIconLeft.vue'
-import type { Book } from '../../types/Book'
-import type { TocEntry } from '../../types/Toc'
 
 const tabsStore = useTabsStore()
 
@@ -62,9 +79,18 @@ watch(searchInput, (newValue) => {
   }, SEARCH_DEBOUNCE_DELAY)
 })
 
-
-
-
+// Clear search when switching between CategoryTree and TocTree
+watch(() => tabsStore.activeTab?.bookId, () => {
+  searchInput.value = ''
+  debouncedSearchQuery.value = ''
+  if (debounceTimeout) {
+    clearTimeout(debounceTimeout)
+  }
+  // Focus search bar after transition
+  setTimeout(() => {
+    searchInputRef.value?.focus()
+  }, 250) // Wait for transition to complete
+})
 
 const goBack = () => {
   // Clear bookId to go back to CategoryTree
@@ -81,12 +107,16 @@ const goBack = () => {
   searchInputRef.value?.focus()
 }
 
+const treeKey = ref(0)
+
 const resetTree = () => {
   searchInput.value = ''
   debouncedSearchQuery.value = ''
   if (debounceTimeout) {
     clearTimeout(debounceTimeout)
   }
+  // Force re-render of tree to collapse all nodes
+  treeKey.value++
   searchInputRef.value?.focus()
 }
 
@@ -103,6 +133,21 @@ const handleSearchArrowDown = () => {
     tocTreeRef.value?.focusTreeView()
   } else {
     categoryTreeRef.value?.focusTreeView()
+  }
+}
+
+const goToBook = () => {
+  // Navigate to book viewer, skipping TOC selection
+  if (tabsStore.activeTab?.bookId) {
+    // Extract book title by removing "תוכן עניינים - " prefix if present
+    const bookTitle = tabsStore.activeTab.title.replace(/^תוכן עניינים - /, '')
+    
+    tabsStore.updateActiveTab(
+      bookTitle,
+      2, // Type 2 = Book Viewer
+      tabsStore.activeTab.bookId,
+      undefined // No specific line, start from beginning
+    )
   }
 }
 
@@ -123,6 +168,26 @@ onMounted(() => {
 .content-container {
   flex: 1; /* Grow to fill available space */
   overflow-y: auto; /* Enable vertical scrolling */
+  position: relative; /* For absolute positioning of transition elements */
+}
+
+/* Slide transition - subtle horizontal slide for RTL */
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.2s ease-out;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.slide-enter-from {
+  opacity: 0;
+  transform: translateX(12px); /* Subtle slide in from right */
+}
+
+.slide-leave-to {
+  opacity: 0;
+  transform: translateX(-12px); /* Subtle slide out to left */
 }
 
 /* Search bar - fixed at bottom with reset button and input */
@@ -155,28 +220,26 @@ onMounted(() => {
   opacity: 0.6; /* Semi-transparent */
 }
 
-/* Back button - rotated chevron for RTL with larger click area */
+/* Back button - rotated chevron for RTL */
 .back-button {
   transform: rotate(180deg); /* Rotate 180 degrees to point right for RTL */
-  padding: 0.5rem; /* 8px padding for larger click area */
-  min-width: 2.5rem; /* 40px minimum width */
-  min-height: 2.5rem; /* 40px minimum height */
-  display: flex; /* Flexbox for centering */
-  align-items: center; /* Center vertically */
-  justify-content: center; /* Center horizontally */
-  transition: all 0.2s ease; /* Smooth transition for all properties */
 }
 
-/* Back button hover state */
-.back-button:hover {
-  background: var(--hover-bg); /* Light background on hover */
-  border-radius: 0.25rem; /* 4px rounded corners */
-}
-
-/* Back button active state */
+/* Back button active state - maintain rotation */
 .back-button:active {
-  background: var(--active-bg); /* Darker background when pressed */
   transform: rotate(180deg) scale(0.95); /* Keep rotation while scaling down */
+}
+
+/* Back button hover state - maintain rotation */
+.back-button:hover {
+  transform: rotate(180deg) scale(1.05); /* Keep rotation while scaling up */
+}
+
+/* Smaller icons in navigation buttons */
+.back-button :deep(.chevron-icon),
+.forward-button :deep(.chevron-icon) {
+  width: 1rem;
+  height: 1rem;
 }
 
 /* Mobile - larger text to prevent iOS zoom on focus */
