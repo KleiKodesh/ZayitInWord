@@ -9,7 +9,7 @@
       -->
       <KeepAlive>
         <CategoryTree 
-          v-if="!tabsStore.activeTab?.bookId"
+          v-if="!tabsStore.currentRoute?.bookId"
           :key="`category-${treeKey}`"
           ref="categoryTreeRef"
           :search-query="debouncedSearchQuery"
@@ -25,7 +25,7 @@
     </div>
 
     <div class="bar search-bar">
-        <button v-if="tabsStore.activeTab?.bookId" @click="goBack" title="חזור" class="back-button">
+        <button v-if="tabsStore.currentRoute?.bookId" @click="goBack" title="חזור" class="back-button">
           <ChevronIconLeft />
         </button>
         <button v-else @click="resetTree" title="אפס עץ">
@@ -35,11 +35,11 @@
           ref="searchInputRef"
           v-model="searchInput" 
           type="text" 
-          :placeholder="tabsStore.activeTab?.bookId ? 'חפש בתוכן עניינים...' : 'חפש ספר...'"
+          :placeholder="tabsStore.currentRoute?.bookId ? 'חפש בתוכן עניינים...' : 'חפש ספר...'"
           @keydown.up.prevent="handleSearchArrowUp"
           @keydown.down.prevent="handleSearchArrowDown"
         />
-        <button v-if="tabsStore.activeTab?.bookId" @click="goToBook" title="עבור לספר" class="forward-button">
+        <button v-if="tabsStore.currentRoute?.bookId" @click="goToBook" title="עבור לספר" class="forward-button">
           <ChevronIconLeft />
         </button>
     </div>
@@ -80,7 +80,7 @@ watch(searchInput, (newValue) => {
 })
 
 // Clear search when switching between CategoryTree and TocTree
-watch(() => tabsStore.activeTab?.bookId, () => {
+watch(() => tabsStore.currentRoute?.bookId, () => {
   searchInput.value = ''
   debouncedSearchQuery.value = ''
   if (debounceTimeout) {
@@ -93,12 +93,8 @@ watch(() => tabsStore.activeTab?.bookId, () => {
 })
 
 const goBack = () => {
-  // Clear bookId to go back to CategoryTree
-  tabsStore.updateActiveTab(
-    'איתור',
-    1, // Type 1 = Landing page
-    undefined // Clear bookId
-  )
+  // Navigate back in history
+  tabsStore.navigateBack()
   searchInput.value = ''
   debouncedSearchQuery.value = ''
   if (debounceTimeout) {
@@ -121,7 +117,7 @@ const resetTree = () => {
 }
 
 const handleSearchArrowUp = () => {
-  if (tabsStore.activeTab?.bookId) {
+  if (tabsStore.currentRoute?.bookId) {
     tocTreeRef.value?.focusTreeView()
   } else {
     categoryTreeRef.value?.focusTreeView()
@@ -129,7 +125,7 @@ const handleSearchArrowUp = () => {
 }
 
 const handleSearchArrowDown = () => {
-  if (tabsStore.activeTab?.bookId) {
+  if (tabsStore.currentRoute?.bookId) {
     tocTreeRef.value?.focusTreeView()
   } else {
     categoryTreeRef.value?.focusTreeView()
@@ -138,16 +134,17 @@ const handleSearchArrowDown = () => {
 
 const goToBook = () => {
   // Navigate to book viewer, skipping TOC selection
-  if (tabsStore.activeTab?.bookId) {
+  const route = tabsStore.currentRoute
+  if (route && route.bookId) {
     // Extract book title by removing "תוכן עניינים - " prefix if present
-    const bookTitle = tabsStore.activeTab.title.replace(/^תוכן עניינים - /, '')
+    const bookTitle = tabsStore.activeTab?.title.replace(/^תוכן עניינים - /, '') || ''
     
-    tabsStore.updateActiveTab(
-      bookTitle,
-      2, // Type 2 = Book Viewer
-      tabsStore.activeTab.bookId,
-      undefined // No specific line, start from beginning
-    )
+    tabsStore.navigateTo({
+      type: 2, // Type 2 = Book Viewer
+      title: bookTitle,
+      bookId: route.bookId,
+      lineIndex: undefined // No specific line, start from beginning
+    })
   }
 }
 

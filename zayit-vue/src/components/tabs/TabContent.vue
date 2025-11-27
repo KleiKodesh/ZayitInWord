@@ -1,19 +1,15 @@
 <template>
   <!-- 
-    IMPORTANT: KeepAlive with max caches component instances
-    - Key includes tab.id AND type to cache each state separately
-    - When tab switches Landing->Book->Landing, both states are preserved
-    - max=20 allows caching multiple tab states (10 tabs × 2 types each)
-    - DO NOT REMOVE: Critical for preserving scroll and navigation state
+    IMPORTANT: Component renders based on navigation stack
+    - Each route in the stack determines which component to show
+    - Navigation is handled by tab store (navigateTo, navigateBack, navigateForward)
+    - Components manage their own state internally
   -->
-  <KeepAlive :max="20">
-    <component 
-      :is="currentComponent"
-      :key="`t${tab.id}-ty${tab.type}-b${tab.bookId || 0}`"
-      class="tab-content"
-      v-bind="componentProps"
-    />
-  </KeepAlive>
+  <component 
+    :is="currentComponent"
+    class="tab-content"
+    v-bind="componentProps"
+  />
 </template>
 
 <script setup lang="ts">
@@ -44,14 +40,26 @@ const componentMap: Record<number, Component> = {
   4: PdfPlaceholder
 }
 
-const currentComponent = computed(() => componentMap[props.tab.type])
+// Get current route from navigation stack
+const currentRoute = computed(() => {
+  return props.tab.navigationStack[props.tab.currentIndex]
+})
+
+const currentComponent = computed(() => {
+  const route = currentRoute.value
+  if (!route) return componentMap[1] // Default to LandingPage
+  return componentMap[route.type]
+})
 
 const componentProps = computed(() => {
-  if (props.tab.type === 2 && props.tab.bookId) {
+  const route = currentRoute.value
+  if (!route) return {}
+  
+  if (route.type === 2 && route.bookId) {
     return {
-      bookId: props.tab.bookId,
-      initialLineIndex: props.tab.initialLineIndex,
-      savedLineIndex: props.tab.savedLineIndex
+      bookId: route.bookId,
+      initialLineIndex: route.lineIndex, // From TOC navigation
+      savedLineIndex: route.savedScrollLine // From saved scroll position
     }
   }
   return {}

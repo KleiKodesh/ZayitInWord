@@ -48,11 +48,19 @@
   }
 
   const handleHome = () => {
-    // Close current tab and create a new landing page tab
+    // Navigate back to the first route (landing page) instead of closing tab
     if (tabsStore.activeTab) {
-      tabsStore.closeTab(tabsStore.activeTab.id)
+      // If already at the first route, do nothing
+      if (tabsStore.activeTab.currentIndex === 0) {
+        return
+      }
+      // Navigate back to the beginning of the stack
+      tabsStore.activeTab.currentIndex = 0
+      const firstRoute = tabsStore.activeTab.navigationStack[0]
+      if (firstRoute) {
+        tabsStore.activeTab.title = firstRoute.title
+      }
     }
-    tabsStore.createTab('איתור')
   }
 
   const handleAdd = () => {

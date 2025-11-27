@@ -17,7 +17,10 @@
         :key="entry.lineId"
         class="toc-search-item"
         :class="{ selected: index === selectedIndex && showSelection }"
+        tabindex="0"
         @click="handleEntryClick(entry, index)"
+        @keydown.enter.stop="handleEntryClick(entry, index)"
+        @keydown.space.stop.prevent="handleEntryClick(entry, index)"
       >
         <div class="toc-item-content">
           <div class="toc-text">{{ entry.text }}</div>
@@ -70,19 +73,24 @@ declare global {
 }
 
 window.receiveTocData = (bookId: number, data: any) => {
-  if (bookId === tabsStore.activeTab?.bookId) {
-    console.log('Received TOC data for book:', bookId, data)
+  const currentBookId = tabsStore.currentRoute?.bookId
+  console.log('[TocTree] receiveTocData called for bookId:', bookId, 'currentBookId:', currentBookId)
+  
+  if (bookId === currentBookId) {
+    console.log('[TocTree] Received TOC data for book:', bookId, data)
     
     // Both C# and SQLite now return flat data in same format
     if (data.tocEntriesFlat) {
-      console.log('📦 Building TOC tree from flat data...')
+      console.log('[TocTree] 📦 Building TOC tree from flat data...')
       tocData.value = buildTocFromFlat(data.tocEntriesFlat)
-      console.log('✅ TOC tree built successfully')
+      console.log('[TocTree] ✅ TOC tree built successfully')
     } else {
-      console.error('❌ Invalid TOC data format:', data)
+      console.error('[TocTree] ❌ Invalid TOC data format:', data)
     }
     
     isLoading.value = false
+  } else {
+    console.log('[TocTree] Ignoring TOC data for different book')
   }
 }
 
@@ -126,17 +134,18 @@ const handleNavigate = (lineIndex: number) => {
 
 const handleEntrySelect = (entry: TocEntry) => {
   console.log('Selected TOC entry:', entry.text, 'lineIndex:', entry.lineIndex)
-  // Update the current tab to show book viewer with bookId and lineIndex
-  if (tabsStore.activeTab?.bookId) {
+  // Navigate to book viewer with selected line
+  const route = tabsStore.currentRoute
+  if (route?.bookId) {
     // Extract book title by removing "תוכן עניינים - " prefix if present
-    const bookTitle = tabsStore.activeTab.title.replace(/^תוכן עניינים - /, '')
+    const bookTitle = tabsStore.activeTab?.title.replace(/^תוכן עניינים - /, '') || ''
     
-    tabsStore.updateActiveTab(
-      bookTitle, // Just the book title without TOC prefix
-      2, // Type 2 = Book Viewer
-      tabsStore.activeTab.bookId,
-      entry.lineIndex
-    )
+    tabsStore.navigateTo({
+      type: 2, // Type 2 = Book Viewer
+      title: bookTitle,
+      bookId: route.bookId,
+      lineIndex: entry.lineIndex
+    })
   }
 }
 
@@ -155,21 +164,40 @@ const clearSelectionAfterDelay = () => {
   }, 2000)
 }
 
+// Helper to scroll element into view only if needed - minimal scroll to edge
+const scrollIntoViewIfNeeded = (element: HTMLElement) => {
+  const container = tocViewRef.value
+  if (!container) return
+  
+  const containerRect = container.getBoundingClientRect()
+  const elementRect = element.getBoundingClientRect()
+  
+  // Calculate how much to scroll
+  let scrollAmount = 0
+  
+  if (elementRect.top < containerRect.top) {
+    scrollAmount = elementRect.top - containerRect.top
+  } else if (elementRect.bottom > containerRect.bottom) {
+    scrollAmount = elementRect.bottom - containerRect.bottom
+  }
+  
+  if (scrollAmount !== 0) {
+    container.scrollBy({ top: scrollAmount, behavior: 'smooth' })
+  }
+}
+
 const scrollToSelected = () => {
   setTimeout(() => {
     const items = document.querySelectorAll('.toc-search-item')
-    const item = items[selectedIndex.value]
+    const item = items[selectedIndex.value] as HTMLElement
     if (item) {
-      item.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest'
-      })
+      item.focus({ preventScroll: true })
+      scrollIntoViewIfNeeded(item)
     }
   }, 0)
 }
 
 const navigateUp = () => {
-  // Get all focusable elements in the tree
   const focusableElements = Array.from(
     tocViewRef.value?.querySelectorAll('.toc-search-item, .toc-item') || []
   ) as HTMLElement[]
@@ -179,19 +207,15 @@ const navigateUp = () => {
   const currentFocused = document.activeElement as HTMLElement
   const currentIndex = focusableElements.indexOf(currentFocused)
   
-  let nextIndex
-  if (currentIndex <= 0) {
-    nextIndex = focusableElements.length - 1 // Wrap to last
-  } else {
-    nextIndex = currentIndex - 1
+  const nextIndex = currentIndex <= 0 ? focusableElements.length - 1 : currentIndex - 1
+  const nextElement = focusableElements[nextIndex]
+  if (nextElement) {
+    nextElement.focus({ preventScroll: true })
+    scrollIntoViewIfNeeded(nextElement)
   }
-  
-  focusableElements[nextIndex]?.focus()
-  focusableElements[nextIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 const navigateDown = () => {
-  // Get all focusable elements in the tree
   const focusableElements = Array.from(
     tocViewRef.value?.querySelectorAll('.toc-search-item, .toc-item') || []
   ) as HTMLElement[]
@@ -201,15 +225,12 @@ const navigateDown = () => {
   const currentFocused = document.activeElement as HTMLElement
   const currentIndex = focusableElements.indexOf(currentFocused)
   
-  let nextIndex
-  if (currentIndex === -1 || currentIndex >= focusableElements.length - 1) {
-    nextIndex = 0 // Wrap to first or start at first
-  } else {
-    nextIndex = currentIndex + 1
+  const nextIndex = currentIndex === -1 || currentIndex >= focusableElements.length - 1 ? 0 : currentIndex + 1
+  const nextElement = focusableElements[nextIndex]
+  if (nextElement) {
+    nextElement.focus({ preventScroll: true })
+    scrollIntoViewIfNeeded(nextElement)
   }
-  
-  focusableElements[nextIndex]?.focus()
-  focusableElements[nextIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 const selectCurrentItem = () => {
@@ -269,10 +290,29 @@ defineExpose({
   focusTreeView
 })
 
-onMounted(() => {
-  if (tabsStore.activeTab?.bookId) {
+// Load TOC when component mounts or when bookId changes
+const loadToc = () => {
+  const route = tabsStore.currentRoute
+  console.log('[TocTree] loadToc called, currentRoute:', route)
+  if (route?.bookId) {
+    console.log('[TocTree] Loading TOC for bookId:', route.bookId)
     isLoading.value = true
-    send('GetToc', [tabsStore.activeTab.bookId])
+    send('GetToc', [route.bookId])
+  } else {
+    console.warn('[TocTree] No bookId in currentRoute')
+  }
+}
+
+onMounted(() => {
+  console.log('[TocTree] onMounted')
+  loadToc()
+})
+
+// Watch for bookId changes (when navigating to different books)
+watch(() => tabsStore.currentRoute?.bookId, (newBookId, oldBookId) => {
+  console.log('[TocTree] bookId changed from', oldBookId, 'to', newBookId)
+  if (newBookId && newBookId !== oldBookId) {
+    loadToc()
   }
 })
 </script>
@@ -308,8 +348,9 @@ onMounted(() => {
   background: var(--hover-bg); /* Light background on hover */
 }
 
-/* Selected state - highlight for keyboard navigation */
-.toc-search-item.selected {
+/* Focus state - highlight for keyboard navigation (same as tree nodes) */
+.toc-search-item:focus {
+  outline: none; /* No outline */
   background: rgba(var(--accent-color-rgb, 0, 120, 212), 0.1); /* Light accent background */
 }
 

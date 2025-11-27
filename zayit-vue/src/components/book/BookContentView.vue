@@ -89,7 +89,7 @@ onMounted(async () => {
   
   // Save scroll position and line at top of viewport periodically
   const saveScrollState = () => {
-    if (!bookContentViewRef.value || !tabsStore.activeTab) return
+    if (!bookContentViewRef.value) return
     
     // Save raw scroll position for KeepAlive restoration
     lastScrollPosition.value = bookContentViewRef.value.scrollTop
@@ -108,7 +108,12 @@ onMounted(async () => {
       // Line is at least 50% visible
       if (visibleHeight >= lineHeight * 0.5) {
         const lineIndex = parseInt(line.getAttribute('data-line-index') || '0')
-        tabsStore.activeTab.savedLineIndex = lineIndex
+        
+        // Save to current route's savedScrollLine
+        const route = tabsStore.currentRoute
+        if (route && route.type === 2) {
+          route.savedScrollLine = lineIndex
+        }
         break
       }
     }

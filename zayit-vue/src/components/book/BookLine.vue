@@ -24,7 +24,8 @@ const props = defineProps<{
 const lineRef = ref<HTMLElement | null>(null)
 const content = ref<string>('')
 const isDev = import.meta.env.DEV
-let observer: IntersectionObserver | null = null
+let loadObserver: IntersectionObserver | null = null
+let unloadObserver: IntersectionObserver | null = null
 
 const loadContent = async () => {
   if (content.value) return // Already loaded
@@ -47,31 +48,12 @@ const unloadContent = () => {
 onMounted(() => {
   if (!lineRef.value) return
   
-  // Create intersection observer
-  observer = new IntersectionObserver(
+  // Create intersection observer with extended range for loading
+  loadObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           loadContent()
-        } else {
-          // Unload content when far from viewport
-          const rect = entry.boundingClientRect
-          const viewportHeight = window.innerHeight
-          
-          // Calculate distance from viewport
-          let distanceFromViewport = 0
-          if (rect.bottom < 0) {
-            // Above viewport
-            distanceFromViewport = Math.abs(rect.bottom)
-          } else if (rect.top > viewportHeight) {
-            // Below viewport
-            distanceFromViewport = rect.top - viewportHeight
-          }
-          
-          // Unload if more than 2 viewports away
-          if (distanceFromViewport > viewportHeight * 2) {
-            unloadContent()
-          }
         }
       })
     },
@@ -81,13 +63,36 @@ onMounted(() => {
     }
   )
   
-  observer.observe(lineRef.value)
+  // Create separate observer with even larger range for unloading
+  unloadObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        // When element leaves the extended viewport, unload it
+        if (!entry.isIntersecting) {
+          unloadContent()
+        }
+      })
+    },
+    {
+      rootMargin: '300% 0px', // Unload when 3 viewports away (beyond load range)
+      threshold: 0
+    }
+  )
+  
+  loadObserver.observe(lineRef.value)
+  unloadObserver.observe(lineRef.value)
 })
 
 onUnmounted(() => {
-  if (observer && lineRef.value) {
-    observer.unobserve(lineRef.value)
-    observer.disconnect()
+  if (lineRef.value) {
+    if (loadObserver) {
+      loadObserver.unobserve(lineRef.value)
+      loadObserver.disconnect()
+    }
+    if (unloadObserver) {
+      unloadObserver.unobserve(lineRef.value)
+      unloadObserver.disconnect()
+    }
   }
 })
 </script>

@@ -20,7 +20,10 @@
           :key="book.id" 
           class="result-item" 
           :class="{ selected: index === selectedIndex && showSelection }"
+          tabindex="0"
           @click="handleBookClick(book, index)"
+          @keydown.enter.stop="handleBookClick(book, index)"
+          @keydown.space.stop.prevent="handleBookClick(book, index)"
         >
           <BookIcon class="book-icon"/>
           <div class="book-info">
@@ -118,21 +121,40 @@ const clearSelectionAfterDelay = () => {
   }, 2000)
 }
 
+// Helper to scroll element into view only if needed - minimal scroll to edge
+const scrollIntoViewIfNeeded = (element: HTMLElement) => {
+  const container = treeViewRef.value
+  if (!container) return
+  
+  const containerRect = container.getBoundingClientRect()
+  const elementRect = element.getBoundingClientRect()
+  
+  // Calculate how much to scroll
+  let scrollAmount = 0
+  
+  if (elementRect.top < containerRect.top) {
+    scrollAmount = elementRect.top - containerRect.top
+  } else if (elementRect.bottom > containerRect.bottom) {
+    scrollAmount = elementRect.bottom - containerRect.bottom
+  }
+  
+  if (scrollAmount !== 0) {
+    container.scrollBy({ top: scrollAmount, behavior: 'smooth' })
+  }
+}
+
 const scrollToSelected = () => {
   setTimeout(() => {
     const items = document.querySelectorAll('.result-item')
-    const item = items[selectedIndex.value]
+    const item = items[selectedIndex.value] as HTMLElement
     if (item) {
-      item.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest'
-      })
+      item.focus({ preventScroll: true })
+      scrollIntoViewIfNeeded(item)
     }
   }, 0)
 }
 
 const navigateUp = () => {
-  // Get all focusable elements in the tree
   const focusableElements = Array.from(
     treeViewRef.value?.querySelectorAll('.result-item, .category-node, .book-node') || []
   ) as HTMLElement[]
@@ -142,19 +164,15 @@ const navigateUp = () => {
   const currentFocused = document.activeElement as HTMLElement
   const currentIndex = focusableElements.indexOf(currentFocused)
   
-  let nextIndex
-  if (currentIndex <= 0) {
-    nextIndex = focusableElements.length - 1 // Wrap to last
-  } else {
-    nextIndex = currentIndex - 1
+  const nextIndex = currentIndex <= 0 ? focusableElements.length - 1 : currentIndex - 1
+  const nextElement = focusableElements[nextIndex]
+  if (nextElement) {
+    nextElement.focus({ preventScroll: true })
+    scrollIntoViewIfNeeded(nextElement)
   }
-  
-  focusableElements[nextIndex]?.focus()
-  focusableElements[nextIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 const navigateDown = () => {
-  // Get all focusable elements in the tree
   const focusableElements = Array.from(
     treeViewRef.value?.querySelectorAll('.result-item, .category-node, .book-node') || []
   ) as HTMLElement[]
@@ -164,15 +182,12 @@ const navigateDown = () => {
   const currentFocused = document.activeElement as HTMLElement
   const currentIndex = focusableElements.indexOf(currentFocused)
   
-  let nextIndex
-  if (currentIndex === -1 || currentIndex >= focusableElements.length - 1) {
-    nextIndex = 0 // Wrap to first or start at first
-  } else {
-    nextIndex = currentIndex + 1
+  const nextIndex = currentIndex === -1 || currentIndex >= focusableElements.length - 1 ? 0 : currentIndex + 1
+  const nextElement = focusableElements[nextIndex]
+  if (nextElement) {
+    nextElement.focus({ preventScroll: true })
+    scrollIntoViewIfNeeded(nextElement)
   }
-  
-  focusableElements[nextIndex]?.focus()
-  focusableElements[nextIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
 const selectCurrentItem = () => {
@@ -185,13 +200,14 @@ const selectCurrentItem = () => {
 
 const handleBookClick = (book: Book, index: number) => {
   selectedIndex.value = index
-  console.log('Selected book:', book.title)
-  // Set bookId in active tab to show TOC
-  tabsStore.updateActiveTab(
-    `תוכן עניינים - ${book.title}`,
-    1, // Keep type as Landing page
-    book.id // Set bookId to show TOC
-  )
+  console.log('[CategoryTree] Selected book:', book.title, 'id:', book.id)
+  // Navigate to TOC view for this book
+  tabsStore.navigateTo({
+    type: 1, // Keep type as Landing page (shows TOC)
+    title: `תוכן עניינים - ${book.title}`,
+    bookId: book.id
+  })
+  console.log('[CategoryTree] After navigateTo, currentRoute:', tabsStore.currentRoute)
 }
 
 const focusTreeView = () => {
@@ -263,8 +279,9 @@ onMounted(() => {
   background: var(--hover-bg); /* Light background on hover */
 }
 
-/* Selected state - highlight for keyboard navigation */
-.result-item.selected {
+/* Focus state - highlight for keyboard navigation (same as tree nodes) */
+.result-item:focus {
+  outline: none; /* No outline */
   background: rgba(var(--accent-color-rgb, 0, 120, 212), 0.1); /* Light accent background */
 }
 

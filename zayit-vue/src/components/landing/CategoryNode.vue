@@ -1,5 +1,5 @@
 <template>
-  <div class="category-wrapper">
+  <div class="category-wrapper" :style="{ '--depth': depth }">
     <div class="category-node" tabindex="0" @click="toggleExpand" @keydown.enter.stop="toggleExpand" @keydown.space.stop.prevent="toggleExpand">
       <ChevronIconLeft 
         v-if="category.children.length > 0 || category.books.length > 0"
@@ -13,6 +13,7 @@
         v-for="child in category.children"
         :key="child.id"
         :category="child"
+        :depth="depth + 1"
         :search-query="searchQuery"
         @select-book="$emit('select-book', $event)"
       />
@@ -40,10 +41,13 @@
   import type { Category } from '../../types/Tree'
   import type { Book } from '../../types/Book'
 
-  const props = defineProps<{
+  const props = withDefaults(defineProps<{
     category: Category
+    depth?: number
     searchQuery?: string
-  }>()
+  }>(), {
+    depth: 0
+  })
   
   const emit = defineEmits<{
     'select-book': [book: Book]
@@ -101,13 +105,13 @@
   background: rgba(var(--accent-color-rgb, 0, 120, 212), 0.1); /* Light accent background */
 }
 
-/* Nested indentation - shows hierarchy */
-.category-wrapper .category-wrapper .category-node {
-  padding-inline-start: 3rem; /* 48px left indent for nested categories */
+/* Nested indentation - shows hierarchy using CSS variable for depth */
+.category-node {
+  padding-inline-start: calc(1.25rem + var(--depth, 0) * 1.5rem); /* Base 20px + 24px per level */
 }
 
-.category-wrapper .category-wrapper .book-node {
-  padding-inline-start: 4.5rem; /* 72px left indent for nested books */
+.book-node {
+  padding-inline-start: calc(1.25rem + var(--depth, 0) * 1.5rem + 1.5rem); /* Category indent + 24px extra */
 }
 
 /* Chevron rotation - points right when collapsed, down when expanded */
