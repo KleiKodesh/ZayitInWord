@@ -1,14 +1,15 @@
 <template>
     <div v-if="viewerState.totalLines.value > 0"
          ref="containerRef"
-         class="overflow-y height-fill justify relative line-viewer book-content"
+         class="overflow-y height-fill justify relative line-viewer"
          :data-book-id="myTab?.bookState?.bookId"
          @scroll.passive="handleScrollDebounced">
+
         <BookLine v-for="index in viewerState.totalLines.value"
                   :key="index - 1"
                   :data-line-index-observer="index - 1"
                   :ref="el => { if (el) lineRefs[index - 1] = el as any }"
-                  :content="viewerState.lines.value[index - 1] || '-'"
+                  :content="processedLines[index - 1] || '-'"
                   :line-index="index - 1"
                   :is-selected="selectedLineIndex === (index - 1)"
                   :class="{ 'show-selection': myTab?.bookState?.showBottomPane }"
@@ -39,6 +40,42 @@ const emit = defineEmits<{
 
 const myTab = computed(() => tabStore.tabs.find(t => t.id === props.tabId))
 const selectedLineIndex = ref<number | null>(null)
+
+// Computed property for processed line content
+const processedLines = computed(() => {
+    const lines = viewerState.lines.value
+    const diacriticsState = myTab.value?.bookState?.diacriticsState
+    const isLineDisplayInline = myTab.value?.bookState?.isLineDisplayInline
+
+    if (!diacriticsState && !isLineDisplayInline) {
+        return lines // Return original lines if no processing needed
+    }
+
+    const processedLines: Record<number, string> = {}
+
+    Object.entries(lines).forEach(([index, line]) => {
+        if (!line || line === '-') {
+            processedLines[Number(index)] = line
+            return
+        }
+
+        let processedLine = line
+
+        // Apply diacritics filtering
+        if (diacriticsState && diacriticsState > 0) {
+            processedLine = applyDiacriticsFilter(processedLine, diacriticsState)
+        }
+
+        // Apply inline display mode
+        if (isLineDisplayInline) {
+            processedLine = applyInlineMode(processedLine)
+        }
+
+        processedLines[Number(index)] = processedLine
+    })
+
+    return processedLines
+})
 
 // Watch for selectedLineIndex changes to restore selection
 watch(() => myTab.value?.bookState?.selectedLineIndex, (newIndex) => {
@@ -95,8 +132,8 @@ watch(() => myTab.value?.isActive, async (isActive, wasActive) => {
 })
 
 function getTopVisibleLine(): number | undefined {
-    if (!containerRef.value) return undefined
-
+    if (!containerRef.value)
+        return undefined
     const lineElements = lineRefs.value.map(ref => ref?.$el as HTMLElement | undefined)
     return getTopVisibleElementIndex(containerRef.value, lineElements)
 }
@@ -145,53 +182,16 @@ const { clearSelection } = useContainedSelection(containerRef, {
     }
 })
 
-// Watch for diacritics state changes
-watch(() => myTab.value?.bookState?.diacriticsState, (newState, oldState) => {
-    if (!containerRef.value || !myTab.value?.bookState) return
+// Helper function to apply diacritics filtering to HTML content
+function applyDiacriticsFilter(htmlContent: string, state: number): string {
+    if (!htmlContent || state === 0) return htmlContent
 
-    const bookState = myTab.value.bookState
+    // Create a temporary div to parse HTML
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = htmlContent
 
-    // Store original HTML on first toggle
-    if (oldState === undefined && newState !== undefined && newState > 0 && !bookState.originalHtml) {
-        bookState.originalHtml = containerRef.value.innerHTML
-    }
-
-    if (newState === 0) {
-        // Restore original
-        if (bookState.originalHtml) {
-            containerRef.value.innerHTML = bookState.originalHtml
-            bookState.originalHtml = undefined
-        }
-    } else if (newState && newState > 0) {
-        // Apply filter
-        applyDiacriticsFilter(containerRef.value, newState)
-    }
-})
-
-// Watch for line display state changes
-watch(() => myTab.value?.bookState?.isLineDisplayInline, (isInline) => {
-    if (!containerRef.value) return
-
-    const lines = Array.from(containerRef.value.querySelectorAll('.book-line'))
-
-    lines.forEach(lineElement => {
-        const element = lineElement as HTMLElement
-        const hasHeaders = element.querySelector('h1, h2, h3, h4, h5, h6')
-
-        if (!hasHeaders) {
-            if (isInline) {
-                element.classList.add('inline-mode')
-            } else {
-                element.classList.remove('inline-mode')
-            }
-        }
-    })
-})
-
-// Diacritics filter function
-function applyDiacriticsFilter(container: Element, state: number) {
     const walker = document.createTreeWalker(
-        container,
+        tempDiv,
         NodeFilter.SHOW_TEXT,
         null
     )
@@ -219,6 +219,30 @@ function applyDiacriticsFilter(container: Element, state: number) {
 
         textNode.nodeValue = text
     })
+
+    return tempDiv.innerHTML
+}
+
+// Helper function to apply inline mode to HTML content
+function applyInlineMode(htmlContent: string): string {
+    if (!htmlContent) return htmlContent
+
+    // Create a temporary div to parse HTML
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = htmlContent
+
+    // Check if content has headers
+    const hasHeaders = tempDiv.querySelector('h1, h2, h3, h4, h5, h6')
+
+    if (!hasHeaders) {
+        // Add inline-mode class to the root element if it doesn't have headers
+        const rootElement = tempDiv.firstElementChild
+        if (rootElement) {
+            rootElement.classList.add('inline-mode')
+        }
+    }
+
+    return tempDiv.innerHTML
 }
 
 
