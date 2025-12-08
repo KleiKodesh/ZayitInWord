@@ -7,7 +7,6 @@
     "**/.cache": true,
     "**/.temp": true,
     "**/.turbo": true,
-
     // Hide specific files anywhere except package.json
     "**/.editorconfig": true,
     "**/.gitattributes": true,
@@ -21,11 +20,9 @@
     "**/tsconfig.vitest.json": true,
     "**/vite.config.ts": true,
     "**/vitest.config.ts": true,
-
     // Show package.json anywhere
     "**/package.json": false
   },
-
   "search.exclude": {
     "**/node_modules": true,
     "**/dist": true,
@@ -34,7 +31,39 @@
     "**/.temp": true,
     "**/.turbo": true
   },
-
   "explorer.compactFolders": false,
-  "explorer.excludeGitIgnore" : false
+  "explorer.excludeGitIgnore": false,
+  // Auto-formatting settings
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": true,
+  // Language-specific formatters (using built-in VS Code formatters)
+  "[vue]": {
+    "editor.defaultFormatter": "Vue.volar"
+  },
+  // Vue/HTML formatting settings
+  "html.format.wrapAttributes": "force-aligned",
+  "volar.format.initialIndent": {
+    "html": true
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features"
+  },
+  "[css]": {
+    "editor.formatOnSave": false,
+    "editor.formatOnPaste": false,
+    "editor.formatOnType": false
+  },
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  }
 }

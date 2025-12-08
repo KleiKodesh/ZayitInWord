@@ -1,22 +1,22 @@
-// Navigation route within a tab
-export interface TabRoute {
-    type: 1 | 2 | 3 | 4 // Type: 1 = Landing page, 2 = BookViewer, 3 = Future search page, 4 = pdf in iframe
-    title: string // Title for this route
-    bookId?: number // For BookViewer routes
-    lineIndex?: number // For BookViewer routes - initial scroll target (from TOC navigation)
-    savedScrollLine?: number // Saved scroll position for this specific route (for session restore)
+import type { Book } from './Book'
+
+export type PageType = 'landing' | 'bookview' | 'pdfview' | 'search' | 'settings' | 'about';
+
+export interface BookState {
+    bookId: number;
+    bookTitle: string;
+    initialLineIndex?: number; // Line index (0 to totalLines-1) representing which line should be at the top of the viewport. Set by TOC selection or saved from scroll position
+    isTocOpen?: boolean; // Whether TOC overlay is open
+    showBottomPane?: boolean; // Whether bottom pane of split view is visible
+    hasConnections?: boolean; // Whether book has any connections (targum, reference, commentary, or other)
+    selectedLineIndex?: number; // Currently selected line index for commentary
+    commentaryGroupIndex?: number; // Currently selected commentary group index
 }
 
 export interface Tab {
-    id: number
-    title: string // Current route title
-    isActive: boolean
-    navigationStack: TabRoute[] // History of navigation within this tab
-    currentIndex: number // Current position in navigation stack (for back/forward)
-    
-    // Legacy properties for backward compatibility during migration
-    type?: 1 | 2 | 3 | 4
-    bookId?: number
-    initialLineIndex?: number
-    savedLineIndex?: number
+    id: number;
+    title: string;
+    isActive: boolean;
+    currentPage: PageType;
+    bookState?: BookState;
 }

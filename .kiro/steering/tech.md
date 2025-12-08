@@ -18,11 +18,16 @@
 - Path alias: `@` maps to `src/`
 - Target: `esnext` with no code splitting
 
+### Design System
+- **Windows 11 Fluent Design** - Base design language and interaction patterns
+- **VS Code Style** - Actual visual design, colors, and component styling
+- Clean, minimal interface with subtle shadows and borders
+- Consistent spacing and typography based on VS Code's design
+
 ### CSS Conventions
-- **Prefer `rem` over `px`** for sizing (padding, margin, font-size, width, height)
-- Use `rem` for scalability and accessibility (1rem = 16px by default)
-- Only use `px` for fixed values like borders (1px, 2px) or very small precise measurements
-- Example: `padding: 0.5rem` instead of `padding: 8px`
+- Use `px` for all sizing (padding, margin, font-size, width, height, border-radius)
+- Keep values simple and readable
+- Example: `padding: 8px` not `padding: 0.5rem`
 
 ### Button Styling
 - **Use default button styles** from `src/assets/button.css` - do not override with custom styles

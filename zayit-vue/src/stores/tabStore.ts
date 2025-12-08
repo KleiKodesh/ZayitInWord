@@ -1,204 +1,259 @@
-import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
-import type { Tab, TabRoute } from '../types/Tab'
+import { defineStore } from 'pinia';
+import { ref, computed, watch } from 'vue';
+import type { Tab, PageType } from '../types/Tab';
 
-export const useTabsStore = defineStore('tabStore', () => {
-  
-  const tabs = ref<Tab[]>([])
-  const nextId = ref(1)
-  const activeTab = computed(() => tabs.value.find(t => t.isActive))
-  
-  // Get current route from active tab's navigation stack
-  const currentRoute = computed(() => {
-    if (!activeTab.value) return null
-    return activeTab.value.navigationStack[activeTab.value.currentIndex]
-  })
+const STORAGE_KEY = 'tabStore';
 
-  // Calculate next available ID based on existing tabs
-  function getNextId(): number {
-    if (tabs.value.length === 0) return 1
-    return Math.max(...tabs.value.map(t => t.id)) + 1
-  }
-  
-  // Migrate old tab format to new navigation stack format
-  function migrateTab(oldTab: any): Tab {
-    // If already has navigationStack, return as-is
-    if (oldTab.navigationStack && Array.isArray(oldTab.navigationStack)) {
-      return oldTab as Tab
-    }
-    
-    // Migrate old format to navigation stack
-    const initialRoute: TabRoute = {
-      type: oldTab.type || 1,
-      title: oldTab.title || 'איתור',
-      bookId: oldTab.bookId,
-      lineIndex: oldTab.savedLineIndex || oldTab.initialLineIndex
-    }
-    
-    return {
-      id: oldTab.id,
-      title: oldTab.title || 'איתור',
-      isActive: oldTab.isActive,
-      navigationStack: [initialRoute],
-      currentIndex: 0
-    }
-  }
+const PAGE_TITLES: Record<PageType, string> = {
+    landing: 'איתור',
+    search: 'חיפוש',
+    bookview: 'תצוגת ספר',
+    pdfview: 'תצוגת PDF',
+    settings: 'הגדרות',
+    about: 'אודות'
+};
 
-  // Load tabs from localStorage on initialization
-  function loadTabs() {
-    const savedTabs = localStorage.getItem('tabs')
-    
-    if (savedTabs) {
-      try {
-        const parsed = JSON.parse(savedTabs)
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Migrate old tabs to new format
-          tabs.value = parsed.map(migrateTab)
-          return
+export const useTabStore = defineStore('tabs', () => {
+    const tabs = ref<Tab[]>([]);
+    const nextId = ref<number>(2);
+
+    const loadFromStorage = () => {
+        try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                const data = JSON.parse(stored);
+                tabs.value = data.tabs || [];
+                nextId.value = data.nextId || 2;
+            }
+        } catch (e) {
+            console.error('Failed to load tabs from storage:', e);
         }
-      } catch (e) {
-        console.error('Failed to load tabs from localStorage:', e)
-      }
-    }
-    
-    // If no saved tabs or loading failed, create default tab
-    createTab()
-  }
+    };
 
-  // Save tabs to localStorage
-  function saveTabs() {
-    localStorage.setItem('tabs', JSON.stringify(tabs.value))
-  }
+    const saveToStorage = () => {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                tabs: tabs.value,
+                nextId: nextId.value
+            }));
+        } catch (e) {
+            console.error('Failed to save tabs to storage:', e);
+        }
+    };
 
-  function createTab(title: string = 'איתור', type : 1 | 2 | 3 | 4 = 1, bookId?: number, lineIndex?: number) {
-     if (activeTab.value)
-        activeTab.value.isActive = false
-    
-    const newId = getNextId()
-    const initialRoute: TabRoute = {
-      type,
-      title,
-      bookId,
-      lineIndex
-    }
-    
-    tabs.value.push({
-        id: newId,
-        title,
-        isActive: true,
-        navigationStack: [initialRoute],
-        currentIndex: 0
-    })
-  }
-
-  function closeTab(id: number) {
-    const index = tabs.value.findIndex(t => t.id === id)
-    if (index === -1) return
-    
-    const wasActive = tabs.value[index]?.isActive
-    tabs.value.splice(index, 1)
-    
-    // If there are tabs left and we closed the active one, activate the first
-    if (wasActive && tabs.value.length > 0) 
-         tabs.value[0]!.isActive = true
-
-    // If all tabs are closed, create a new one
+    loadFromStorage();
     if (tabs.value.length === 0) {
-      createTab()
+        tabs.value.push({
+            id: 1,
+            title: PAGE_TITLES.landing,
+            isActive: true,
+            currentPage: 'landing'
+        });
     }
-  }
 
-  function activateTab (id: number) {
-      tabs.value.forEach(t => {
-        t.isActive = t.id === id
-      })
-  }
-  
-  // Navigate to a new route in the active tab
-  function navigateTo(route: TabRoute) {
-    if (!activeTab.value) return
-    
-    // Remove any forward history if we're not at the end
-    if (activeTab.value.currentIndex < activeTab.value.navigationStack.length - 1) {
-      activeTab.value.navigationStack = activeTab.value.navigationStack.slice(0, activeTab.value.currentIndex + 1)
-    }
-    
-    // Add new route to stack
-    activeTab.value.navigationStack.push(route)
-    activeTab.value.currentIndex = activeTab.value.navigationStack.length - 1
-    activeTab.value.title = route.title
-    
-    // IMPORTANT: Limit navigation stack size to prevent memory leaks
-    // Keep max 50 entries - if exceeded, remove oldest entries but keep current position valid
-    const MAX_STACK_SIZE = 50
-    if (activeTab.value.navigationStack.length > MAX_STACK_SIZE) {
-      const removeCount = activeTab.value.navigationStack.length - MAX_STACK_SIZE
-      activeTab.value.navigationStack = activeTab.value.navigationStack.slice(removeCount)
-      activeTab.value.currentIndex -= removeCount
-    }
-  }
-  
-  // Navigate back in the active tab's history
-  function navigateBack() {
-    if (!activeTab.value) return
-    if (activeTab.value.currentIndex > 0) {
-      activeTab.value.currentIndex--
-      const route = activeTab.value.navigationStack[activeTab.value.currentIndex]
-      if (route) {
-        activeTab.value.title = route.title
-      }
-    }
-  }
-  
-  // Navigate forward in the active tab's history
-  function navigateForward() {
-    if (!activeTab.value) return
-    if (activeTab.value.currentIndex < activeTab.value.navigationStack.length - 1) {
-      activeTab.value.currentIndex++
-      const route = activeTab.value.navigationStack[activeTab.value.currentIndex]
-      if (route) {
-        activeTab.value.title = route.title
-      }
-    }
-  }
-  
-  // Check if can navigate back
-  const canNavigateBack = computed(() => {
-    return activeTab.value ? activeTab.value.currentIndex > 0 : false
-  })
-  
-  // Check if can navigate forward
-  const canNavigateForward = computed(() => {
-    return activeTab.value 
-      ? activeTab.value.currentIndex < activeTab.value.navigationStack.length - 1 
-      : false
-  })
+    watch(tabs, saveToStorage, { deep: true });
+    watch(nextId, saveToStorage);
 
-  // Legacy method for backward compatibility - will be removed
-  function updateActiveTab(title: string, type: 1 | 2 | 3 | 4, bookId?: number, lineIndex?: number) {
-    navigateTo({ type, title, bookId, lineIndex })
-  }
+    const activeTab = computed(() => tabs.value.find(tab => tab.isActive));
 
-  // Watch tabs and save to localStorage on any change
-  watch(tabs, () => {
-    saveTabs()
-  }, { deep: true })
+    const addTab = () => {
+        tabs.value.forEach(tab => tab.isActive = false);
 
-  // Load tabs on store initialization
-  loadTabs()
+        // Find the lowest available ID
+        const existingIds = new Set(tabs.value.map(t => t.id));
+        let newId = 1;
+        while (existingIds.has(newId)) {
+            newId++;
+        }
 
-  return {
-    tabs,
-    activeTab,
-    currentRoute,
-    canNavigateBack,
-    canNavigateForward,
-    createTab,
-    closeTab,
-    activateTab,
-    navigateTo,
-    navigateBack,
-    navigateForward,
-    updateActiveTab // Legacy - keep for now
-  }
-})
+        const newTab: Tab = {
+            id: newId,
+            title: PAGE_TITLES.landing,
+            isActive: true,
+            currentPage: 'landing'
+        };
+        tabs.value.push(newTab);
+
+        // Update nextId to be at least one more than the highest ID
+        nextId.value = Math.max(newId + 1, nextId.value);
+    };
+
+    const closeTab = () => {
+        const currentIndex = tabs.value.findIndex(tab => tab.isActive);
+        tabs.value = tabs.value.filter(tab => !tab.isActive);
+
+        if (tabs.value.length === 0) {
+            addTab();
+        } else {
+            const newIndex = Math.min(currentIndex, tabs.value.length - 1);
+            const newTab = tabs.value[newIndex];
+            if (newTab) {
+                newTab.isActive = true;
+            }
+        }
+    };
+
+    const setActiveTab = (id: number) => {
+        tabs.value.forEach(tab => {
+            tab.isActive = tab.id === id;
+        });
+    };
+
+    const resetTab = () => {
+        const tab = tabs.value.find(t => t.isActive);
+        if (tab) {
+            tab.currentPage = 'landing';
+            tab.title = PAGE_TITLES.landing;
+            delete tab.bookState;
+        }
+    };
+
+    const setPage = (pageType: PageType) => {
+        const tab = tabs.value.find(t => t.isActive);
+        if (tab) {
+            tab.currentPage = pageType;
+            tab.title = PAGE_TITLES[pageType];
+        }
+    };
+
+    const openBookToc = (bookTitle: string, bookId: number, hasConnections?: boolean) => {
+        const tab = tabs.value.find(t => t.isActive);
+        if (tab) {
+            // Open book if not already open
+            if (tab.currentPage !== 'bookview' || tab.bookState?.bookId !== bookId) {
+                openBook(bookTitle, bookId, hasConnections);
+            }
+            // Open TOC overlay
+            if (tab.bookState) {
+                tab.bookState.isTocOpen = true;
+            }
+        }
+    };
+
+    const closeToc = () => {
+        const tab = tabs.value.find(t => t.isActive);
+        if (tab?.bookState) {
+            tab.bookState.isTocOpen = false;
+        }
+    };
+
+    const openBook = (bookTitle: string, bookId: number, hasConnections?: boolean, initialLineIndex?: number) => {
+        const tab = tabs.value.find(t => t.isActive);
+        if (tab) {
+            tab.currentPage = 'bookview';
+            tab.title = bookTitle;
+
+            // Create or update bookState
+            if (!tab.bookState || tab.bookState.bookId !== bookId) {
+                // New book - create fresh bookState
+                tab.bookState = {
+                    bookId,
+                    bookTitle,
+                    hasConnections,
+                    initialLineIndex
+                };
+            } else {
+                // Same book - update initialLineIndex if provided, otherwise clear it
+                if (initialLineIndex !== undefined) {
+                    tab.bookState.initialLineIndex = initialLineIndex;
+                } else {
+                    delete tab.bookState.initialLineIndex;
+                }
+            }
+        }
+    };
+
+    const closeTabById = (id: number) => {
+        const tab = tabs.value.find(t => t.id === id);
+        if (tab?.isActive) {
+            closeTab();
+        } else {
+            const currentActiveId = activeTab.value?.id;
+            setActiveTab(id);
+            closeTab();
+            if (currentActiveId && tabs.value.find(t => t.id === currentActiveId)) {
+                setActiveTab(currentActiveId);
+            }
+        }
+    };
+
+    const toggleSplitPane = () => {
+        const tab = tabs.value.find(t => t.isActive);
+        if (tab?.bookState) {
+            tab.bookState.showBottomPane = !tab.bookState.showBottomPane;
+        }
+    };
+
+    const openSettings = () => {
+        // Check if settings tab already exists
+        const existingSettingsTab = tabs.value.find(t => t.currentPage === 'settings');
+        if (existingSettingsTab) {
+            // Switch to existing settings tab
+            setActiveTab(existingSettingsTab.id);
+            return;
+        }
+
+        // Create new settings tab
+        tabs.value.forEach(tab => tab.isActive = false);
+
+        const existingIds = new Set(tabs.value.map(t => t.id));
+        let newId = 1;
+        while (existingIds.has(newId)) {
+            newId++;
+        }
+
+        const newTab: Tab = {
+            id: newId,
+            title: PAGE_TITLES.settings,
+            isActive: true,
+            currentPage: 'settings'
+        };
+        tabs.value.push(newTab);
+        nextId.value = Math.max(newId + 1, nextId.value);
+    };
+
+    const openAbout = () => {
+        // Check if about tab already exists
+        const existingAboutTab = tabs.value.find(t => t.currentPage === 'about');
+        if (existingAboutTab) {
+            // Switch to existing about tab
+            setActiveTab(existingAboutTab.id);
+            return;
+        }
+
+        // Create new about tab
+        tabs.value.forEach(tab => tab.isActive = false);
+
+        const existingIds = new Set(tabs.value.map(t => t.id));
+        let newId = 1;
+        while (existingIds.has(newId)) {
+            newId++;
+        }
+
+        const newTab: Tab = {
+            id: newId,
+            title: PAGE_TITLES.about,
+            isActive: true,
+            currentPage: 'about'
+        };
+        tabs.value.push(newTab);
+        nextId.value = Math.max(newId + 1, nextId.value);
+    };
+
+    return {
+        tabs,
+        activeTab,
+        addTab,
+        closeTab,
+        closeTabById,
+        setActiveTab,
+        resetTab,
+        setPage,
+        openBookToc,
+        closeToc,
+        openBook,
+        toggleSplitPane,
+        openSettings,
+        openAbout
+    };
+});

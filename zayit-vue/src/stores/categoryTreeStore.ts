@@ -1,66 +1,78 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { send } from '../bridge/webview'
-import type { TreeData } from '../types/Tree'
-import { buildTreeFromFlat } from '../utils/treeBuilder'
+import type { Category } from '../types/BookCategoryTree'
+import type { Book } from '../types/Book'
+import { getAllCategories, getBooks } from '../data/sqliteDb'
 
 export const useCategoryTreeStore = defineStore('categoryTree', () => {
-  const treeData = ref<TreeData | null>(null)
-  const isLoading = ref(false)
+    const isLoading = ref(true);
+    const categoryTree = ref<Category[]>([])
+    const allBooks = ref<Book[]>([])
 
-  let loadTimeout: number | null = null
+    if (categoryTree.value.length === 0)
+        buildTree();
 
-  function loadTreeData() {
-    if (treeData.value) {
-      // Already loaded, no need to fetch again
-      return
-    }
-    
-    // Only send request if not already loading
-    if (!isLoading.value) {
-      isLoading.value = true
-      send('GetTree', [])
-      
-      // Timeout for error detection (5 seconds)
-      loadTimeout = window.setTimeout(() => {
-        if (isLoading.value && !treeData.value) {
-          console.error('Failed to load tree data - check console for errors')
-          isLoading.value = false
+    async function buildTree() {
+        const categories = await getAllCategories()
+        const books = await getBooks()
+
+        // Group books by categoryId
+        const booksByCategory = new Map<number, Book[]>()
+        for (const book of books) {
+            const categoryBooks = booksByCategory.get(book.categoryId)
+            if (categoryBooks) {
+                categoryBooks.push(book)
+            } else {
+                booksByCategory.set(book.categoryId, [book])
+            }
         }
-      }, 5000)
-    }
-  }
 
-  // Clear timeout if data arrives
-  const originalReceiveTreeData = window.receiveTreeData
-  window.receiveTreeData = (data: any) => {
-    if (loadTimeout) {
-      clearTimeout(loadTimeout)
-      loadTimeout = null
-    }
-    
-    console.log('Received data from bridge:', data)
-    
-    // Check if data is flat (from C#) or already built tree (from SQLite)
-    if (data.categoriesFlat && data.booksFlat) {
-      // Flat data from C# - build tree using shared utility
-      console.log('📦 Building tree from flat C# data...')
-      treeData.value = buildTreeFromFlat(data.categoriesFlat, data.booksFlat)
-      console.log('✅ Tree built from C# data')
-    } else if (data.tree && data.allBooks) {
-      // Already built tree from SQLite
-      console.log('✅ Using pre-built tree from SQLite')
-      treeData.value = data
-    } else {
-      console.error('❌ Invalid tree data format:', data)
-    }
-    
-    isLoading.value = false
-  }
+        // Single pass: initialize categories and build hierarchy
+        const categoryMap = new Map<number, Category>()
+        const roots: Category[] = []
 
-  return {
-    treeData,
-    isLoading,
-    loadTreeData
-  }
+        for (const cat of categories) {
+            cat.children = []
+            cat.books = booksByCategory.get(cat.id) || []
+            categoryMap.set(cat.id, cat)
+
+            if (!cat.parentId || cat.parentId === 0) {
+                roots.push(cat)
+            } else {
+                const parent = categoryMap.get(cat.parentId)
+                if (parent) {
+                    parent.children.push(cat)
+                }
+            }
+        }
+
+        // Build paths for categories and books
+        function buildPaths(category: Category, parentPath: string = '') {
+            const currentPath = parentPath ? `${parentPath} > ${category.title}` : category.title
+
+            // Assign path to all books in this category
+            for (const book of category.books) {
+                book.path = currentPath
+            }
+
+            // Recursively build paths for children
+            for (const child of category.children) {
+                buildPaths(child, currentPath)
+            }
+        }
+
+        for (const root of roots) {
+            buildPaths(root)
+        }
+
+        allBooks.value = books
+        categoryTree.value = roots
+        isLoading.value = false;
+    }
+
+    return {
+        categoryTree,
+        allBooks,
+        isLoading
+    }
 })
