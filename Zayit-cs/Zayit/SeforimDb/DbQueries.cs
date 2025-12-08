@@ -11,48 +11,45 @@ namespace Zayit.SeforimDb
     {
         static readonly DbManager _db = new DbManager();
 
-        public static IEnumerable<(string Content, int Id)> GetBookContentWithId(int bookId)
-        {
-            return _db?.DapperConnection
-                .Query<(string, int)>(SqlQueries.GetBookContent(bookId));
-        }
-
         /// <summary>
-        /// Get flat category and book data from database
-        /// Tree building is done in JavaScript using shared treeBuilder utility
+        /// Execute arbitrary SQL query sent from TypeScript
+        /// SQL queries are defined in sqlQueries.ts
         /// </summary>
-        public static (object CategoriesFlat, object BooksFlat) GetTreeData()
+        public static object ExecuteQuery(string sql, object[] parameters = null)
         {
-            // Use recursive CTE to get all categories with their full path
-            var categoriesFlat = _db?.DapperConnection
-                .Query(SqlQueries.GetCategoriesWithPath)
-                .ToArray();
-
-            // Get all books in a single query
-            var booksFlat = _db?.DapperConnection
-                .Query(SqlQueries.GetAllBooks)
-                .ToArray();
-
-            return (categoriesFlat, booksFlat);
+            System.Diagnostics.Debug.WriteLine($"Executing SQL: {sql}");
+            System.Diagnostics.Debug.WriteLine($"DB Connection null: {_db?.DapperConnection == null}");
+            
+            if (_db?.DapperConnection == null)
+            {
+                System.Diagnostics.Debug.WriteLine("Database connection is null!");
+                return new object[0];
+            }
+            
+            try
+            {
+                object result;
+                if (parameters == null || parameters.Length == 0)
+                {
+                    result = _db.DapperConnection
+                        .Query(sql)
+                        .ToArray();
+                }
+                else
+                {
+                    result = _db.DapperConnection
+                        .Query(sql, parameters)
+                        .ToArray();
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"Query returned {((Array)result)?.Length ?? 0} rows");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Database query error: {ex}");
+                return new object[0];
+            }
         }
-
-        /// <summary>
-        /// Get flat TOC data from database
-        /// Tree building is done in JavaScript using shared tocBuilder utility
-        /// </summary>
-        public static object GetTocData(int docId)
-        {
-            var tocEntriesFlat = _db?.DapperConnection
-                .Query(SqlQueries.GetToc(docId))
-                .ToArray();
-
-            return tocEntriesFlat;
-        }
-
-        public static JoinedLink[] GetLinks(int lineId) =>
-                _db?.DapperConnection
-                    .Query<JoinedLink>(SqlQueries.GetLinks(lineId))
-                    .ToArray();
-
     }
 }

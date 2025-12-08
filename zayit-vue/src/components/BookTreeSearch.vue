@@ -73,7 +73,8 @@ const filteredBooks = computed(() => {
 })
 
 const selectBook = (book: Book) => {
-    tabStore.openBookToc(book.title, book.id, book.hasTargumConnection, book.hasReferenceConnection, book.hasCommentaryConnection)
+    const hasConnections = !!(book.hasTargumConnection || book.hasReferenceConnection || book.hasCommentaryConnection || book.hasOtherConnection)
+    tabStore.openBookToc(book.title, book.id, hasConnections)
 }
 
 onMounted(() => {
@@ -98,18 +99,3 @@ watch(filteredBooks, () => {
 })
 
 </script>
-
-<style scoped>
-.empty-state {
-    gap: 16px;
-    height: 100%;
-    width: 100%;
-    font-weight: 600;
-}
-
-.empty-icon {
-    width: 3rem;
-    height: 3rem;
-    color: var(--accent-color);
-}
-</style>

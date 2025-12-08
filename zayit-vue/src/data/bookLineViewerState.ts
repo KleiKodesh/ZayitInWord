@@ -8,7 +8,7 @@
 import { ref, type Ref } from 'vue'
 import { bookLinesLoader, type LineLoadResult } from './bookLinesManager'
 
-const PADDING_LINES = 50
+const PADDING_LINES = 100
 
 export class BookLineViewerState {
     // Public reactive state

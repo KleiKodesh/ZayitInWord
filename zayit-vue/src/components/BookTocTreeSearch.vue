@@ -113,5 +113,3 @@ watch(filteredEntries, () => {
     }
 })
 </script>
-
-<style scoped></style>

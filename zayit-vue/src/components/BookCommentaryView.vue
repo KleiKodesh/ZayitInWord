@@ -1,41 +1,17 @@
 <template>
-    <div class="commentary-view">
-        <div class="commentary-header">
-            <div class="commentary-title">קשרים</div>
-            <div class="commentary-navigation"
+    <div class="flex-column height-fill">
+        <div class="flex-between bar commentary-header">
+            <span class="bold smaller-em commentary-title">קשרים</span>
+
+            <div class="flex-row flex-center commentary-navigation"
                  v-if="linkGroups.length > 0">
 
-                <div class="group-selector-wrapper">
-                    <input type="text"
-                           class="group-selector-input"
-                           v-model="searchText"
-                           @input="onSearchInput"
-                           @focus="onFocus"
-                           @blur="onBlur"
-                           :placeholder="currentGroupName"
-                           dir="rtl" />
-                    <svg class="dropdown-arrow"
-                         width="12"
-                         height="12"
-                         viewBox="0 0 24 24"
-                         fill="none"
-                         stroke="currentColor"
-                         stroke-width="2">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                    <div v-if="showDropdown && filteredGroups.length > 0"
-                         class="group-dropdown">
-                        <div v-for="(group, index) in filteredGroups"
-                             :key="group.originalIndex"
-                             class="group-option"
-                             @mousedown.prevent="selectGroup(group.originalIndex)"
-                             :class="{ active: group.originalIndex === currentGroupIndex }">
-                            {{ group.groupName }}
-                        </div>
-                    </div>
-                </div>
+                <Combobox v-model="currentGroupIndex"
+                          :options="groupOptions"
+                          :placeholder="currentGroupName"
+                          dir="rtl" />
 
-                <button class="nav-btn"
+                <button class="flex-center c-pointer nav-btn"
                         @click="previousGroup"
                         :disabled="currentGroupIndex === 0"
                         title="קבוצה קודמת">
@@ -51,7 +27,7 @@
 
                 </button>
 
-                <button class="nav-btn"
+                <button class="flex-center c-pointer nav-btn"
                         @click="nextGroup"
                         :disabled="currentGroupIndex === linkGroups.length - 1"
                         title="קבוצה הבאה">
@@ -66,35 +42,41 @@
                     </svg>
                 </button>
             </div>
+
+            <button class="flex-center c-pointer commentary-close-btn"
+                    @click="handleClose"
+                    title="סגור פאנל">
+                -
+            </button>
         </div>
 
-        <div class="commentary-content"
+        <div class="overflow-y flex-110 selectable commentary-content"
              ref="commentaryContentRef">
             <div v-if="isLoading"
-                 class="commentary-loading">
+                 class="flex-column flex-center height-fill text-secondary commentary-loading">
                 <div class="loading-spinner"></div>
                 <div>טוען קשרים...</div>
             </div>
 
             <div v-else-if="linkGroups.length === 0"
-                 class="commentary-placeholder">
-                <div class="placeholder-text">בחר שורה לצפייה בקשרים</div>
+                 class="flex-column flex-center height-fill text-secondary commentary-placeholder">
+                <div class="bold placeholder-text">בחר שורה לצפייה בקשרים</div>
             </div>
 
             <div v-else
-                 class="commentary-links">
+                 class="flex-column commentary-links">
                 <div v-for="(group, groupIndex) in linkGroups"
                      :key="groupIndex"
-                     class="commentary-group"
+                     class="flex-column commentary-group"
                      :ref="el => setGroupRef(el, groupIndex)">
-                    <div class="group-header"
-                         :class="{ 'clickable': group.targetBookId !== undefined }"
+                    <div class="bold group-header"
+                         :class="{ 'c-pointer': group.targetBookId !== undefined }"
                          @click="handleGroupClick(group)">
                         {{ group.groupName }}
                     </div>
                     <div v-for="(link, linkIndex) in group.links"
                          :key="linkIndex"
-                         class="link-item"
+                         class="selectable line-1.6 justify link-item"
                          v-html="link.html"></div>
                 </div>
             </div>
@@ -104,51 +86,96 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, type ComponentPublicInstance } from 'vue'
-
-interface LinkGroup {
-    groupName: string
-    targetBookId?: number
-    targetLineIndex?: number
-    links: Array<{ text: string; html: string }>
-}
+import Combobox, { type ComboboxOption } from './common/Combobox.vue'
+import { useContainedSelection } from '../composables/useContainedSelection'
+import { commentaryManager, type CommentaryLinkGroup } from '../data/commentaryManager'
+import { useTabStore } from '../stores/tabStore'
 
 const props = withDefaults(defineProps<{
-    linkGroups?: LinkGroup[]
-    isLoading?: boolean
-    initialGroupIndex?: number
+    bookId?: number
+    selectedLineIndex?: number
 }>(), {
-    linkGroups: () => [],
-    isLoading: false,
-    initialGroupIndex: 0
+    bookId: undefined,
+    selectedLineIndex: undefined
 })
 
 const emit = defineEmits<{
-    groupClick: [bookId: number, lineId: number, title: string]
-    groupChange: [groupIndex: number]
+    clearOtherSelections: []
 }>()
 
-function handleGroupClick(group: LinkGroup) {
+const tabStore = useTabStore()
+
+// Commentary state
+const linkGroups = ref<CommentaryLinkGroup[]>([])
+const isLoading = ref(false)
+
+// Load commentary when props change
+watch([() => props.bookId, () => props.selectedLineIndex], async ([bookId, lineIndex]) => {
+    if (bookId !== undefined && lineIndex !== undefined) {
+        await loadCommentaryLinks(bookId, lineIndex)
+    }
+}, { immediate: true })
+
+async function loadCommentaryLinks(bookId: number, lineIndex: number) {
+    isLoading.value = true
+    try {
+        linkGroups.value = await commentaryManager.loadCommentaryLinks(
+            bookId,
+            lineIndex,
+            tabStore.activeTab?.id?.toString() || ''
+        )
+
+        // Restore saved group index if valid
+        const savedGroupIndex = tabStore.activeTab?.bookState?.commentaryGroupIndex
+        if (savedGroupIndex !== undefined && savedGroupIndex < linkGroups.value.length) {
+            currentGroupIndex.value = savedGroupIndex
+        }
+    } catch (error) {
+        console.error('❌ Failed to load commentary links:', error)
+        linkGroups.value = []
+    } finally {
+        isLoading.value = false
+    }
+}
+
+function handleGroupClick(group: CommentaryLinkGroup) {
     if (group.targetBookId !== undefined && group.targetLineIndex !== undefined) {
-        emit('groupClick', group.targetBookId, group.targetLineIndex, group.groupName)
+        // Create a new tab first
+        tabStore.addTab()
+        // Then open the book in the new tab with the initial line index
+        tabStore.openBook(group.groupName, group.targetBookId, undefined, group.targetLineIndex)
+    }
+}
+
+function handleClose() {
+    // Close the bottom pane by updating tab state directly
+    const activeTab = tabStore.activeTab
+    if (activeTab?.bookState) {
+        activeTab.bookState.showBottomPane = false
     }
 }
 
 // Internal state
-const currentGroupIndex = ref(props.initialGroupIndex || 0)
+const currentGroupIndex = ref(0)
 const savedScrollPosition = ref(0)
 const commentaryContentRef = ref<HTMLElement | null>(null)
 const groupRefs = ref<Map<number, HTMLElement>>(new Map())
-const searchText = ref('')
-const showDropdown = ref(false)
-const filteredGroups = ref<Array<{ groupName: string; originalIndex: number }>>([])
 
 // Computed property for current group name
 const currentGroupName = computed(() => {
-    if (props.linkGroups.length > 0 && currentGroupIndex.value < props.linkGroups.length) {
-        const group = props.linkGroups[currentGroupIndex.value]
+    if (linkGroups.value.length > 0 && currentGroupIndex.value < linkGroups.value.length) {
+        const group = linkGroups.value[currentGroupIndex.value]
         return group ? group.groupName : ''
     }
     return ''
+})
+
+// Computed property for combobox options
+const groupOptions = computed<ComboboxOption[]>(() => {
+    return linkGroups.value.map((group, index) => ({
+        label: group.groupName,
+        value: index
+    }))
 })
 
 // Set group ref for scrolling
@@ -174,7 +201,7 @@ const scrollToGroup = (index: number) => {
 
 // Handle commentary scroll to update dropdown
 const handleCommentaryScroll = () => {
-    if (!commentaryContentRef.value || props.linkGroups.length === 0 || groupRefs.value.size === 0) return
+    if (!commentaryContentRef.value || linkGroups.value.length === 0 || groupRefs.value.size === 0) return
 
     const containerRect = commentaryContentRef.value.getBoundingClientRect()
     const containerTop = containerRect.top + 50
@@ -189,7 +216,7 @@ const handleCommentaryScroll = () => {
 
     if (currentGroupIndex.value !== activeIndex) {
         currentGroupIndex.value = activeIndex
-        emit('groupChange', activeIndex)
+        saveGroupIndexToTab()
     }
 }
 
@@ -197,73 +224,33 @@ const handleCommentaryScroll = () => {
 const previousGroup = () => {
     if (currentGroupIndex.value > 0) {
         currentGroupIndex.value--
-        emit('groupChange', currentGroupIndex.value)
+        saveGroupIndexToTab()
         scrollToGroup(currentGroupIndex.value)
     }
 }
 
 const nextGroup = () => {
-    if (currentGroupIndex.value < props.linkGroups.length - 1) {
+    if (currentGroupIndex.value < linkGroups.value.length - 1) {
         currentGroupIndex.value++
-        emit('groupChange', currentGroupIndex.value)
+        saveGroupIndexToTab()
         scrollToGroup(currentGroupIndex.value)
     }
 }
 
-// Search functionality
-const onSearchInput = () => {
-    const search = searchText.value.trim().toLowerCase()
-
-    if (search === '') {
-        filteredGroups.value = props.linkGroups.map((group, index) => ({
-            groupName: group.groupName,
-            originalIndex: index
-        }))
-    } else {
-        const searchWords = search.split(/\s+/).filter(word => word.length > 0)
-        filteredGroups.value = props.linkGroups
-            .map((group, index) => ({
-                groupName: group.groupName,
-                originalIndex: index
-            }))
-            .filter(group => {
-                const groupNameLower = group.groupName.toLowerCase()
-                return searchWords.every(word => groupNameLower.includes(word))
-            })
+// Set up contained selection behavior
+const { clearSelection } = useContainedSelection(commentaryContentRef, {
+    handleSelectAll: true,
+    preventSelectionSpanning: true,
+    onSelectionStart: () => {
+        emit('clearOtherSelections')
     }
+})
 
-    showDropdown.value = true
-}
 
-const selectGroup = (index: number) => {
-    currentGroupIndex.value = index
-    emit('groupChange', index)
-    searchText.value = ''
-    showDropdown.value = false
-    scrollToGroup(index)
-}
 
-const onFocus = (event: FocusEvent) => {
-    showDropdown.value = true
-    const input = event.target as HTMLInputElement
-    if (input) {
-        input.select()
-    }
-}
 
-const onBlur = () => {
-    setTimeout(() => {
-        showDropdown.value = false
-        searchText.value = ''
-    }, 200)
-}
 
 onMounted(() => {
-    filteredGroups.value = props.linkGroups.map((group, index) => ({
-        groupName: group.groupName,
-        originalIndex: index
-    }))
-
     if (commentaryContentRef.value) {
         commentaryContentRef.value.addEventListener('scroll', () => {
             if (commentaryContentRef.value) {
@@ -273,20 +260,24 @@ onMounted(() => {
     }
 })
 
-watch(() => props.linkGroups, (newGroups) => {
-    filteredGroups.value = newGroups.map((group, index) => ({
-        groupName: group.groupName,
-        originalIndex: index
-    }))
-
-    // Restore group index if valid
-    if (props.initialGroupIndex !== undefined && props.initialGroupIndex < newGroups.length) {
-        currentGroupIndex.value = props.initialGroupIndex
-        setTimeout(() => scrollToGroup(props.initialGroupIndex!), 100)
-    } else {
-        currentGroupIndex.value = 0
+// Save group index to tab state
+function saveGroupIndexToTab() {
+    const activeTab = tabStore.activeTab
+    if (activeTab?.bookState) {
+        activeTab.bookState.commentaryGroupIndex = currentGroupIndex.value
     }
+}
+
+// Reset group index when new commentary loads
+watch(() => linkGroups.value, () => {
+    currentGroupIndex.value = 0
+    saveGroupIndexToTab()
 }, { immediate: true })
+
+watch(currentGroupIndex, (newIndex) => {
+    saveGroupIndexToTab()
+    scrollToGroup(newIndex)
+})
 
 watch(commentaryContentRef, (newVal, oldVal) => {
     if (oldVal) {
@@ -299,40 +290,13 @@ watch(commentaryContentRef, (newVal, oldVal) => {
 </script>
 
 <style scoped>
-.commentary-view {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-primary);
-    direction: rtl;
-}
-
 .commentary-header {
-    display: flex;
-    align-items: center;
     justify-content: space-between;
-    padding: 2px 8px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
-    direction: rtl;
-    flex-shrink: 0;
-    min-height: 32px;
-    position: relative;
-    z-index: 10;
-}
-
-.commentary-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
+    padding: 0 15px 5px 5px;
 }
 
 .commentary-navigation {
-    display: flex;
-    align-items: center;
     gap: 3px;
-    flex-shrink: 1;
-    min-width: 0;
 }
 
 .nav-btn {
@@ -341,12 +305,7 @@ watch(commentaryContentRef, (newVal, oldVal) => {
     background: transparent;
     border: 1px solid var(--border-color);
     border-radius: 3px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     color: var(--text-primary);
-    transition: all 0.2s ease;
     flex-shrink: 0;
     padding: 0;
 }
@@ -363,115 +322,15 @@ watch(commentaryContentRef, (newVal, oldVal) => {
 
 .nav-btn:disabled {
     opacity: 0.3;
-    cursor: not-allowed;
-}
-
-.group-selector-wrapper {
-    position: relative;
-    flex: 1;
-    min-width: 80px;
-    max-width: 180px;
-    display: flex;
-    align-items: center;
-}
-
-.group-selector-input {
-    width: 100%;
-    padding: 3px 6px 3px 24px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 3px;
-    color: var(--text-primary);
-    font-size: 12px;
-    cursor: pointer;
-    direction: rtl;
-    text-align: right;
-    height: 24px;
-    line-height: 1;
-}
-
-.group-selector-input:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    cursor: text;
-}
-
-.group-selector-input::placeholder {
-    color: var(--text-primary);
-    opacity: 1;
-}
-
-.dropdown-arrow {
-    position: absolute;
-    left: 6px;
-    pointer-events: none;
-    color: var(--text-secondary);
-    opacity: 0.6;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.group-selector-wrapper:hover .dropdown-arrow {
-    opacity: 1;
-}
-
-.group-selector-input:focus~.dropdown-arrow {
-    transform: rotate(180deg);
-    opacity: 1;
-}
-
-.group-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    margin-top: 2px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 1001;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    direction: rtl;
-}
-
-.group-option {
-    padding: 5px 8px;
-    cursor: pointer;
-    color: var(--text-primary);
-    font-size: 12px;
-    text-align: right;
-    transition: background 0.15s ease;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.group-option:hover {
-    background: var(--hover-bg);
-}
-
-.group-option.active {
-    background: var(--accent-color);
-    color: white;
 }
 
 .commentary-content {
-    overflow-y: auto;
-    flex: 1;
     padding: 16px;
     direction: rtl;
-    user-select: text !important;
 }
 
 .commentary-loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
     gap: 12px;
-    color: var(--text-secondary);
     direction: rtl;
 }
 
@@ -491,41 +350,29 @@ watch(commentaryContentRef, (newVal, oldVal) => {
 }
 
 .commentary-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
     gap: 16px;
-    color: var(--text-secondary);
     opacity: 0.6;
 }
 
 .placeholder-text {
     font-size: 16px;
-    font-weight: 500;
     font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
     direction: rtl;
 }
 
 .commentary-links {
-    display: flex;
-    flex-direction: column;
     gap: 32px;
     padding-bottom: 32px;
     direction: rtl;
 }
 
 .commentary-group {
-    display: flex;
-    flex-direction: column;
     gap: 8px;
     direction: rtl;
 }
 
 .group-header {
     font-size: 18px;
-    font-weight: 600;
     color: var(--text-primary);
     margin: 0 0 12px 0;
     padding: 8px 0;
@@ -534,29 +381,18 @@ watch(commentaryContentRef, (newVal, oldVal) => {
     border-bottom: 2px solid var(--border-color);
 }
 
-.group-header.clickable {
-    cursor: pointer;
-    transition: color 0.2s ease;
-}
-
-.group-header.clickable:hover {
+.group-header.c-pointer:hover {
     color: var(--accent-color);
 }
 
 .link-item {
     color: var(--text-primary);
     font-family: var(--text-font);
-    line-height: 1.6;
     direction: rtl;
     padding-block-start: 0.15em;
     padding-block-end: 0.15em;
     margin: 0;
-    text-align: justify;
     display: block;
-}
-
-.link-item :deep(*) {
-    user-select: text !important;
 }
 
 .link-item :deep(h1),
@@ -567,14 +403,12 @@ watch(commentaryContentRef, (newVal, oldVal) => {
 .link-item :deep(h6) {
     font-family: var(--header-font);
     color: var(--text-primary);
-    line-height: 1.4;
     margin: 0;
     text-align: right;
 }
 
 .link-item :deep(h1) {
     font-size: 2em;
-    font-weight: 700;
     padding: 0.8em 0 0.4em 0;
     margin-bottom: 0.5em;
     border-bottom: 1px solid var(--border-color);

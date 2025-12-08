@@ -1,5 +1,5 @@
 <template>
-    <div class="split-pane-container"
+    <div class="flex-column split-pane-container"
          :class="{ 'bottom-hidden': !showBottom }">
         <div class="top-pane"
              :style="{ height: showBottom ? `${topHeight}%` : '100%' }">
@@ -7,14 +7,14 @@
         </div>
 
         <div v-show="showBottom"
-             class="resize-handle"
+             class="flex-center resize-handle"
              @mousedown="startResize"
              @touchstart="startResize">
             <div class="resize-handle-bar"></div>
         </div>
 
         <div v-show="showBottom"
-             class="bottom-pane"
+             class="flex-column bottom-pane"
              :style="{ height: `${bottomHeight}%` }">
             <slot name="bottom"></slot>
         </div>
@@ -51,7 +51,7 @@ const startResize = (event: MouseEvent | TouchEvent) => {
         if (e instanceof MouseEvent) {
             return e.clientY
         } else {
-            return e.touches[0].clientY
+            return e.touches[0]?.clientY ?? 0
         }
     }
 
@@ -95,8 +95,6 @@ const startResize = (event: MouseEvent | TouchEvent) => {
 }
 
 .split-pane-container {
-    display: flex;
-    flex-direction: column;
     position: absolute;
     top: 0;
     left: 0;
@@ -121,9 +119,6 @@ const startResize = (event: MouseEvent | TouchEvent) => {
     flex-shrink: 0;
     user-select: none;
     touch-action: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .resize-handle:active {
@@ -154,7 +149,5 @@ const startResize = (event: MouseEvent | TouchEvent) => {
     position: relative;
     background: var(--bg-primary);
     min-height: 20%;
-    display: flex;
-    flex-direction: column;
 }
 </style>

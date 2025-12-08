@@ -1,5 +1,6 @@
 ﻿using Microsoft.Web.WebView2.Core;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -11,17 +12,15 @@ namespace Zayit.Viewer
     /// <summary>
     /// ZayitViewer with Vue.js UI integration
     /// Handles communication between C# backend and Vue frontend
+    /// SQL queries are defined in TypeScript (sqlQueries.ts) and executed here
     /// </summary>
     public class ZayitViewer : ZayitViewerBase
     {
-        //public Microsoft.Office.Interop.Word.Window _activeWindow;
         public ZayitViewer(object commandHandler = null) : base(commandHandler)
         {
             this.Dock = System.Windows.Forms.DockStyle.Fill;
-            //this._activeWindow = activeWindow;
             this.CoreWebView2InitializationCompleted += (_, __) =>
             {
-                //CoreWebView2.Navigate(GetHtmlPath());
                 Source = new Uri(GetHtmlPath());
             };
         }
@@ -32,118 +31,53 @@ namespace Zayit.Viewer
         private string GetHtmlPath() =>
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Html", "index.html");
 
+        // === Command Handlers ===
+
         /// <summary>
-        /// Called from JavaScript when user opens the tree view
-        /// Fetches flat category and book data from the database
-        /// Tree building is done in JavaScript using shared treeBuilder utility
+        /// Get tree data (categories and books)
         /// </summary>
         private async void GetTree()
         {
             try
             {
-                Debug.WriteLine("GetTree called - fetching flat data from database");
+                Debug.WriteLine("GetTree called");
 
-                // Get flat category and book data from database
-                var (categoriesFlat, booksFlat) = SeforimDb.DbQueries.GetTreeData();
+                var categories = SeforimDb.DbQueries.ExecuteQuery(SeforimDb.SqlQueries.GetAllCategories);
+                var books = SeforimDb.DbQueries.ExecuteQuery(SeforimDb.SqlQueries.GetAllBooks);
 
-                Debug.WriteLine($"GetTreeData returned: {(categoriesFlat as Array)?.Length ?? 0} categories, {(booksFlat as Array)?.Length ?? 0} books");
-
-                if (categoriesFlat == null || booksFlat == null)
-                {
-                    Debug.WriteLine("ERROR: GetTreeData returned null data");
-                    return;
-                }
-
-                // Create response object with flat data
-                // JavaScript will build the tree using treeBuilder utility
                 var treeData = new
                 {
-                    categoriesFlat = categoriesFlat,
-                    booksFlat = booksFlat
+                    categoriesFlat = categories,
+                    booksFlat = books
                 };
 
-                // Serialize with camelCase for JavaScript
                 string json = JsonSerializer.Serialize(treeData, new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                 });
 
-                Debug.WriteLine($"Serialized flat data: {json.Length} characters");
-
-                // Send to Vue application
                 string js = $"window.receiveTreeData({json});";
                 await ExecuteScriptAsync(js);
 
-                Debug.WriteLine("Tree data sent to Vue successfully");
+                Debug.WriteLine("Tree data sent successfully");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"GetTree error: {ex}");
-                Debug.Assert(false, $"GetTree error: {ex}");
             }
         }
 
         /// <summary>
-        /// Called from JavaScript when user selects a book from the tree
-        /// Streams book content in batches to the Vue application for better performance
+        /// Get table of contents for a book
         /// </summary>
-        /// <param name="bookId">The book ID to load</param>
-        /// <param name="tabId">The tab ID to load content into (e.g., "tab-1")</param>
-        private async void OpenBook(int bookId, string tabId)
-        {
-            Debug.WriteLine($"OpenBook called: bookId={bookId}, tabId={tabId}");
-            try
-            {
-                const int BATCH_SIZE = 1500; // Send 1500 lines at a time
-                var batch = new System.Collections.Generic.List<object>(BATCH_SIZE);
-                
-                // Stream book lines in batches to the UI with line IDs from database
-                foreach (var (content, id) in SeforimDb.DbQueries.GetBookContentWithId(bookId))
-                {
-                    batch.Add(new { id = id, html = content });
-                    
-                    // When batch is full, send it
-                    if (batch.Count >= BATCH_SIZE)
-                    {
-                        string batchJson = JsonSerializer.Serialize(batch);
-                        string js = $"window.addLines({JsonSerializer.Serialize(tabId)}, {batchJson});";
-                        await ExecuteScriptAsync(js);
-                        batch.Clear();
-                    }
-                }
-                
-                // Send remaining lines if any
-                if (batch.Count > 0)
-                {
-                    string batchJson = JsonSerializer.Serialize(batch);
-                    string js = $"window.addLines({JsonSerializer.Serialize(tabId)}, {batchJson});";
-                    await ExecuteScriptAsync(js);
-                }
-                
-                // Signal completion to JavaScript
-                string completionJs = $"window.bookLoadComplete && window.bookLoadComplete({JsonSerializer.Serialize(tabId)});";
-                await ExecuteScriptAsync(completionJs);
-                
-                Debug.WriteLine($"Book {bookId} loaded completely for tab {tabId}");
-            }
-            catch (Exception ex)
-            {
-                Debug.Assert(false, $"OpenBook error: {ex}");
-            }
-        }
-
-        /// <summary>
-        /// Called from JavaScript to get the table of contents for a book
-        /// Returns flat TOC data - tree building is done in JavaScript using shared tocBuilder utility
-        /// </summary>
-        /// <param name="bookId">The book ID to get TOC for</param>
         private async void GetToc(int bookId)
         {
             try
             {
-                var tocEntriesFlat = SeforimDb.DbQueries.GetTocData(bookId);
+                Debug.WriteLine($"GetToc called: bookId={bookId}");
 
-                var tocData = new { tocEntriesFlat };
+                var tocEntries = SeforimDb.DbQueries.ExecuteQuery(SeforimDb.SqlQueries.GetToc(bookId));
+                var tocData = new { tocEntriesFlat = tocEntries };
 
                 string json = JsonSerializer.Serialize(tocData, new JsonSerializerOptions
                 {
@@ -153,7 +87,7 @@ namespace Zayit.Viewer
                 string js = $"window.receiveTocData({bookId}, {json});";
                 await ExecuteScriptAsync(js);
 
-                Debug.WriteLine($"Flat TOC data for book {bookId} sent successfully");
+                Debug.WriteLine($"TOC data sent for bookId={bookId}");
             }
             catch (Exception ex)
             {
@@ -162,82 +96,217 @@ namespace Zayit.Viewer
         }
 
         /// <summary>
-        /// Called from JavaScript when user clicks a line to get commentary/links
+        /// Get links/commentary for a line
         /// </summary>
-        /// <param name="bookId">The book ID</param>
-        /// <param name="lineId">The line ID to get links for</param>
-        /// <param name="tabId">The tab ID to send links to</param>
-        private async void GetLinks(int bookId, int lineId, string tabId)
+        private async void GetLinks(int lineId, string tabId, int bookId)
         {
             try
             {
-                Debug.WriteLine($"GetLinks called: bookId={bookId}, lineId={lineId}, tabId={tabId}");
+                Debug.WriteLine($"GetLinks called: lineId={lineId}, tabId={tabId}, bookId={bookId}");
 
-                // Get links from database
-                var linksData = SeforimDb.DbQueries.GetLinks(lineId);
+                var links = SeforimDb.DbQueries.ExecuteQuery(SeforimDb.SqlQueries.GetLinks(lineId));
 
-                if (linksData == null || linksData.Length == 0)
-                {
-                    Debug.WriteLine($"No links found for bookId={bookId}, lineId={lineId}");
-                    // Send empty array
-                    string emptyJs = $"window.setLinks({JsonSerializer.Serialize(tabId)}, []);";
-                    await ExecuteScriptAsync(emptyJs);
-                    return;
-                }
-
-                // Transform to the format expected by Vue
-                var linkGroups = new System.Collections.Generic.List<object>();
-                
-                // Group links by book title (commentary source)
-                var grouped = linksData.GroupBy(link => link.Title);
-
-                foreach (var group in grouped)
-                {
-                    var links = new System.Collections.Generic.List<object>();
-                    
-                    foreach (var link in group)
-                    {
-                        links.Add(new
-                        {
-                            text = $"{link.Title} - שורה {link.TargetLineId}",
-                            html = link.Content ?? ""
-                        });
-                    }
-                    
-                    linkGroups.Add(new
-                    {
-                        groupName = group.Key,
-                        links = links
-                    });
-                }
-
-                // Serialize with camelCase for JavaScript
-                string json = JsonSerializer.Serialize(linkGroups, new JsonSerializerOptions
+                string json = JsonSerializer.Serialize(links, new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                 });
 
-                Debug.WriteLine($"Sending {linkGroups.Count} link groups to Vue");
-
-                // Send to Vue application
-                string js = $"window.setLinks({JsonSerializer.Serialize(tabId)}, {json});";
+                string js = $"window.receiveLinks({JsonSerializer.Serialize(tabId)}, {bookId}, {json});";
                 await ExecuteScriptAsync(js);
 
-                Debug.WriteLine($"Links for bookId={bookId}, lineId={lineId} sent successfully");
+                Debug.WriteLine($"Links sent for lineId={lineId}");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"GetLinks error: {ex}");
-                // Send empty array on error
-                try
-                {
-                    string errorJs = $"window.setLinks({JsonSerializer.Serialize(tabId)}, []);";
-                    await ExecuteScriptAsync(errorJs);
-                }
-                catch { }
             }
         }
 
+        /// <summary>
+        /// Get total line count for a book
+        /// </summary>
+        private async void GetTotalLines(int bookId)
+        {
+            try
+            {
+                Debug.WriteLine($"GetTotalLines called: bookId={bookId}");
+
+                var result = SeforimDb.DbQueries.ExecuteQuery(SeforimDb.SqlQueries.GetBookLineCount(bookId));
+
+                Debug.WriteLine($"Query result type: {result?.GetType()}");
+                
+                var resultArray = result as Array;
+                if (resultArray != null && resultArray.Length > 0)
+                {
+                    var firstItem = resultArray.GetValue(0);
+                    Debug.WriteLine($"First item type: {firstItem?.GetType()}");
+                    
+                    // For Dapper's dynamic rows, use direct property access
+                    try
+                    {
+                        dynamic dynamicRow = firstItem;
+                        var totalLines = (int)dynamicRow.totalLines;
+                        string js = $"window.receiveTotalLines({bookId}, {totalLines});";
+                        await ExecuteScriptAsync(js);
+                        Debug.WriteLine($"Total lines sent for bookId={bookId}: {totalLines}");
+                        return;
+                    }
+                    catch (Exception dynamicEx)
+                    {
+                        Debug.WriteLine($"Dynamic access failed: {dynamicEx.Message}");
+                        
+                        // Fallback: try reflection on all properties
+                        var properties = firstItem.GetType().GetProperties();
+                        Debug.WriteLine($"Available properties: {string.Join(", ", properties.Select(p => p.Name))}");
+                        
+                        foreach (var prop in properties)
+                        {
+                            var value = prop.GetValue(firstItem);
+                            Debug.WriteLine($"Property {prop.Name}: {value}");
+                            
+                            if (prop.Name.Equals("totalLines", StringComparison.OrdinalIgnoreCase) ||
+                                prop.Name.Equals("TotalLines", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var totalLines = Convert.ToInt32(value);
+                                string js = $"window.receiveTotalLines({bookId}, {totalLines});";
+                                await ExecuteScriptAsync(js);
+                                Debug.WriteLine($"Total lines sent for bookId={bookId}: {totalLines}");
+                                return;
+                            }
+                        }
+                    }
+                }
+                
+                Debug.WriteLine($"No result or no valid data returned for bookId={bookId}");
+                string fallbackJs = $"window.receiveTotalLines({bookId}, 0);";
+                await ExecuteScriptAsync(fallbackJs);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetTotalLines error: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Get single line content
+        /// </summary>
+        private async void GetLineContent(int bookId, int lineIndex)
+        {
+            try
+            {
+                Debug.WriteLine($"GetLineContent called: bookId={bookId}, lineIndex={lineIndex}");
+
+                var result = SeforimDb.DbQueries.ExecuteQuery(SeforimDb.SqlQueries.GetLineContent(bookId, lineIndex));
+
+                string content = null;
+                var resultArray = result as Array;
+                if (resultArray != null && resultArray.Length > 0)
+                {
+                    var firstItem = resultArray.GetValue(0);
+                    
+                    // Use dynamic access for Dapper rows
+                    try
+                    {
+                        dynamic dynamicRow = firstItem;
+                        content = dynamicRow.content;
+                    }
+                    catch (Exception dynamicEx)
+                    {
+                        Debug.WriteLine($"Dynamic access failed for GetLineContent: {dynamicEx.Message}");
+                        
+                        // Fallback to reflection
+                        var contentProperty = firstItem?.GetType().GetProperty("content");
+                        content = contentProperty?.GetValue(firstItem) as string;
+                    }
+                }
+
+                string contentJson = JsonSerializer.Serialize(content);
+                string js = $"window.receiveLineContent({bookId}, {lineIndex}, {contentJson});";
+                await ExecuteScriptAsync(js);
+
+                Debug.WriteLine($"Line content sent for bookId={bookId}, lineIndex={lineIndex}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetLineContent error: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Get line ID by bookId and lineIndex
+        /// </summary>
+        private async void GetLineId(int bookId, int lineIndex)
+        {
+            try
+            {
+                Debug.WriteLine($"GetLineId called: bookId={bookId}, lineIndex={lineIndex}");
+
+                var result = SeforimDb.DbQueries.ExecuteQuery(SeforimDb.SqlQueries.GetLineId(bookId, lineIndex));
+
+                int? lineId = null;
+                var resultArray = result as Array;
+                if (resultArray != null && resultArray.Length > 0)
+                {
+                    var firstItem = resultArray.GetValue(0);
+                    
+                    // Use dynamic access for Dapper rows
+                    try
+                    {
+                        dynamic dynamicRow = firstItem;
+                        lineId = (int)dynamicRow.id;
+                    }
+                    catch (Exception dynamicEx)
+                    {
+                        Debug.WriteLine($"Dynamic access failed for GetLineId: {dynamicEx.Message}");
+                        
+                        // Fallback to reflection
+                        var idProperty = firstItem?.GetType().GetProperty("id");
+                        var idValue = idProperty?.GetValue(firstItem);
+                        if (idValue != null)
+                        {
+                            lineId = Convert.ToInt32(idValue);
+                        }
+                    }
+                }
+
+                string lineIdJson = lineId.HasValue ? lineId.Value.ToString() : "null";
+                string js = $"window.receiveLineId({bookId}, {lineIndex}, {lineIdJson});";
+                await ExecuteScriptAsync(js);
+
+                Debug.WriteLine($"Line ID sent for bookId={bookId}, lineIndex={lineIndex}: {lineIdJson}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetLineId error: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Get range of lines
+        /// </summary>
+        private async void GetLineRange(int bookId, int start, int end)
+        {
+            try
+            {
+                Debug.WriteLine($"GetLineRange called: bookId={bookId}, start={start}, end={end}");
+
+                var lines = SeforimDb.DbQueries.ExecuteQuery(SeforimDb.SqlQueries.GetLineRange(bookId, start, end));
+
+                string json = JsonSerializer.Serialize(lines, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+
+                string js = $"window.receiveLineRange({bookId}, {start}, {end}, {json});";
+                await ExecuteScriptAsync(js);
+
+                Debug.WriteLine($"Line range sent for bookId={bookId}, start={start}, end={end}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"GetLineRange error: {ex}");
+            }
+        }
 
         /// <summary>
         /// Check if the viewer is hosted in a UserControl
@@ -266,71 +335,6 @@ namespace Zayit.Viewer
                 container.Controls.Remove(this);
             else if (this.Parent is System.Windows.Forms.Form form)
                 form.Close();
-
-            //try
-            //{
-            //    if (Parent is System.Windows.Forms.UserControl userControl)
-            //    {
-            //        // Pop out to new form
-            //        var form = new System.Windows.Forms.Form
-            //        {
-            //            Text = "Zayit Viewer",
-            //            Width = 1200,
-            //            Height = 800,
-            //            StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
-            //        };
-
-            //        // Remove from UserControl
-            //        userControl.Controls.Remove(this);
-            //        userControl.Visible = false;
-
-            //        // Add to Form
-            //        form.Controls.Add(this);
-
-            //        // Store reference to original parent
-            //        form.Tag = userControl;
-
-            //        // Set Word window as owner if available
-            //        if (_activeWindow != null)
-            //        {
-            //            IntPtr wordHandle = new IntPtr(_activeWindow.Hwnd);
-            //            SetWindowOwner(form.Handle, wordHandle);
-            //        }
-
-            //        // Handle form closing - pop back in
-            //        form.FormClosing += (s, e) =>
-            //        {
-            //            form.Controls.Remove(this);
-            //            userControl.Controls.Add(this);
-            //            userControl.Visible = true;
-            //        };
-
-            //        form.Show();
-            //        Debug.WriteLine("Popped out to standalone form");
-            //    }
-            //    else if (Parent is System.Windows.Forms.Form form)
-            //    {
-            //        form.Close();
-            //    }
-            //}
-            //catch (Exception ex)
-            //{
-            //    Debug.WriteLine($"TogglePopOut error: {ex}");
-            //    System.Windows.Forms.MessageBox.Show($"Error toggling pop-out: {ex.Message}");
-            //}
         }
-        //// Helper method to set window owner
-        //[System.Runtime.InteropServices.DllImport("user32.dll")]
-        //private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
-
-        //private const int GWL_HWNDPARENT = -8;
-
-        //private void SetWindowOwner(IntPtr childHandle, IntPtr ownerHandle)
-        //{
-        //    // Set the owner window (not parent) so it stays on top of Word but remains independent
-        //    SetWindowLong(childHandle, GWL_HWNDPARENT, ownerHandle.ToInt32());
-        //}
-
     }
 }
-

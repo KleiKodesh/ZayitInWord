@@ -3,19 +3,20 @@
         <div class="overflow-y flex-110">
             <BookTocTreeSearch v-if="searchInput"
                                ref="searchRef"
-                               :toc-entries="props.tocEntries"
+                               :toc-entries="tocEntries"
                                :search-query="searchInput"
                                @select-line="handleSelectLine" />
 
             <BookTocTree v-else
-                         :toc-entries="props.tocEntries"
-                         :is-loading="props.isLoading"
+                         :toc-entries="tocEntries"
+                         :is-loading="isLoading"
                          ref="treeRef"
                          @select-line="handleSelectLine" />
         </div>
 
         <div class="bar flex-row search-bar">
             <button @click="resetTree"
+                    class="flex-center c-pointer"
                     title="אפס עץ">
                 <TreeIcon class="rtl-flip" />
             </button>
@@ -27,6 +28,7 @@
                    @keydown="handleKeyDown"
                    autofocus />
             <button @click="skipToDocument"
+                    class="flex-center c-pointer"
                     title="דלג לתצוגת מסמך">
                 <SkipIcon />
             </button>
@@ -36,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, watch } from 'vue';
 import BookTocTree from './BookTocTree.vue';
 import BookTocTreeSearch from './BookTocTreeSearch.vue';
 import TreeIcon from './icons/TreeIcon.vue';
@@ -44,10 +46,11 @@ import SkipIcon from './icons/SkipIcon.vue';
 
 import type { TocEntry } from '../types/BookToc';
 import { useTabStore } from '../stores/tabStore';
+import { dbManager } from '../data/dbManager';
+import { buildTocFromFlat } from '../data/tocBuilder';
 
 const props = defineProps<{
-    tocEntries: TocEntry[]
-    isLoading: boolean
+    bookId: number
 }>();
 
 const emit = defineEmits<{
@@ -60,6 +63,31 @@ const searchInput = ref('');
 const searchInputRef = ref<HTMLInputElement | null>(null);
 const treeRef = ref<InstanceType<typeof BookTocTree> | null>(null);
 const searchRef = ref<InstanceType<typeof BookTocTreeSearch> | null>(null);
+
+// TOC state
+const tocEntries = ref<TocEntry[]>([]);
+const isLoading = ref(false);
+
+// Load TOC when bookId changes
+watch(() => props.bookId, async (bookId) => {
+    if (bookId) {
+        await loadToc(bookId);
+    }
+}, { immediate: true });
+
+async function loadToc(bookId: number) {
+    isLoading.value = true;
+    try {
+        const { tocEntriesFlat } = await dbManager.getToc(bookId);
+        const { tree } = buildTocFromFlat(tocEntriesFlat);
+        tocEntries.value = tree;
+    } catch (error) {
+        console.error('❌ Failed to load TOC:', error);
+        tocEntries.value = [];
+    } finally {
+        isLoading.value = false;
+    }
+}
 
 // Handle TOC line selection
 const handleSelectLine = (lineIndex: number) => {

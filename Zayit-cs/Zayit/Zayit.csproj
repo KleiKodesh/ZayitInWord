@@ -104,9 +104,9 @@
     <Compile Include="Models\TocEntry.cs" />
     <Compile Include="SeforimDb\DbManager.cs" />
     <Compile Include="SeforimDb\DbQueries.cs" />
+    <Compile Include="SeforimDb\SqlQueries.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SeforimDb\SqlQueries.cs" />
     <Compile Include="Viewer\ZayitViewer.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -190,7 +190,6 @@
   <Import Project="..\packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\build\net46\Stub.System.Data.SQLite.Core.NetFramework.targets" Condition="Exists('..\packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\build\net46\Stub.System.Data.SQLite.Core.NetFramework.targets')" />
   <Import Project="..\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets" Condition="Exists('..\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets')" />
   <PropertyGroup>
-    <PreBuildEvent>cd "$(ProjectDir)..\..\vue-tabs"
-call build-and-deploy.bat</PreBuildEvent>
+    <PreBuildEvent>call "$(ProjectDir)..\prebuild.bat"</PreBuildEvent>
   </PropertyGroup>
 </Project>

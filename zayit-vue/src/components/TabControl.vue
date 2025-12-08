@@ -2,6 +2,7 @@
   <div class="flex-column height-fill">
     <div class="header-container">
       <TabHeader @click="toggleDropdown"
+                 @close-tab-dropdown="closeDropdown"
                  :is-dropdown-open="dropdownRef?.isVisible || false" />
       <TabDropdown ref="dropdownRef" />
     </div>
@@ -27,5 +28,3 @@ const closeDropdown = () => {
 };
 
 </script>
-
-<style scoped></style>

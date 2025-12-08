@@ -14,7 +14,7 @@ import { SqlQueries } from './sqlQueries'
 /**
  * Execute SQL query via Vite dev server API
  */
-async function query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+export async function query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
   // In production, this should not be used
   if (import.meta.env.PROD) {
     throw new Error('SQLite API is only available in development mode')
@@ -40,17 +40,6 @@ async function query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
   }
 }
 
-/**
- * Get categories with path from database
- */
-export async function getCategoriesWithPath() {
-  const categories = await query<Category>(SqlQueries.getCategoriesWithPath)
-  return categories
-}
-
-/**
- * Get categories with path from database
- */
 export async function getAllCategories() {
   const categories = await query<Category>(SqlQueries.getAllCategories)
   return categories
@@ -94,5 +83,25 @@ export async function getLineId(bookId: number, lineIndex: number): Promise<numb
  */
 export async function getLinks(lineId: number): Promise<Link[]> {
   return await query<Link>(SqlQueries.getLinks(lineId))
+}
+
+/**
+ * Get total line count for a book
+ */
+export async function getTotalLines(bookId: number): Promise<number> {
+  const result = await query<{ totalLines: number }>(SqlQueries.getBookLineCount(bookId))
+  return result[0]?.totalLines || 0
+}
+
+/**
+ * Load a range of lines from database
+ */
+export interface LineLoadResult {
+  lineIndex: number
+  content: string
+}
+
+export async function loadLineRange(bookId: number, start: number, end: number): Promise<LineLoadResult[]> {
+  return await query<LineLoadResult>(SqlQueries.getLineRange(bookId, start, end))
 }
 

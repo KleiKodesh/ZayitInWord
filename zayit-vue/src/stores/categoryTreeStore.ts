@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Category } from '../types/BookCategoryTree'
 import type { Book } from '../types/Book'
-import { getAllCategories, getBooks } from '../data/sqliteDb'
+import { dbManager } from '../data/dbManager'
 
 export const useCategoryTreeStore = defineStore('categoryTree', () => {
     const isLoading = ref(true);
@@ -13,8 +13,7 @@ export const useCategoryTreeStore = defineStore('categoryTree', () => {
         buildTree();
 
     async function buildTree() {
-        const categories = await getAllCategories()
-        const books = await getBooks()
+        const { categoriesFlat: categories, booksFlat: books } = await dbManager.getTree()
 
         // Group books by categoryId
         const booksByCategory = new Map<number, Book[]>()

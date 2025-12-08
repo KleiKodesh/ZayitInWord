@@ -30,7 +30,8 @@ const nodeRef = ref<HTMLElement>()
 const isKeyboardActive = ref(false)
 
 const selectBook = () => {
-    tabStore.openBookToc(props.book.title, props.book.id, props.book.hasTargumConnection, props.book.hasReferenceConnection, props.book.hasCommentaryConnection)
+    const hasConnections = !!(props.book.hasTargumConnection || props.book.hasReferenceConnection || props.book.hasCommentaryConnection || props.book.hasOtherConnection)
+    tabStore.openBookToc(props.book.title, props.book.id, hasConnections)
 }
 
 const handleKeyboardSelect = () => {
@@ -44,5 +45,3 @@ const handleKeyboardSelect = () => {
 }
 
 </script>
-
-<style scoped></style>

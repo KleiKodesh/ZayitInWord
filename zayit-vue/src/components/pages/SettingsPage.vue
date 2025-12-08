@@ -1,20 +1,23 @@
 <template>
-    <div class="settings-page">
-        <div class="settings-content">
+    <div
+         class="flex-column width-fill height-fill overflow-hidden settings-page">
+        <div class="overflow-y settings-content">
             <!-- Header Font -->
             <div class="setting-group">
-                <label class="setting-label">גופן כותרות</label>
-                <div class="custom-select"
+                <label class="flex-row justify-end bold setting-label">גופן
+                    כותרות</label>
+                <div class="flex-row c-pointer custom-select"
                      @click="toggleHeaderDropdown"
                      tabindex="0">
-                    <div class="select-display">{{ getDisplayName(headerFont) }}</div>
+                    <div class="select-display">{{ getDisplayName(headerFont) }}
+                    </div>
                     <div class="select-arrow">▼</div>
                     <div v-if="isHeaderDropdownOpen"
                          class="select-dropdown"
                          @click.stop>
                         <div v-for="font in availableFonts"
                              :key="font"
-                             class="select-option"
+                             class="c-pointer select-option"
                              :class="{ selected: headerFont.includes(font) }"
                              @click="selectHeaderFont(font)">
                             {{ font }}
@@ -25,18 +28,20 @@
 
             <!-- Text Font -->
             <div class="setting-group">
-                <label class="setting-label">גופן טקסט</label>
-                <div class="custom-select"
+                <label class="flex-row justify-end bold setting-label">גופן
+                    טקסט</label>
+                <div class="flex-row c-pointer custom-select"
                      @click="toggleTextDropdown"
                      tabindex="0">
-                    <div class="select-display">{{ getDisplayName(textFont) }}</div>
+                    <div class="select-display">{{ getDisplayName(textFont) }}
+                    </div>
                     <div class="select-arrow">▼</div>
                     <div v-if="isTextDropdownOpen"
                          class="select-dropdown"
                          @click.stop>
                         <div v-for="font in availableFonts"
                              :key="font"
-                             class="select-option"
+                             class="c-pointer select-option"
                              :class="{ selected: textFont.includes(font) }"
                              @click="selectTextFont(font)">
                             {{ font }}
@@ -47,13 +52,13 @@
 
             <!-- Font Size -->
             <div class="setting-group">
-                <label class="setting-label">
+                <label class="flex-row justify-end bold setting-label">
                     גודל גופן
-                    <span class="setting-value">{{ fontSize }}%</span>
+                    <span class="text-secondary setting-value">{{ fontSize
+                        }}%</span>
                 </label>
                 <input type="range"
                        v-model.number="fontSize"
-                       @input="applySettings"
                        min="50"
                        max="200"
                        step="5"
@@ -62,13 +67,13 @@
 
             <!-- Line Padding -->
             <div class="setting-group">
-                <label class="setting-label">
+                <label class="flex-row justify-end bold setting-label">
                     ריווח שורות
-                    <span class="setting-value">{{ linePadding }}em</span>
+                    <span class="text-secondary setting-value">{{ linePadding
+                        }}em</span>
                 </label>
                 <input type="range"
                        v-model.number="linePadding"
-                       @input="applySettings"
                        min="0"
                        max="2"
                        step="0.1"
@@ -77,34 +82,42 @@
 
             <!-- Divine Name Censoring -->
             <div class="setting-group">
-                <label class="setting-label">כיסוי שם ה'</label>
-                <div class="theme-toggle">
+                <label class="flex-row justify-end bold setting-label">כיסוי שם
+                    ה'</label>
+                <div class="flex-row theme-toggle">
                     <button :class="{ active: !censorDivineNames }"
                             @click="setCensorDivineNames(false)"
-                            class="theme-option">
+                            class="flex-110 c-pointer theme-option">
                         כתיב מלא
                     </button>
                     <button :class="{ active: censorDivineNames }"
                             @click="setCensorDivineNames(true)"
-                            class="theme-option">
+                            class="flex-110 c-pointer theme-option">
                         כיסוי (ה→ק)
                     </button>
                 </div>
+            </div>
+
+            <!-- Reset Button -->
+            <div class="setting-group">
+                <button @click="resetSettings"
+                        class="width-fill c-pointer bold reset-button">
+                    איפוס הגדרות
+                </button>
             </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useSettingsStore } from '../../stores/settingsStore'
 import { hebrewFonts } from '../../data/hebrewFonts'
 
-// Settings state
-const headerFont = ref("'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif")
-const textFont = ref("'Times New Roman', Times, serif")
-const fontSize = ref(100)
-const linePadding = ref(0.3)
-const censorDivineNames = ref(false)
+const settingsStore = useSettingsStore()
+const { headerFont, textFont, fontSize, linePadding, censorDivineNames } = storeToRefs(settingsStore)
+
 const availableFonts = ref<string[]>([])
 const isHeaderDropdownOpen = ref(false)
 const isTextDropdownOpen = ref(false)
@@ -158,13 +171,11 @@ const toggleTextDropdown = () => {
 const selectHeaderFont = (font: string) => {
     headerFont.value = `'${font}', sans-serif`
     isHeaderDropdownOpen.value = false
-    applySettings()
 }
 
 const selectTextFont = (font: string) => {
     textFont.value = `'${font}', serif`
     isTextDropdownOpen.value = false
-    applySettings()
 }
 
 const getDisplayName = (fontValue: string): string => {
@@ -172,202 +183,29 @@ const getDisplayName = (fontValue: string): string => {
     return match && match[1] ? match[1] : fontValue
 }
 
+const resetSettings = () => {
+    settingsStore.reset()
+    window.location.reload()
+}
+
 const setCensorDivineNames = (censor: boolean) => {
     censorDivineNames.value = censor
-    localStorage.setItem('zayit-censor-divine-names', censor ? 'true' : 'false')
-    applyCensoring()
-}
-
-const applyCensoring = () => {
-    const lineViewers = document.querySelectorAll('.line-viewer')
-    lineViewers.forEach(viewer => {
-        if (censorDivineNames.value) {
-            censorDivineNamesInElement(viewer as HTMLElement)
-        }
-    })
-}
-
-const censorDivineNamesInElement = (element: HTMLElement) => {
-    const walker = document.createTreeWalker(
-        element,
-        NodeFilter.SHOW_TEXT,
-        null
-    )
-
-    const textNodes: Text[] = []
-    let node: Node | null
-    while ((node = walker.nextNode())) {
-        textNodes.push(node as Text)
-    }
-
-    // Diacritics pattern: matches any Hebrew diacritic or cantillation mark
-    const D = '[\\u0591-\\u05C7]*'
-
-    // Patterns for divine names - capture groups preserve all diacritics
-    const patterns = [
-        // יהוה → יקוק - capture each letter with its diacritics separately
-        {
-            regex: new RegExp(`(י${D})(ה${D})(ו${D})(ה${D})`, 'g'),
-            replacement: (match: string, yud: string, heh1: string, vav: string, heh2: string) => {
-                return yud + heh1.replace('ה', 'ק') + vav + heh2.replace('ה', 'ק')
-            }
-        },
-        // אדני → אדנ-י
-        {
-            regex: new RegExp(`(א${D})(ד${D})(נ${D})(י${D})`, 'g'),
-            replacement: '$1$2$3-$4'
-        },
-        // אלהים → אלקים (but NOT אלהים אחרים)
-        {
-            regex: new RegExp(`(א${D})(ל${D})(ה${D})(י${D})(ם${D})(?!\\s*א${D}ח${D}ר${D}י${D}ם)`, 'g'),
-            replacement: (match: string, alef: string, lamed: string, heh: string, yud: string, mem: string) => {
-                return alef + lamed + heh.replace('ה', 'ק') + yud + mem
-            }
-        },
-        // אלוהים → אלוקים (but NOT אלוהים אחרים)
-        {
-            regex: new RegExp(`(א${D})(ל${D})(ו${D})(ה${D})(י${D})(ם${D})(?!\\s*א${D}ח${D}ר${D}י${D}ם)`, 'g'),
-            replacement: (match: string, alef: string, lamed: string, vav: string, heh: string, yud: string, mem: string) => {
-                return alef + lamed + vav + heh.replace('ה', 'ק') + yud + mem
-            }
-        },
-        // אלהי → אלקי
-        {
-            regex: new RegExp(`(א${D})(ל${D})(ה${D})(י${D})`, 'g'),
-            replacement: (match: string, alef: string, lamed: string, heh: string, yud: string) => {
-                return alef + lamed + heh.replace('ה', 'ק') + yud
-            }
-        },
-        // אלוה → אלוק (not followed by י or ם)
-        {
-            regex: new RegExp(`(א${D})(ל${D})(ו${D})(ה${D})(?![יםא])`, 'g'),
-            replacement: (match: string, alef: string, lamed: string, vav: string, heh: string) => {
-                return alef + lamed + vav + heh.replace('ה', 'ק')
-            }
-        },
-    ]
-
-    textNodes.forEach((textNode) => {
-        if (!textNode.nodeValue) return
-        let text = textNode.nodeValue
-
-        patterns.forEach(({ regex, replacement }) => {
-            if (typeof replacement === 'function') {
-                text = text.replace(regex, replacement)
-            } else {
-                text = text.replace(regex, replacement)
-            }
-        })
-
-        textNode.nodeValue = text
-    })
-}
-
-const applySettings = () => {
-    localStorage.setItem('zayit-settings', JSON.stringify({
-        headerFont: headerFont.value,
-        textFont: textFont.value,
-        fontSize: fontSize.value,
-        linePadding: linePadding.value,
-        censorDivineNames: censorDivineNames.value
-    }))
-
-    // Apply font size to line viewer
-    const lineViewers = document.querySelectorAll('.line-viewer')
-    lineViewers.forEach(viewer => {
-        (viewer as HTMLElement).style.fontSize = `${fontSize.value}%`
-    })
-
-    // Apply line padding to all book lines
-    const lines = document.querySelectorAll('.book-line')
-    lines.forEach(line => {
-        if (line instanceof HTMLElement) {
-            line.style.paddingBlockStart = `${linePadding.value}em`
-            line.style.paddingBlockEnd = `${linePadding.value}em`
-        }
-    })
-
-    // Apply fonts via CSS custom properties
-    document.documentElement.style.setProperty('--header-font', headerFont.value)
-    document.documentElement.style.setProperty('--text-font', textFont.value)
+    // Reload to apply censoring from data layer
+    window.location.reload()
 }
 
 onMounted(() => {
-    // Detect available fonts
     detectFonts()
-
-    const savedSettings = localStorage.getItem('zayit-settings')
-    if (savedSettings) {
-        try {
-            const settings = JSON.parse(savedSettings)
-            headerFont.value = settings.headerFont || headerFont.value
-            textFont.value = settings.textFont || textFont.value
-            fontSize.value = settings.fontSize || fontSize.value
-            linePadding.value = settings.linePadding || linePadding.value
-            if (settings.censorDivineNames !== undefined) {
-                censorDivineNames.value = settings.censorDivineNames
-            }
-        } catch (e) {
-            console.error('Failed to parse settings:', e)
-        }
-    }
-    applySettings()
-    applyCensoring()
-})
-
-    // Expose function globally for use after book loads
-    ; (window as any).applyZayitSettings = () => {
-        const savedSettings = localStorage.getItem('zayit-settings')
-        if (savedSettings) {
-            try {
-                const settings = JSON.parse(savedSettings)
-
-                // Apply font size
-                const lineViewers = document.querySelectorAll('.line-viewer')
-                lineViewers.forEach(viewer => {
-                    (viewer as HTMLElement).style.fontSize = `${settings.fontSize || 100}%`
-                })
-
-                // Apply line padding
-                const lines = document.querySelectorAll('.book-line')
-                lines.forEach(line => {
-                    if (line instanceof HTMLElement) {
-                        line.style.paddingBlockStart = `${settings.linePadding || 0.3}em`
-                        line.style.paddingBlockEnd = `${settings.linePadding || 0.3}em`
-                    }
-                })
-
-                // Apply censoring if enabled
-                const savedCensoring = localStorage.getItem('zayit-censor-divine-names')
-                if (savedCensoring === 'true') {
-                    lineViewers.forEach(viewer => {
-                        censorDivineNamesInElement(viewer as HTMLElement)
-                    })
-                }
-            } catch (e) {
-                console.error('Failed to apply settings:', e)
-            }
-        }
-    }
-
-watch([headerFont, textFont, fontSize, linePadding], () => {
-    applySettings()
 })
 </script>
 
 <style scoped>
 .settings-page {
     background: var(--bg-primary);
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
 }
 
 .settings-content {
     padding: 20px;
-    overflow-y: auto;
     direction: rtl;
 }
 
@@ -376,19 +214,13 @@ watch([headerFont, textFont, fontSize, linePadding], () => {
 }
 
 .setting-label {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     font-size: 14px;
-    font-weight: 500;
     color: var(--text-primary);
     margin-bottom: 8px;
 }
 
 .setting-value {
     font-size: 13px;
-    color: var(--text-secondary);
-    font-weight: 400;
 }
 
 .custom-select {
@@ -397,12 +229,8 @@ watch([headerFont, textFont, fontSize, linePadding], () => {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
     direction: rtl;
     height: 38px;
-    display: flex;
-    align-items: center;
     padding: 0 12px;
     user-select: none;
 }
@@ -442,8 +270,6 @@ watch([headerFont, textFont, fontSize, linePadding], () => {
     padding: 8px 12px;
     color: var(--text-primary);
     font-size: 13px;
-    cursor: pointer;
-    transition: background 0.1s ease;
 }
 
 .select-option:hover {
@@ -488,20 +314,16 @@ watch([headerFont, textFont, fontSize, linePadding], () => {
 }
 
 .theme-toggle {
-    display: flex;
     gap: 8px;
 }
 
 .theme-option {
-    flex: 1;
     padding: 10px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 4px;
     color: var(--text-primary);
     font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
 }
 
 .theme-option:hover {
@@ -512,6 +334,20 @@ watch([headerFont, textFont, fontSize, linePadding], () => {
 .theme-option.active {
     background: var(--accent-color);
     color: white;
+    border-color: var(--accent-color);
+}
+
+.reset-button {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.reset-button:hover {
+    background: var(--hover-bg);
     border-color: var(--accent-color);
 }
 </style>

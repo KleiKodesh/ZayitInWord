@@ -31,5 +31,3 @@ const currentPageComponent = computed(() => {
 });
 
 </script>
-
-<style scoped></style>

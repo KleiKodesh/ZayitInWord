@@ -4,13 +4,13 @@
          class="tab-dropdown">
       <template v-for="tab in tabStore.tabs"
                 :key="tab.id">
-        <div :class="['flex-row', 'bar', 'c-pointer', 'tab-item', { active: tab.isActive }]"
+        <div :class="['flex-row bar c-pointer tab-item', { active: tab.isActive }]"
              @click="selectTab(tab.id)">
           <div></div> <!-- spacer -->
-          <span class="center-text bold ellipsis">{{
-            tab.title }}</span>
+          <span class="center-text bold ellipsis">{{ tab.title }}</span>
           <div class="justify-end">
-            <button @click.stop="tabStore.closeTabById(tab.id)">×</button>
+            <button @click.stop="tabStore.closeTabById(tab.id)"
+                    class="flex-center c-pointer">×</button>
           </div>
         </div>
       </template>

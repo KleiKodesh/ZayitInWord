@@ -11,6 +11,7 @@
 
     <div class="bar flex-row search-bar">
       <button @click="resetTree"
+              class="flex-center c-pointer"
               title="אפס עץ">
         <TreeIcon class="rtl-flip" />
       </button>

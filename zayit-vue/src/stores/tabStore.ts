@@ -184,6 +184,25 @@ export const useTabStore = defineStore('tabs', () => {
         }
     };
 
+    const toggleDiacritics = () => {
+        const tab = tabs.value.find(t => t.isActive);
+        if (tab?.bookState) {
+            // Initialize diacritics state if not set
+            if (tab.bookState.diacriticsState === undefined) {
+                tab.bookState.diacriticsState = 0;
+            }
+            // Cycle through states: 0 -> 1 -> 2 -> 0
+            tab.bookState.diacriticsState = (tab.bookState.diacriticsState + 1) % 3;
+        }
+    };
+
+    const toggleLineDisplay = () => {
+        const tab = tabs.value.find(t => t.isActive);
+        if (tab?.bookState) {
+            tab.bookState.isLineDisplayInline = !tab.bookState.isLineDisplayInline;
+        }
+    };
+
     const openSettings = () => {
         // Check if settings tab already exists
         const existingSettingsTab = tabs.value.find(t => t.currentPage === 'settings');
@@ -253,6 +272,8 @@ export const useTabStore = defineStore('tabs', () => {
         closeToc,
         openBook,
         toggleSplitPane,
+        toggleDiacritics,
+        toggleLineDisplay,
         openSettings,
         openAbout
     };

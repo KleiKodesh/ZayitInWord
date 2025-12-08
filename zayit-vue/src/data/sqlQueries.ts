@@ -1,54 +1,4 @@
 export const SqlQueries = {
-  getBookContent: (bookId: number) => `
-    SELECT content, id
-    FROM line 
-    WHERE bookId = ${bookId}
-  `,
-
-  getLines: (bookId: number, start: number, end: number) => `
-    SELECT content
-    FROM line
-    WHERE bookId = ${bookId}
-      AND lineIndex >= ${start}
-      AND lineIndex <= ${end}
-  `,
-
-  getRootCategories: `
-    SELECT DISTINCT
-      Id,
-      ParentId,
-      Title,
-      Level
-    FROM category
-    WHERE Level = 0
-  `,
-
-  getChildCategories: (parentId: number) => `
-    SELECT DISTINCT 
-      Id,
-      ParentId,
-      Title,
-      Level
-    FROM category
-    WHERE parentId = ${parentId}
-  `,
-
-  getBooksByCategoryId: (categoryId: number) => `
-    SELECT DISTINCT
-      Id,
-      CategoryId,
-      Title,
-      HeShortDesc,
-      OrderIndex,
-      TotalLines,
-      HasTargumConnection,
-      HasReferenceConnection,
-      HasCommentaryConnection,
-      HasOtherConnection
-    FROM book 
-    WHERE CategoryId = ${categoryId}
-  `,
-
   getAllCategories: `
     SELECT DISTINCT 
       Id,
@@ -56,43 +6,6 @@ export const SqlQueries = {
       Title,
       Level
     FROM category
-    ORDER BY Level, Id
-  `,
-
-  getCategoriesWithPath: `
-    WITH RECURSIVE CategoryPath AS (
-      -- Base case: root categories (Level = 0)
-      SELECT 
-        Id,
-        ParentId,
-        Title,
-        Level,
-        '' AS Path
-      FROM category
-      WHERE Level = 0
-      
-      UNION ALL
-      
-      -- Recursive case: child categories
-      SELECT 
-        c.Id,
-        c.ParentId,
-        c.Title,
-        c.Level,
-        CASE 
-          WHEN cp.Path = '' THEN cp.Title
-          ELSE cp.Path || ' > ' || cp.Title
-        END AS Path
-      FROM category c
-      INNER JOIN CategoryPath cp ON c.ParentId = cp.Id
-    )
-    SELECT 
-      Id,
-      ParentId,
-      Title,
-      Level,
-      Path
-    FROM CategoryPath
     ORDER BY Level, Id
   `,
 
@@ -111,30 +24,6 @@ export const SqlQueries = {
     FROM book
     ORDER BY CategoryId
   `,
-
-  getBooksByCategory: (title: string, useWildCards = false) => {
-    const searchTitle = useWildCards ? `%${title}%` : title;
-    return `
-      SELECT DISTINCT
-        b.Id,
-        b.CategoryId,
-        b.Title,
-        b.HeShortDesc,
-        b.OrderIndex,
-        b.TotalLines,
-        b.HasTargumConnection,
-        b.HasReferenceConnection,
-        b.HasCommentaryConnection,
-        b.HasOtherConnection
-      FROM book AS b
-      WHERE b.CategoryId IN (
-        SELECT DISTINCT cc.descendantId
-        FROM category c
-        JOIN category_closure cc ON cc.ancestorId = c.Id
-        WHERE c.Title LIKE '${searchTitle}'
-      )
-    `;
-  },
 
   getToc: (docId: number) => `
     SELECT DISTINCT
@@ -181,18 +70,18 @@ export const SqlQueries = {
     WHERE bookId = ${bookId} AND lineIndex = ${lineIndex}
   `,
 
-  getBatchLineContent: (bookId: number, lineIndices: number[]) => {
-    const placeholders = lineIndices.map(() => '?').join(',')
-    return `
-      SELECT lineIndex, content 
-      FROM line 
-      WHERE bookId = ${bookId} AND lineIndex IN (${placeholders})
-    `
-  },
-
   getBookLineCount: (bookId: number) => `
     SELECT TotalLines as totalLines
     FROM book 
     WHERE Id = ${bookId}
+  `,
+
+  getLineRange: (bookId: number, start: number, end: number) => `
+    SELECT lineIndex, content 
+    FROM line 
+    WHERE bookId = ${bookId} 
+      AND lineIndex >= ${start} 
+      AND lineIndex <= ${end} 
+    ORDER BY lineIndex
   `
 }

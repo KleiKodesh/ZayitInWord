@@ -11,6 +11,9 @@ export interface BookState {
     hasConnections?: boolean; // Whether book has any connections (targum, reference, commentary, or other)
     selectedLineIndex?: number; // Currently selected line index for commentary
     commentaryGroupIndex?: number; // Currently selected commentary group index
+    diacriticsState?: number; // 0 = show all, 1 = hide cantillation, 2 = hide nikkud too
+    isLineDisplayInline?: boolean; // false = block display, true = inline display
+    originalHtml?: string; // Store original HTML for diacritics restoration
 }
 
 export interface Tab {

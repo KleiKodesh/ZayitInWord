@@ -26,7 +26,8 @@ const handleClick = () => {
 
 <style scoped>
 .book-line {
-    padding: 0 5px;
+    padding-inline: 5px;
+    padding-block: var(--line-padding, 0.3em);
     position: relative;
     font-family: var(--text-font);
 }
@@ -51,7 +52,8 @@ const handleClick = () => {
     background-color: var(--hover-bg)
 }
 
-.book-line.selected::after {
+/* Block mode selection - only when NOT in inline mode AND split pane is open */
+.book-line.selected:not(.inline-mode).show-selection::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -60,5 +62,10 @@ const handleClick = () => {
     width: 3px;
     height: 1em;
     background-color: var(--accent-color);
+}
+
+/* Inline mode selection - use background instead of ::after AND split pane is open */
+.book-line.inline-mode.selected.show-selection {
+    background-color: var(--accent-bg);
 }
 </style>

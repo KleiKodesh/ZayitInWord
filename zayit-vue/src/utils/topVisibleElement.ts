@@ -2,6 +2,7 @@
  * Top Visible Element
  * 
  * Utilities for finding the top visible element within scrollable containers
+ * used for saving lineindex
  */
 
 /**
