@@ -1,11 +1,11 @@
 <template>
-    <div class="selectable line-1.6 justify book-line"
-         :class="{ selected: isSelected }"
-         tabindex="0"
-         :data-line-index="lineIndex"
-         @click="handleClick"
-         v-html="content">
-    </div>
+    <span class="selectable line-1.6 justify book-line"
+          :class="{ selected: isSelected }"
+          tabindex="0"
+          :data-line-index="lineIndex"
+          @click="handleClick"
+          v-html="content + ' '">
+    </span>
 </template>
 
 <script setup lang="ts">
@@ -26,10 +26,16 @@ const handleClick = () => {
 
 <style scoped>
 .book-line {
-    padding-inline: 5px;
-    padding-block: var(--line-padding, 0.3em);
-    position: relative;
     font-family: var(--text-font);
+    line-height: var(--line-height, 1.2);
+}
+
+.book-line:not(.inline-mode) {
+    display: block;
+}
+
+.book-line.inline-mode {
+    /* padding-left: 5px; */
 }
 
 .book-line :deep(h1),

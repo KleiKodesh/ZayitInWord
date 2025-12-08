@@ -15,7 +15,7 @@ const DEFAULT_SETTINGS: Settings = {
     headerFont: "'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif",
     textFont: "'Times New Roman', Times, serif",
     fontSize: 100,
-    linePadding: 0.3,
+    linePadding: 1.6,
     censorDivineNames: false
 }
 
@@ -60,7 +60,7 @@ export const useSettingsStore = defineStore('settings', () => {
         document.documentElement.style.setProperty('--header-font', headerFont.value)
         document.documentElement.style.setProperty('--text-font', textFont.value)
         document.documentElement.style.setProperty('--font-size', `${fontSize.value}%`)
-        document.documentElement.style.setProperty('--line-padding', `${linePadding.value}em`)
+        document.documentElement.style.setProperty('--line-height', linePadding.value.toString())
     }
 
     const reset = () => {

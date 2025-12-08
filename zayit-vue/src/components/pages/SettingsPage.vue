@@ -4,7 +4,7 @@
         <div class="overflow-y settings-content">
             <!-- Header Font -->
             <div class="setting-group">
-                <label class="flex-row justify-end bold setting-label">גופן
+                <label class="flex-row bold setting-label">גופן
                     כותרות</label>
                 <div class="flex-row c-pointer custom-select"
                      @click="toggleHeaderDropdown"
@@ -28,7 +28,7 @@
 
             <!-- Text Font -->
             <div class="setting-group">
-                <label class="flex-row justify-end bold setting-label">גופן
+                <label class="flex-row bold setting-label">גופן
                     טקסט</label>
                 <div class="flex-row c-pointer custom-select"
                      @click="toggleTextDropdown"
@@ -52,9 +52,10 @@
 
             <!-- Font Size -->
             <div class="setting-group">
-                <label class="flex-row justify-end bold setting-label">
+                <label class="flex-between bold setting-label">
                     גודל גופן
-                    <span class="text-secondary setting-value">{{ fontSize
+                    <span class="text-secondary setting-value">{{
+                        fontSize
                         }}%</span>
                 </label>
                 <input type="range"
@@ -67,22 +68,22 @@
 
             <!-- Line Padding -->
             <div class="setting-group">
-                <label class="flex-row justify-end bold setting-label">
+                <label class="flex-between bold setting-label">
                     ריווח שורות
                     <span class="text-secondary setting-value">{{ linePadding
-                        }}em</span>
+                        }}</span>
                 </label>
                 <input type="range"
                        v-model.number="linePadding"
-                       min="0"
-                       max="2"
+                       min="1.2"
+                       max="3.0"
                        step="0.1"
                        class="setting-slider" />
             </div>
 
             <!-- Divine Name Censoring -->
             <div class="setting-group">
-                <label class="flex-row justify-end bold setting-label">כיסוי שם
+                <label class="flex-row  bold setting-label">כיסוי שם
                     ה'</label>
                 <div class="flex-row theme-toggle">
                     <button :class="{ active: !censorDivineNames }"
@@ -206,7 +207,6 @@ onMounted(() => {
 
 .settings-content {
     padding: 20px;
-    direction: rtl;
 }
 
 .setting-group {

@@ -42,17 +42,12 @@
       </button>
 
       <!-- Diacritics toggle button -->
-      <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
-              @click.stop="handleDiacriticsClick"
-              :class="['flex-center c-pointer diacritics-toggle-btn', diacriticsStateClass]"
-              :title="diacriticsTitle">
-        <span class="diacritics-icon">{{ diacriticsIcon }}</span>
-      </button>
+      <DiacriticsToggle />
 
       <!-- Line display toggle button -->
       <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
               @click.stop="handleLineDisplayClick"
-              class="flex-center c-pointer line-display-btn"
+              class="flex-center c-pointer"
               title="החלף תצוגת שורות">
         <align-left-icon v-if="isLineDisplayInline" />
         <align-justify-icon v-else />
@@ -91,34 +86,14 @@ import AboutIcon from './icons/AboutIcon.vue';
 import MoreVerticalIcon from './icons/MoreVerticalIcon.vue';
 import AlignLeftIcon from './icons/AlignLeftIcon.vue';
 import AlignJustifyIcon from './icons/AlignJustifyIcon.vue';
+import DiacriticsToggle from './TabHeaderDiacriticsToggle.vue';
 import { useTabStore } from '../stores/tabStore';
 import { toggleTheme } from '../utils/theme';
 
 const tabStore = useTabStore();
 const isDropdownOpen = ref(false);
 
-// Diacritics state
-const diacriticsState = computed(() => {
-  return tabStore.activeTab?.bookState?.diacriticsState || 0;
-});
 
-const diacriticsStateClass = computed(() => {
-  if (diacriticsState.value === 1) return 'state-1';
-  if (diacriticsState.value === 2) return 'state-2';
-  return '';
-});
-
-const diacriticsIcon = computed(() => {
-  if (diacriticsState.value === 1) return 'א̇';  // With cantillation mark
-  if (diacriticsState.value === 2) return 'א';   // Plain letter
-  return 'אָ֑';  // With both nikkud and cantillation
-});
-
-const diacriticsTitle = computed(() => {
-  if (diacriticsState.value === 0) return 'הסר טעמים';
-  if (diacriticsState.value === 1) return 'הסר גם ניקוד';
-  return 'שחזר טעמים וניקוד';
-});
 
 // Line display state
 const isLineDisplayInline = computed(() => {
@@ -176,9 +151,7 @@ const handleThemeClick = () => {
   toggleTheme();
 };
 
-const handleDiacriticsClick = () => {
-  tabStore.toggleDiacritics();
-};
+
 
 const handleLineDisplayClick = () => {
   tabStore.toggleLineDisplay();
@@ -265,8 +238,6 @@ onUnmounted(() => {
   direction: rtl;
 }
 
-
-
 .dropdown-item svg {
   flex-shrink: 0;
   opacity: 0.7;
@@ -286,71 +257,5 @@ onUnmounted(() => {
 
 .dropdown-item :deep(.theme-toggle) {
   pointer-events: none;
-}
-
-/* Diacritics button */
-.diacritics-toggle-btn {
-  padding: 6px;
-  background: transparent;
-  border: none;
-  border-radius: 4px;
-  width: 32px;
-  height: 32px;
-}
-
-.diacritics-toggle-btn:hover {
-  background: var(--hover-bg);
-  transform: scale(1.05);
-}
-
-.diacritics-icon {
-  font-size: 18px;
-  font-family: 'Times New Roman', Times, serif;
-  color: var(--text-primary);
-  opacity: 0.7;
-  transition: opacity 0.2s ease, color 0.2s ease;
-  user-select: none;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: translateY(-3px);
-}
-
-.diacritics-toggle-btn:hover .diacritics-icon {
-  opacity: 1;
-}
-
-.diacritics-toggle-btn.state-1 .diacritics-icon {
-  opacity: 1;
-  color: #ff8c00;
-}
-
-.diacritics-toggle-btn.state-2 .diacritics-icon {
-  opacity: 1;
-  color: #ff4500;
-}
-
-/* Line display button */
-.line-display-btn {
-  padding: 6px;
-  background: transparent;
-  border: none;
-  border-radius: 4px;
-  width: 32px;
-  height: 32px;
-}
-
-.line-display-btn:hover {
-  background: var(--hover-bg);
-  transform: scale(1.05);
-}
-
-.line-display-btn svg {
-  opacity: 0.7;
-}
-
-.line-display-btn:hover svg {
-  opacity: 1;
 }
 </style>

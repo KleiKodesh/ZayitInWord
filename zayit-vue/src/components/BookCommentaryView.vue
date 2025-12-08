@@ -65,7 +65,7 @@
 
             <div v-else
                  class="flex-column commentary-links">
-                <div v-for="(group, groupIndex) in linkGroups"
+                <div v-for="(group, groupIndex) in processedLinkGroups"
                      :key="groupIndex"
                      class="flex-column commentary-group"
                      :ref="el => setGroupRef(el, groupIndex)">
@@ -108,6 +108,65 @@ const tabStore = useTabStore()
 // Commentary state
 const linkGroups = ref<CommentaryLinkGroup[]>([])
 const isLoading = ref(false)
+
+// Computed property for processed commentary content with diacritics filtering
+const processedLinkGroups = computed(() => {
+    const activeTab = tabStore.activeTab
+    const diacriticsState = activeTab?.bookState?.diacriticsState
+
+    if (!diacriticsState || diacriticsState === 0) {
+        return linkGroups.value // Return original content if no filtering needed
+    }
+
+    return linkGroups.value.map(group => ({
+        ...group,
+        links: group.links.map(link => ({
+            ...link,
+            html: applyDiacriticsFilter(link.html, diacriticsState)
+        }))
+    }))
+})
+
+// Helper function to apply diacritics filtering to HTML content
+function applyDiacriticsFilter(htmlContent: string, state: number): string {
+    if (!htmlContent || state === 0) return htmlContent
+
+    // Create a temporary div to parse HTML
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = htmlContent
+
+    const walker = document.createTreeWalker(
+        tempDiv,
+        NodeFilter.SHOW_TEXT,
+        null
+    )
+
+    const textNodes: Text[] = []
+    let node: Node | null
+    while ((node = walker.nextNode())) {
+        textNodes.push(node as Text)
+    }
+
+    textNodes.forEach(textNode => {
+        if (!textNode) return
+
+        let text = textNode.nodeValue || ''
+
+        // State 1: Remove cantillations only (U+0591-U+05AF)
+        if (state >= 1) {
+            text = text.replace(/[\u0591-\u05AF]/g, '')
+        }
+
+        // State 2: Remove nikkud as well (U+05B0-U+05BD, U+05C1, U+05C2, U+05C4, U+05C5)
+        if (state >= 2) {
+            text = text.replace(/[\u05B0-\u05BD\u05C1\u05C2\u05C4\u05C5]/g, '')
+        }
+
+        textNode.nodeValue = text
+    })
+
+    return tempDiv.innerHTML
+}
 
 // Load commentary when props change
 watch([() => props.bookId, () => props.selectedLineIndex], async ([bookId, lineIndex]) => {
@@ -163,8 +222,8 @@ const groupRefs = ref<Map<number, HTMLElement>>(new Map())
 
 // Computed property for current group name
 const currentGroupName = computed(() => {
-    if (linkGroups.value.length > 0 && currentGroupIndex.value < linkGroups.value.length) {
-        const group = linkGroups.value[currentGroupIndex.value]
+    if (processedLinkGroups.value.length > 0 && currentGroupIndex.value < processedLinkGroups.value.length) {
+        const group = processedLinkGroups.value[currentGroupIndex.value]
         return group ? group.groupName : ''
     }
     return ''
@@ -172,7 +231,7 @@ const currentGroupName = computed(() => {
 
 // Computed property for combobox options
 const groupOptions = computed<ComboboxOption[]>(() => {
-    return linkGroups.value.map((group, index) => ({
+    return processedLinkGroups.value.map((group, index) => ({
         label: group.groupName,
         value: index
     }))

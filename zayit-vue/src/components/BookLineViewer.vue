@@ -1,8 +1,7 @@
 <template>
     <div v-if="viewerState.totalLines.value > 0"
          ref="containerRef"
-         class="overflow-y height-fill justify relative line-viewer"
-         :data-book-id="myTab?.bookState?.bookId"
+         class="overflow-y height-fill justify line-viewer"
          @scroll.passive="handleScrollDebounced">
 
         <BookLine v-for="index in viewerState.totalLines.value"
@@ -12,7 +11,10 @@
                   :content="processedLines[index - 1] || '-'"
                   :line-index="index - 1"
                   :is-selected="selectedLineIndex === (index - 1)"
-                  :class="{ 'show-selection': myTab?.bookState?.showBottomPane }"
+                  :class="{
+                    'show-selection': myTab?.bookState?.showBottomPane,
+                    'inline-mode': myTab?.bookState?.isLineDisplayInline
+                }"
                   @line-click="handleLineClick" />
     </div>
 </template>
@@ -45,9 +47,8 @@ const selectedLineIndex = ref<number | null>(null)
 const processedLines = computed(() => {
     const lines = viewerState.lines.value
     const diacriticsState = myTab.value?.bookState?.diacriticsState
-    const isLineDisplayInline = myTab.value?.bookState?.isLineDisplayInline
 
-    if (!diacriticsState && !isLineDisplayInline) {
+    if (!diacriticsState) {
         return lines // Return original lines if no processing needed
     }
 
@@ -66,10 +67,7 @@ const processedLines = computed(() => {
             processedLine = applyDiacriticsFilter(processedLine, diacriticsState)
         }
 
-        // Apply inline display mode
-        if (isLineDisplayInline) {
-            processedLine = applyInlineMode(processedLine)
-        }
+        // Note: Inline display mode is now handled via props, not content modification
 
         processedLines[Number(index)] = processedLine
     })
@@ -223,27 +221,7 @@ function applyDiacriticsFilter(htmlContent: string, state: number): string {
     return tempDiv.innerHTML
 }
 
-// Helper function to apply inline mode to HTML content
-function applyInlineMode(htmlContent: string): string {
-    if (!htmlContent) return htmlContent
 
-    // Create a temporary div to parse HTML
-    const tempDiv = document.createElement('div')
-    tempDiv.innerHTML = htmlContent
-
-    // Check if content has headers
-    const hasHeaders = tempDiv.querySelector('h1, h2, h3, h4, h5, h6')
-
-    if (!hasHeaders) {
-        // Add inline-mode class to the root element if it doesn't have headers
-        const rootElement = tempDiv.firstElementChild
-        if (rootElement) {
-            rootElement.classList.add('inline-mode')
-        }
-    }
-
-    return tempDiv.innerHTML
-}
 
 
 

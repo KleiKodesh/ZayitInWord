@@ -150,7 +150,8 @@ export const useTabStore = defineStore('tabs', () => {
                     bookId,
                     bookTitle,
                     hasConnections,
-                    initialLineIndex
+                    initialLineIndex,
+                    isLineDisplayInline: false // Default to block display (justified text)
                 };
             } else {
                 // Same book - update initialLineIndex if provided, otherwise clear it
@@ -199,6 +200,10 @@ export const useTabStore = defineStore('tabs', () => {
     const toggleLineDisplay = () => {
         const tab = tabs.value.find(t => t.isActive);
         if (tab?.bookState) {
+            // Initialize to false if undefined, then toggle
+            if (tab.bookState.isLineDisplayInline === undefined) {
+                tab.bookState.isLineDisplayInline = false;
+            }
             tab.bookState.isLineDisplayInline = !tab.bookState.isLineDisplayInline;
         }
     };
