@@ -1,6 +1,6 @@
 <template>
-    <span class="selectable line-1.6 book-line"
-          :class="{ selected: isSelected, justify: !inlineMode }"
+    <span class="selectable line-1.6 justify book-line"
+          :class="{ selected: isSelected }"
           tabindex="0"
           :data-line-index="lineIndex"
           @click="handleClick"
@@ -13,7 +13,6 @@ const props = defineProps<{
     content: string
     lineIndex: number
     isSelected: boolean
-    inlineMode?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -37,8 +36,7 @@ const handleClick = () => {
 }
 
 .book-line.inline-mode {
-    display: inline;
-    padding: 0;
+    /* padding-left: 5px; */
 }
 
 .book-line :deep(h1),
@@ -64,10 +62,26 @@ const handleClick = () => {
     position: relative;
 }
 
-/* Block mode selection */
-.book-line.selected.show-selection {
+/* Block mode selection - only when NOT in inline mode AND split pane is open */
+.book-line.selected:not(.inline-mode).show-selection {
     position: relative;
 }
+
+/* .book-line.selected:not(.inline-mode).show-selection::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: -7px;
+    width: 3px;
+    height: 1em;
+    background-color: var(--accent-color);
+} */
+
+/* Inline mode selection - use background instead of ::after AND split pane is open */
+/* .book-line.inline-mode.selected.show-selection {
+    background-color: var(--accent-bg);
+} */
 
 .book-line.selected.show-selection {
     background-color: var(--hover-bg);

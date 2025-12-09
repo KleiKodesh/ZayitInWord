@@ -1,18 +1,14 @@
 import { ref, computed } from 'vue'
 
-export interface SearchMatch {
-    itemIndex: number
-    occurrence: number
-}
-
-export interface SearchableItem {
+interface SearchItem {
     index: number
     content: string
 }
 
-// Helper to strip Hebrew diacritics for matching
-function stripDiacritics(text: string): string {
-    return text.replace(/[\u0591-\u05C7]/g, '').toLowerCase()
+interface SearchMatch {
+    itemIndex: number
+    occurrence: number
+    totalInItem: number
 }
 
 export function useContentSearch() {
@@ -21,55 +17,56 @@ export function useContentSearch() {
     const currentMatchIndex = ref(-1)
 
     const totalMatches = computed(() => matches.value.length)
-    const currentMatch = computed(() =>
-        currentMatchIndex.value >= 0 ? matches.value[currentMatchIndex.value] : null
-    )
 
-    function searchInItems(items: SearchableItem[], query: string) {
-        searchQuery.value = query
-
-        if (!query.trim()) {
-            matches.value = []
-            currentMatchIndex.value = -1
-            return
+    const currentMatch = computed(() => {
+        if (currentMatchIndex.value >= 0 && currentMatchIndex.value < matches.value.length) {
+            return matches.value[currentMatchIndex.value]
         }
+        return null
+    })
 
-        const searchStripped = stripDiacritics(query)
-        const foundMatches: SearchMatch[] = []
+    function searchInItems(items: SearchItem[], query: string) {
+        searchQuery.value = query
+        matches.value = []
+        currentMatchIndex.value = -1
+
+        if (!query) return
+
+        const normalizedQuery = removeDiacritics(query.toLowerCase())
 
         items.forEach(item => {
-            if (!item.content || item.content === '-') return
-
-            // Extract text from HTML
-            const tempDiv = document.createElement('div')
-            tempDiv.innerHTML = item.content
-            const text = tempDiv.textContent || ''
-            const textStripped = stripDiacritics(text)
-
-            // Count all occurrences in this item
-            let searchIndex = 0
+            const normalizedContent = removeDiacritics(stripHtml(item.content).toLowerCase())
+            let startIndex = 0
             let occurrence = 0
-            while (searchIndex < textStripped.length) {
-                const matchIndex = textStripped.indexOf(searchStripped, searchIndex)
-                if (matchIndex === -1) break
-                foundMatches.push({ itemIndex: item.index, occurrence })
-                occurrence++
-                searchIndex = matchIndex + searchStripped.length
-            }
-        })
 
-        matches.value = foundMatches
-        currentMatchIndex.value = foundMatches.length > 0 ? 0 : -1
+            while (true) {
+                const index = normalizedContent.indexOf(normalizedQuery, startIndex)
+                if (index === -1) break
+
+                matches.value.push({
+                    itemIndex: item.index,
+                    occurrence,
+                    totalInItem: 0 // Will be updated after
+                })
+
+                occurrence++
+                startIndex = index + 1
+            }
+
+            // Update totalInItem for all matches in this item
+            const itemMatches = matches.value.filter(m => m.itemIndex === item.index)
+            itemMatches.forEach(m => m.totalInItem = itemMatches.length)
+        })
     }
 
-    function navigateToMatch(index: number) {
-        if (index >= 0 && index < matches.value.length) {
-            currentMatchIndex.value = index
+    function navigateToMatch(matchIndex: number) {
+        if (matchIndex >= 0 && matchIndex < matches.value.length) {
+            currentMatchIndex.value = matchIndex
         }
     }
 
     function highlightMatches(htmlContent: string, query: string, currentOccurrence: number = -1): string {
-        if (!htmlContent || !query) return htmlContent
+        if (!query) return htmlContent
 
         const tempDiv = document.createElement('div')
         tempDiv.innerHTML = htmlContent
@@ -86,66 +83,76 @@ export function useContentSearch() {
             textNodes.push(node as Text)
         }
 
-        const searchStripped = stripDiacritics(query)
-        let occurrenceIndex = 0
+        const normalizedQuery = removeDiacritics(query.toLowerCase())
+        let globalOccurrence = 0
 
         textNodes.forEach(textNode => {
             const text = textNode.nodeValue || ''
-            const textStripped = stripDiacritics(text)
+            const lowerText = text.toLowerCase()
 
-            if (textStripped.includes(searchStripped)) {
+            // Build a map from normalized position to original position
+            const positionMap: number[] = []
+            let normalizedIndex = 0
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i]
+                if (char && !isDiacritic(char)) {
+                    positionMap[normalizedIndex] = i
+                    normalizedIndex++
+                }
+            }
+            positionMap[normalizedIndex] = text.length // End position
+
+            const normalizedText = removeDiacritics(lowerText)
+
+            const parts: Array<{ text: string; isMatch: boolean; isCurrent: boolean }> = []
+            let lastIndex = 0
+
+            let searchStart = 0
+            while (true) {
+                const normalizedMatchIndex = normalizedText.indexOf(normalizedQuery, searchStart)
+                if (normalizedMatchIndex === -1) break
+
+                // Map normalized position back to original position
+                const originalStartIndex = positionMap[normalizedMatchIndex] || 0
+                const originalEndIndex = positionMap[normalizedMatchIndex + normalizedQuery.length] || text.length
+
+                // Add text before match
+                if (originalStartIndex > lastIndex) {
+                    parts.push({ text: text.substring(lastIndex, originalStartIndex), isMatch: false, isCurrent: false })
+                }
+
+                // Add match
+                const isCurrent = globalOccurrence === currentOccurrence
+                parts.push({
+                    text: text.substring(originalStartIndex, originalEndIndex),
+                    isMatch: true,
+                    isCurrent
+                })
+
+                globalOccurrence++
+                lastIndex = originalEndIndex
+                searchStart = normalizedMatchIndex + 1
+            }
+
+            // Add remaining text
+            if (lastIndex < text.length) {
+                parts.push({ text: text.substring(lastIndex), isMatch: false, isCurrent: false })
+            }
+
+            if (parts.length > 0) {
                 const fragment = document.createDocumentFragment()
-                let lastIndex = 0
-                let searchIndex = 0
-
-                while (searchIndex < textStripped.length) {
-                    const matchIndex = textStripped.indexOf(searchStripped, searchIndex)
-                    if (matchIndex === -1) break
-
-                    // Find actual character positions in original text
-                    let actualStart = 0
-                    let strippedCount = 0
-                    for (let i = 0; i < text.length && strippedCount < matchIndex; i++) {
-                        const char = text[i]
-                        if (char && stripDiacritics(char)) {
-                            strippedCount++
+                parts.forEach(part => {
+                    if (part.isMatch) {
+                        const mark = document.createElement('mark')
+                        if (part.isCurrent) {
+                            mark.className = 'current'
                         }
-                        actualStart = i + 1
+                        mark.textContent = part.text
+                        fragment.appendChild(mark)
+                    } else {
+                        fragment.appendChild(document.createTextNode(part.text))
                     }
-
-                    let actualEnd = actualStart
-                    strippedCount = 0
-                    for (let i = actualStart; i < text.length && strippedCount < searchStripped.length; i++) {
-                        const char = text[i]
-                        if (char && stripDiacritics(char)) {
-                            strippedCount++
-                        }
-                        actualEnd = i + 1
-                    }
-
-                    // Add text before match
-                    if (actualStart > lastIndex) {
-                        fragment.appendChild(document.createTextNode(text.substring(lastIndex, actualStart)))
-                    }
-
-                    // Add highlighted match
-                    const mark = document.createElement('mark')
-                    if (occurrenceIndex === currentOccurrence) {
-                        mark.className = 'current'
-                    }
-                    mark.textContent = text.substring(actualStart, actualEnd)
-                    fragment.appendChild(mark)
-
-                    occurrenceIndex++
-                    lastIndex = actualEnd
-                    searchIndex = matchIndex + searchStripped.length
-                }
-
-                // Add remaining text
-                if (lastIndex < text.length) {
-                    fragment.appendChild(document.createTextNode(text.substring(lastIndex)))
-                }
-
+                })
                 textNode.parentNode?.replaceChild(fragment, textNode)
             }
         })
@@ -153,10 +160,24 @@ export function useContentSearch() {
         return tempDiv.innerHTML
     }
 
+    function stripHtml(html: string): string {
+        const tempDiv = document.createElement('div')
+        tempDiv.innerHTML = html
+        return tempDiv.textContent || ''
+    }
+
+    function removeDiacritics(text: string): string {
+        // Remove Hebrew diacritics (nikkud and cantillation marks)
+        return text.replace(/[\u0591-\u05C7]/g, '')
+    }
+
+    function isDiacritic(char: string): boolean {
+        const code = char.charCodeAt(0)
+        return code >= 0x0591 && code <= 0x05C7
+    }
+
     return {
         searchQuery,
-        matches,
-        currentMatchIndex,
         totalMatches,
         currentMatch,
         searchInItems,

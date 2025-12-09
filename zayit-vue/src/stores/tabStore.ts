@@ -178,11 +178,6 @@ export const useTabStore = defineStore('tabs', () => {
         }
     };
 
-    const closeAllTabs = () => {
-        tabs.value = [];
-        addTab();
-    };
-
     const toggleSplitPane = () => {
         const tab = tabs.value.find(t => t.isActive);
         if (tab?.bookState) {
@@ -210,13 +205,6 @@ export const useTabStore = defineStore('tabs', () => {
                 tab.bookState.isLineDisplayInline = false;
             }
             tab.bookState.isLineDisplayInline = !tab.bookState.isLineDisplayInline;
-        }
-    };
-
-    const toggleBookSearch = (open?: boolean) => {
-        const tab = tabs.value.find(t => t.isActive);
-        if (tab?.bookState) {
-            tab.bookState.isSearchOpen = open !== undefined ? open : !tab.bookState.isSearchOpen;
         }
     };
 
@@ -282,7 +270,6 @@ export const useTabStore = defineStore('tabs', () => {
         addTab,
         closeTab,
         closeTabById,
-        closeAllTabs,
         setActiveTab,
         resetTab,
         setPage,
@@ -292,7 +279,6 @@ export const useTabStore = defineStore('tabs', () => {
         toggleSplitPane,
         toggleDiacritics,
         toggleLineDisplay,
-        toggleBookSearch,
         openSettings,
         openAbout
     };

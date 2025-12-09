@@ -41,3 +41,13 @@ body {
   direction: inherit;
 }
 
+
+/* Search highlight styles */
+mark {
+  background-color: rgba(255, 235, 59, 0.4);
+  color: inherit;
+}
+
+mark.current {
+  background-color: rgba(255, 152, 0, 0.6);
+}

@@ -2,10 +2,7 @@
     <div ref="treeContainerRef"
          class="overflow-y height-fill"
          @keydown="navigator?.handleKeyDown">
-        <div v-if="categoryTreeStore.isLoading"
-             class="flex-center height-fill">
-            <LoadingIcon />
-        </div>
+        <LoadingIcon v-if="categoryTreeStore.isLoading" />
         <template v-else>
             <BookTreeCategoryNode v-for="(category, index) in categoryTreeStore.categoryTree"
                                   :key="category.id"

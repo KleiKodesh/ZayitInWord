@@ -49,18 +49,18 @@
         </div>
       </div>
 
-      <button v-if="tabStore.activeTab?.currentPage === 'bookview' && hasConnections"
-              @click.stop="toggleSplitPane"
-              class="flex-center c-pointer"
-              title="פאנל תחתון">
-        <split-pane-icon />
-      </button>
-
       <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
               @click.stop="openSearch"
               class="flex-center c-pointer"
               title="חיפוש (Ctrl+F)">
         <search-icon />
+      </button>
+
+      <button v-if="tabStore.activeTab?.currentPage === 'bookview' && hasConnections"
+              @click.stop="toggleSplitPane"
+              class="flex-center c-pointer"
+              title="פאנל תחתון">
+        <split-pane-icon />
       </button>
 
       <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
@@ -93,8 +93,8 @@ import { computed, ref, onMounted, onUnmounted } from 'vue';
 import ThemeIcon from './icons/ThemeIcon.vue';
 import HomeIcon from './icons/HomeIcon.vue';
 import TreeIcon from './icons/TreeIcon.vue';
-import SearchIcon from './icons/SearchIcon.vue';
 import SplitPaneIcon from './icons/SplitPaneIcon.vue';
+import SearchIcon from './icons/SearchIcon.vue';
 import SettingsIcon from './icons/SettingsIcon.vue';
 import AboutIcon from './icons/AboutIcon.vue';
 import MoreVerticalIcon from './icons/MoreVerticalIcon.vue';
@@ -120,10 +120,6 @@ const hasConnections = computed(() => {
   return bookState.hasConnections || false;
 });
 
-const openSearch = () => {
-  tabStore.toggleBookSearch(true);
-};
-
 const goToToc = () => {
   const tab = tabStore.activeTab;
   if (tab?.bookState) {
@@ -133,6 +129,10 @@ const goToToc = () => {
       tabStore.openBookToc(tab.title, tab.bookState.bookId);
     }
   }
+};
+
+const openSearch = () => {
+  tabStore.toggleBookSearch(true);
 };
 
 const toggleSplitPane = () => {

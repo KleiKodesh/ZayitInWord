@@ -9,7 +9,7 @@ namespace Zayit.SeforimDb
 {
     public static class DbQueries
     {
-        static DbManager _db;
+        static readonly DbManager _db = new DbManager();
 
         /// <summary>
         /// Execute arbitrary SQL query sent from TypeScript
@@ -17,9 +17,6 @@ namespace Zayit.SeforimDb
         /// </summary>
         public static object ExecuteQuery(string sql, object[] parameters = null)
         {
-            if (_db == null)
-                _db = new DbManager();
-
             System.Diagnostics.Debug.WriteLine($"Executing SQL: {sql}");
             System.Diagnostics.Debug.WriteLine($"DB Connection null: {_db?.DapperConnection == null}");
             

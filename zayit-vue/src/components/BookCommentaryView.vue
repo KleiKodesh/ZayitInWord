@@ -59,7 +59,7 @@
             <button class="flex-center c-pointer commentary-close-btn"
                     @click="handleClose"
                     title="סגור פאנל">
-                ‐
+                -
             </button>
         </div>
 
@@ -163,24 +163,29 @@ function handleNavigateToMatch(matchIndex: number) {
     search.navigateToMatch(matchIndex)
     const match = search.currentMatch.value
     if (match) {
-        // Calculate group and link index from combined index
+        // Calculate group index from combined index
         const groupIndex = Math.floor(match.itemIndex / 1000)
-        const linkIndex = match.itemIndex % 1000
 
         // Navigate to the group
         currentGroupIndex.value = groupIndex
         scrollToGroup(groupIndex)
 
-        // Wait for render, then scroll to the mark
+        // Wait for render, then fine-tune scroll position to center the mark
         setTimeout(() => {
             const currentMark = document.querySelector('.commentary-content mark.current')
             if (currentMark && commentaryContentRef.value) {
                 const markRect = currentMark.getBoundingClientRect()
                 const contentRect = commentaryContentRef.value.getBoundingClientRect()
 
-                const isVisible = markRect.top >= contentRect.top &&
+                // Account for search bar height (approximately 60px)
+                const searchBarOffset = 60
+                const effectiveTop = contentRect.top + searchBarOffset
+
+                // Check if mark is visible below search bar
+                const isVisible = markRect.top >= effectiveTop &&
                     markRect.bottom <= contentRect.bottom
 
+                // If not visible, adjust scroll to center it
                 if (!isVisible) {
                     const offset = markRect.top - contentRect.top - (contentRect.height / 2) + (markRect.height / 2)
                     commentaryContentRef.value.scrollTop += offset
@@ -190,7 +195,7 @@ function handleNavigateToMatch(matchIndex: number) {
     }
 }
 
-// Computed property for processed commentary content with diacritics filtering and search highlighting
+// Computed property for processed commentary content with diacritics filtering
 const processedLinkGroups = computed(() => {
     const activeTab = tabStore.activeTab
     const diacriticsState = activeTab?.bookState?.diacriticsState
@@ -262,8 +267,6 @@ function applyDiacriticsFilter(htmlContent: string, state: number): string {
 
     return tempDiv.innerHTML
 }
-
-
 
 // Load commentary when props change
 watch([() => props.bookId, () => props.selectedLineIndex], async ([bookId, lineIndex]) => {
@@ -411,26 +414,8 @@ onMounted(() => {
         commentaryContentRef.value.addEventListener('scroll', () => {
             if (commentaryContentRef.value) {
                 savedScrollPosition.value = commentaryContentRef.value.scrollTop
-                saveScrollPositionToTab()
             }
         })
-    }
-})
-
-// Restore scroll position after content loads
-watch(() => linkGroups.value.length, (newLength) => {
-    if (newLength > 0 && commentaryContentRef.value) {
-        const activeTab = tabStore.activeTab
-        const savedScrollPos = activeTab?.bookState?.commentaryScrollPosition
-
-        if (savedScrollPos !== undefined) {
-            // Wait for content to render, then restore scroll
-            setTimeout(() => {
-                if (commentaryContentRef.value) {
-                    commentaryContentRef.value.scrollTop = savedScrollPos
-                }
-            }, 50)
-        }
     }
 })
 
@@ -442,32 +427,15 @@ function saveGroupIndexToTab() {
     }
 }
 
-// Save scroll position to tab state
-function saveScrollPositionToTab() {
-    const activeTab = tabStore.activeTab
-    if (activeTab?.bookState && commentaryContentRef.value) {
-        activeTab.bookState.commentaryScrollPosition = commentaryContentRef.value.scrollTop
-    }
-}
-
-// Reset group index when new commentary loads (but don't scroll yet)
+// Reset group index when new commentary loads
 watch(() => linkGroups.value, () => {
-    const activeTab = tabStore.activeTab
-    const savedGroupIndex = activeTab?.bookState?.commentaryGroupIndex
-
-    // Only reset if no saved index or saved index is invalid
-    if (savedGroupIndex === undefined || savedGroupIndex >= linkGroups.value.length) {
-        currentGroupIndex.value = 0
-        saveGroupIndexToTab()
-    }
+    currentGroupIndex.value = 0
+    saveGroupIndexToTab()
 }, { immediate: true })
 
-watch(currentGroupIndex, (newIndex, oldIndex) => {
-    // Only scroll if user changed the index (not restoration)
-    if (oldIndex !== undefined) {
-        saveGroupIndexToTab()
-        scrollToGroup(newIndex)
-    }
+watch(currentGroupIndex, (newIndex) => {
+    saveGroupIndexToTab()
+    scrollToGroup(newIndex)
 })
 
 watch(commentaryContentRef, (newVal, oldVal) => {
@@ -477,19 +445,6 @@ watch(commentaryContentRef, (newVal, oldVal) => {
     if (newVal) {
         newVal.addEventListener('scroll', handleCommentaryScroll)
     }
-})
-
-// Expose method to scroll to specific link for search
-function scrollToLink(groupIndex: number, linkIndex: number) {
-    // First scroll to the group
-    currentGroupIndex.value = groupIndex
-    scrollToGroup(groupIndex)
-
-    // TODO: Could add highlighting to specific link within group if needed
-}
-
-defineExpose({
-    scrollToLink
 })
 </script>
 
