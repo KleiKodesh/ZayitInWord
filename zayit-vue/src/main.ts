@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import './main.css'
+import './assets/styles/search-highlight.css'
 import { initTheme } from './utils/theme'
 
 // Initialize theme before anything else

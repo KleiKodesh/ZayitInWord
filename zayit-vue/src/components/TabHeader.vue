@@ -57,6 +57,13 @@
       </button>
 
       <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
+              @click.stop="openSearch"
+              class="flex-center c-pointer"
+              title="חיפוש (Ctrl+F)">
+        <search-icon />
+      </button>
+
+      <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
               @click.stop="goToToc"
               class="flex-center c-pointer"
               title="תוכן עניינים">
@@ -66,7 +73,7 @@
 
     </div>
     <span class="center-text bold ellipsis">{{ tabStore.activeTab?.title
-      }}</span>
+    }}</span>
     <div class="flex-row justify-end">
       <button @click.stop="resetTab"
               class="flex-center c-pointer"
@@ -86,6 +93,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue';
 import ThemeIcon from './icons/ThemeIcon.vue';
 import HomeIcon from './icons/HomeIcon.vue';
 import TreeIcon from './icons/TreeIcon.vue';
+import SearchIcon from './icons/SearchIcon.vue';
 import SplitPaneIcon from './icons/SplitPaneIcon.vue';
 import SettingsIcon from './icons/SettingsIcon.vue';
 import AboutIcon from './icons/AboutIcon.vue';
@@ -111,6 +119,10 @@ const hasConnections = computed(() => {
   if (!bookState) return false;
   return bookState.hasConnections || false;
 });
+
+const openSearch = () => {
+  tabStore.toggleBookSearch(true);
+};
 
 const goToToc = () => {
   const tab = tabStore.activeTab;

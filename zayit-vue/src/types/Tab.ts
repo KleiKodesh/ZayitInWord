@@ -6,7 +6,9 @@ export interface BookState {
     bookId: number;
     bookTitle: string;
     initialLineIndex?: number; // Line index (0 to totalLines-1) representing which line should be at the top of the viewport. Set by TOC selection or saved from scroll position
+    scrollPosition?: number; // Scroll Y position in pixels for restoring scroll state
     isTocOpen?: boolean; // Whether TOC overlay is open
+    isSearchOpen?: boolean; // Whether search overlay is open
     showBottomPane?: boolean; // Whether bottom pane of split view is visible
     hasConnections?: boolean; // Whether book has any connections (targum, reference, commentary, or other)
     selectedLineIndex?: number; // Currently selected line index for commentary

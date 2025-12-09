@@ -208,6 +208,13 @@ export const useTabStore = defineStore('tabs', () => {
         }
     };
 
+    const toggleBookSearch = (open?: boolean) => {
+        const tab = tabs.value.find(t => t.isActive);
+        if (tab?.bookState) {
+            tab.bookState.isSearchOpen = open !== undefined ? open : !tab.bookState.isSearchOpen;
+        }
+    };
+
     const openSettings = () => {
         // Check if settings tab already exists
         const existingSettingsTab = tabs.value.find(t => t.currentPage === 'settings');
@@ -279,6 +286,7 @@ export const useTabStore = defineStore('tabs', () => {
         toggleSplitPane,
         toggleDiacritics,
         toggleLineDisplay,
+        toggleBookSearch,
         openSettings,
         openAbout
     };

@@ -1,10 +1,23 @@
 <template>
     <div class="flex-column height-fill">
-        <div class="flex-between bar commentary-header">
+        <div class="flex-between bar commentary-header"
+             style="position: relative;">
+            <GenericSearch ref="searchRef"
+                           :is-open="isSearchOpen"
+                           top-offset="calc(100% + 8px)"
+                           @close="isSearchOpen = false"
+                           @search-query-change="handleSearchQueryChange"
+                           @navigate-to-match="handleNavigateToMatch" />
             <span class="bold smaller-em commentary-title">קשרים</span>
 
             <div class="flex-row flex-center commentary-navigation"
                  v-if="linkGroups.length > 0">
+
+                <button class="flex-center c-pointer nav-btn"
+                        @click="openSearch"
+                        title="חיפוש (Ctrl+F)">
+                    <SearchIcon />
+                </button>
 
                 <Combobox v-model="currentGroupIndex"
                           :options="groupOptions"
@@ -51,7 +64,9 @@
         </div>
 
         <div class="overflow-y flex-110 selectable commentary-content"
-             ref="commentaryContentRef">
+             ref="commentaryContentRef"
+             tabindex="0"
+             @keydown="handleKeyDown">
             <div v-if="isLoading"
                  class="flex-column flex-center height-fill text-secondary commentary-loading">
                 <div class="loading-spinner"></div>
@@ -87,7 +102,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, type ComponentPublicInstance } from 'vue'
 import Combobox, { type ComboboxOption } from './common/Combobox.vue'
+import GenericSearch from './common/GenericSearch.vue'
+import SearchIcon from './icons/SearchIcon.vue'
 import { useContainedSelection } from '../composables/useContainedSelection'
+import { useContentSearch } from '../composables/useContentSearch'
 import { commentaryManager, type CommentaryLinkGroup } from '../data/commentaryManager'
 import { useTabStore } from '../stores/tabStore'
 
@@ -109,21 +127,98 @@ const tabStore = useTabStore()
 const linkGroups = ref<CommentaryLinkGroup[]>([])
 const isLoading = ref(false)
 
-// Computed property for processed commentary content with diacritics filtering
+// Search state
+const searchRef = ref<InstanceType<typeof GenericSearch> | null>(null)
+const isSearchOpen = ref(false)
+const search = useContentSearch()
+
+function openSearch() {
+    isSearchOpen.value = true
+}
+
+function handleKeyDown(e: KeyboardEvent) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault()
+        isSearchOpen.value = true
+    }
+}
+
+function handleSearchQueryChange(query: string) {
+    // Build searchable items from all commentary links
+    const items: Array<{ index: number; content: string }> = []
+    linkGroups.value.forEach((group, groupIndex) => {
+        group.links.forEach((link, linkIndex) => {
+            items.push({
+                index: groupIndex * 1000 + linkIndex, // Unique index
+                content: link.html
+            })
+        })
+    })
+
+    search.searchInItems(items, query)
+    searchRef.value?.setMatches(search.totalMatches.value)
+}
+
+function handleNavigateToMatch(matchIndex: number) {
+    search.navigateToMatch(matchIndex)
+    const match = search.currentMatch.value
+    if (match) {
+        // Calculate group and link index from combined index
+        const groupIndex = Math.floor(match.itemIndex / 1000)
+        const linkIndex = match.itemIndex % 1000
+
+        // Navigate to the group
+        currentGroupIndex.value = groupIndex
+        scrollToGroup(groupIndex)
+
+        // Wait for render, then scroll to the mark
+        setTimeout(() => {
+            const currentMark = document.querySelector('.commentary-content mark.current')
+            if (currentMark && commentaryContentRef.value) {
+                const markRect = currentMark.getBoundingClientRect()
+                const contentRect = commentaryContentRef.value.getBoundingClientRect()
+
+                const isVisible = markRect.top >= contentRect.top &&
+                    markRect.bottom <= contentRect.bottom
+
+                if (!isVisible) {
+                    const offset = markRect.top - contentRect.top - (contentRect.height / 2) + (markRect.height / 2)
+                    commentaryContentRef.value.scrollTop += offset
+                }
+            }
+        }, 50)
+    }
+}
+
+// Computed property for processed commentary content with diacritics filtering and search highlighting
 const processedLinkGroups = computed(() => {
     const activeTab = tabStore.activeTab
     const diacriticsState = activeTab?.bookState?.diacriticsState
+    const query = search.searchQuery.value
+    const currentMatch = search.currentMatch.value
 
-    if (!diacriticsState || diacriticsState === 0) {
-        return linkGroups.value // Return original content if no filtering needed
-    }
-
-    return linkGroups.value.map(group => ({
+    return linkGroups.value.map((group, groupIndex) => ({
         ...group,
-        links: group.links.map(link => ({
-            ...link,
-            html: applyDiacriticsFilter(link.html, diacriticsState)
-        }))
+        links: group.links.map((link, linkIndex) => {
+            let html = link.html
+
+            // Apply diacritics filtering
+            if (diacriticsState && diacriticsState > 0) {
+                html = applyDiacriticsFilter(html, diacriticsState)
+            }
+
+            // Apply search highlighting
+            if (query) {
+                const itemIndex = groupIndex * 1000 + linkIndex
+                const currentOccurrence = currentMatch?.itemIndex === itemIndex ? currentMatch.occurrence : -1
+                html = search.highlightMatches(html, query, currentOccurrence)
+            }
+
+            return {
+                ...link,
+                html
+            }
+        })
     }))
 })
 
@@ -167,6 +262,8 @@ function applyDiacriticsFilter(htmlContent: string, state: number): string {
 
     return tempDiv.innerHTML
 }
+
+
 
 // Load commentary when props change
 watch([() => props.bookId, () => props.selectedLineIndex], async ([bookId, lineIndex]) => {
@@ -345,6 +442,19 @@ watch(commentaryContentRef, (newVal, oldVal) => {
     if (newVal) {
         newVal.addEventListener('scroll', handleCommentaryScroll)
     }
+})
+
+// Expose method to scroll to specific link for search
+function scrollToLink(groupIndex: number, linkIndex: number) {
+    // First scroll to the group
+    currentGroupIndex.value = groupIndex
+    scrollToGroup(groupIndex)
+
+    // TODO: Could add highlighting to specific link within group if needed
+}
+
+defineExpose({
+    scrollToLink
 })
 </script>
 
