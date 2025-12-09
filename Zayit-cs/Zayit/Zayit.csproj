@@ -190,6 +190,6 @@
   <Import Project="..\packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\build\net46\Stub.System.Data.SQLite.Core.NetFramework.targets" Condition="Exists('..\packages\Stub.System.Data.SQLite.Core.NetFramework.1.0.119.0\build\net46\Stub.System.Data.SQLite.Core.NetFramework.targets')" />
   <Import Project="..\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets" Condition="Exists('..\packages\System.ValueTuple.4.6.1\build\net471\System.ValueTuple.targets')" />
   <PropertyGroup>
-    <PreBuildEvent>call "$(ProjectDir)..\prebuild.bat"</PreBuildEvent>
+    <PreBuildEvent>call "$(ProjectDir)..\..\zayit-vue\build-and-deploy.bat"</PreBuildEvent>
   </PropertyGroup>
 </Project>

@@ -1,7 +1,17 @@
 @echo off
+setlocal
+
+REM Get the directory where this script is located
+set "SCRIPT_DIR=%~dp0"
+
+REM Change to the script directory (zayit-vue)
+cd /d "%SCRIPT_DIR%"
+
 echo ========================================
 echo Building Vue Application for Zayit
 echo ========================================
+echo.
+echo Working directory: %CD%
 echo.
 
 echo [1/3] Building production bundle...
@@ -35,3 +45,4 @@ echo.
 echo ========================================
 echo Build and Deploy Complete!
 echo ========================================
+endlocal

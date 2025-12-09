@@ -43,7 +43,7 @@ onMounted(() => {
   /* Center horizontally */
   justify-content: center;
   /* Center vertically */
-  gap: 16px;
+  gap: 8px;
   /* Space between icon, message, and dots */
   height: 100%;
   /* Fill parent height */

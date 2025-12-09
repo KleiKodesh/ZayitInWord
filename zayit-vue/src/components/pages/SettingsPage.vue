@@ -1,7 +1,6 @@
 <template>
-    <div
-         class="flex-column width-fill height-fill overflow-hidden settings-page">
-        <div class="overflow-y settings-content">
+    <div class="flex-column width-fill height-fill settings-page">
+        <div class="flex-110 overflow-y settings-content">
             <!-- Header Font -->
             <div class="setting-group">
                 <label class="flex-row bold setting-label">גופן

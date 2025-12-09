@@ -11,6 +11,28 @@
 
         <div v-if="isDropdownOpen"
              class="dropdown-menu">
+
+          <!-- Diacritics toggle dropdown item -->
+          <DiacriticsDropdown />
+
+          <!-- Line display toggle dropdown item -->
+          <div v-if="tabStore.activeTab?.currentPage === 'bookview'"
+               @click.stop="handleLineDisplayClick"
+               class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
+               title="החלף תצוגת שורות">
+            <align-left-icon v-if="isLineDisplayInline" />
+            <align-justify-icon v-else />
+            <span class="dropdown-label">{{ isLineDisplayInline ? 'תצוגת בלוק' :
+              'תצוגת שורה' }}</span>
+          </div>
+
+          <div @click.stop="handleThemeClick"
+               class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
+               title="ערכת נושא">
+            <theme-icon class="theme-icon" />
+            <span class="dropdown-label">ערכת נושא</span>
+          </div>
+
           <div @click.stop="handleSettingsClick"
                class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
                title="הגדרות">
@@ -24,13 +46,6 @@
             <about-icon />
             <span class="dropdown-label">אודות</span>
           </div>
-
-          <div @click.stop="handleThemeClick"
-               class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-               title="ערכת נושא">
-            <theme-icon />
-            <span class="dropdown-label">ערכת נושא</span>
-          </div>
         </div>
       </div>
 
@@ -41,17 +56,14 @@
         <split-pane-icon />
       </button>
 
-      <!-- Diacritics toggle button -->
-      <DiacriticsToggle />
-
-      <!-- Line display toggle button -->
       <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
-              @click.stop="handleLineDisplayClick"
+              @click.stop="goToToc"
               class="flex-center c-pointer"
-              title="החלף תצוגת שורות">
-        <align-left-icon v-if="isLineDisplayInline" />
-        <align-justify-icon v-else />
+              title="תוכן עניינים">
+        <tree-icon class="rtl-flip" />
       </button>
+
+
     </div>
     <span class="center-text bold ellipsis">{{ tabStore.activeTab?.title
       }}</span>
@@ -60,12 +72,6 @@
               class="flex-center c-pointer"
               title="דף הבית">
         <home-icon />
-      </button>
-      <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
-              @click.stop="goToToc"
-              class="flex-center c-pointer"
-              title="תוכן עניינים">
-        <tree-icon class="rtl-flip" />
       </button>
       <button @click.stop="newTab"
               class="flex-center c-pointer">+</button>
@@ -86,7 +92,7 @@ import AboutIcon from './icons/AboutIcon.vue';
 import MoreVerticalIcon from './icons/MoreVerticalIcon.vue';
 import AlignLeftIcon from './icons/AlignLeftIcon.vue';
 import AlignJustifyIcon from './icons/AlignJustifyIcon.vue';
-import DiacriticsToggle from './TabHeaderDiacriticsToggle.vue';
+import DiacriticsDropdown from './TabHeaderDiacriticsDropdown.vue';
 import { useTabStore } from '../stores/tabStore';
 import { toggleTheme } from '../utils/theme';
 
@@ -243,6 +249,11 @@ onUnmounted(() => {
   opacity: 0.7;
   width: 20px;
   height: 20px;
+}
+
+.dropdown-item .theme-icon {
+  width: 18px;
+  height: 18px;
 }
 
 .dropdown-item:hover svg {

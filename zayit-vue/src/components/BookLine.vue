@@ -31,6 +31,7 @@ const handleClick = () => {
 }
 
 .book-line:not(.inline-mode) {
+    padding: 0px 5px;
     display: block;
 }
 
@@ -44,7 +45,6 @@ const handleClick = () => {
 .book-line :deep(h4),
 .book-line :deep(h5),
 .book-line :deep(h6) {
-    position: relative;
     font-family: var(--header-font);
 }
 
@@ -58,20 +58,32 @@ const handleClick = () => {
     background-color: var(--hover-bg)
 }
 
+.book-line :deep(h1) {
+    position: relative;
+}
+
 /* Block mode selection - only when NOT in inline mode AND split pane is open */
-.book-line.selected:not(.inline-mode).show-selection::after {
+.book-line.selected:not(.inline-mode).show-selection {
+    position: relative;
+}
+
+/* .book-line.selected:not(.inline-mode).show-selection::after {
     content: '';
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    right: 0;
+    right: -7px;
     width: 3px;
     height: 1em;
     background-color: var(--accent-color);
-}
+} */
 
 /* Inline mode selection - use background instead of ::after AND split pane is open */
-.book-line.inline-mode.selected.show-selection {
+/* .book-line.inline-mode.selected.show-selection {
     background-color: var(--accent-bg);
+} */
+
+.book-line.selected.show-selection {
+    background-color: var(--hover-bg);
 }
 </style>

@@ -1,40 +1,42 @@
 <template>
-    <div class="flex-column height-fill book-toc-tree-view">
-        <div class="overflow-y flex-110">
-            <BookTocTreeSearch v-if="searchInput"
-                               ref="searchRef"
-                               :toc-entries="tocEntries"
-                               :search-query="searchInput"
-                               @select-line="handleSelectLine" />
+    <Transition name="slide">
+        <div class="flex-column height-fill book-toc-tree-view">
+            <div class="overflow-y flex-110">
+                <BookTocTreeSearch v-if="searchInput"
+                                   ref="searchRef"
+                                   :toc-entries="tocEntries"
+                                   :search-query="searchInput"
+                                   @select-line="handleSelectLine" />
 
-            <BookTocTree v-else
-                         :toc-entries="tocEntries"
-                         :is-loading="isLoading"
-                         ref="treeRef"
-                         @select-line="handleSelectLine" />
+                <BookTocTree v-else
+                             :toc-entries="tocEntries"
+                             :is-loading="isLoading"
+                             ref="treeRef"
+                             @select-line="handleSelectLine" />
+            </div>
+
+            <div class="bar flex-row search-bar">
+                <button @click="resetTree"
+                        class="flex-center c-pointer"
+                        title="אפס עץ">
+                    <TreeIcon class="rtl-flip" />
+                </button>
+                <input ref="searchInputRef"
+                       v-model="searchInput"
+                       type="text"
+                       class="flex-110"
+                       placeholder="חיפוש..."
+                       @keydown="handleKeyDown"
+                       autofocus />
+                <button @click="skipToDocument"
+                        class="flex-center c-pointer"
+                        title="דלג לתצוגת מסמך">
+                    <SkipIcon />
+                </button>
+
+            </div>
         </div>
-
-        <div class="bar flex-row search-bar">
-            <button @click="resetTree"
-                    class="flex-center c-pointer"
-                    title="אפס עץ">
-                <TreeIcon class="rtl-flip" />
-            </button>
-            <input ref="searchInputRef"
-                   v-model="searchInput"
-                   type="text"
-                   class="flex-110"
-                   placeholder="חיפוש..."
-                   @keydown="handleKeyDown"
-                   autofocus />
-            <button @click="skipToDocument"
-                    class="flex-center c-pointer"
-                    title="דלג לתצוגת מסמך">
-                <SkipIcon />
-            </button>
-
-        </div>
-    </div>
+    </Transition>
 </template>
 
 <script setup lang="ts">
