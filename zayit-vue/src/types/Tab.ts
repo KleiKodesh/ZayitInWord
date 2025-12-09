@@ -7,12 +7,14 @@ export interface BookState {
     bookTitle: string;
     initialLineIndex?: number; // Line index (0 to totalLines-1) representing which line should be at the top of the viewport. Set by TOC selection or saved from scroll position
     scrollPosition?: number; // Scroll Y position in pixels for restoring scroll state
+    scrollLineIndex?: number; // First visible line index for scroll restoration (used with scrollPosition for accuracy)
     isTocOpen?: boolean; // Whether TOC overlay is open
     isSearchOpen?: boolean; // Whether search overlay is open
     showBottomPane?: boolean; // Whether bottom pane of split view is visible
     hasConnections?: boolean; // Whether book has any connections (targum, reference, commentary, or other)
     selectedLineIndex?: number; // Currently selected line index for commentary
     commentaryGroupIndex?: number; // Currently selected commentary group index
+    commentaryScrollPosition?: number; // Scroll position in commentary pane
     diacriticsState?: number; // 0 = show all, 1 = hide cantillation, 2 = hide nikkud too
     isLineDisplayInline?: boolean; // false = block display, true = inline display
     originalHtml?: string; // Store original HTML for diacritics restoration

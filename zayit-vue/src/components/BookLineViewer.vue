@@ -21,15 +21,13 @@
                                      :active="active"
                                      :data-index="index"
                                      :size-dependencies="[
-                                        processedLines[item.index],
-                                        myTab?.bookState?.isLineDisplayInline
+                                        processedLines[item.index]
                                     ]">
-                    <BookLine :content="processedLines[item.index] || '-'"
+                    <BookLine :content="processedLines[item.index] || '\u00A0'"
                               :line-index="item.index"
                               :is-selected="selectedLineIndex === item.index"
                               :class="{
-                                'show-selection': myTab?.bookState?.showBottomPane,
-                                'inline-mode': myTab?.bookState?.isLineDisplayInline
+                                'show-selection': myTab?.bookState?.showBottomPane
                             }"
                               @line-click="handleLineClick" />
                 </DynamicScrollerItem>
@@ -68,6 +66,12 @@ const selectedLineIndex = ref<number | null>(null)
 const viewerState = new BookLineViewerState()
 const scrollerRef = ref<InstanceType<typeof DynamicScroller> | null>(null)
 const searchRef = ref<InstanceType<typeof GenericSearch> | null>(null)
+
+// Create items array for virtual scroller
+const lineItems = computed(() => {
+    const total = viewerState.totalLines.value
+    return Array.from({ length: total }, (_, i) => ({ index: i }))
+})
 
 // Use content search composable
 const search = useContentSearch()
@@ -131,12 +135,6 @@ function handleKeyDown(e: KeyboardEvent) {
     }
 }
 
-// Create items array for virtual scroller
-const lineItems = computed(() => {
-    const total = viewerState.totalLines.value
-    return Array.from({ length: total }, (_, i) => ({ index: i }))
-})
-
 // Computed property for processed line content
 const processedLines = computed(() => {
     const lines = viewerState.lines.value
@@ -147,7 +145,7 @@ const processedLines = computed(() => {
     const processedLines: Record<number, string> = {}
 
     Object.entries(lines).forEach(([index, line]) => {
-        if (!line || line === '-') {
+        if (!line || line === '\u00A0') {
             processedLines[Number(index)] = line
             return
         }
@@ -188,7 +186,6 @@ function handleLineClick(lineIndex: number) {
 }
 
 let scrollUpdateTimeout: number | null = null
-let lastScrollTop = 0
 
 // Load book when bookId changes
 watch(() => myTab.value?.bookState?.bookId, async (bookId, oldBookId) => {
@@ -199,14 +196,29 @@ watch(() => myTab.value?.bookState?.bookId, async (bookId, oldBookId) => {
         await nextTick()
         emit('placeholdersReady')
 
-        // Scroll to initial position if provided
-        if (initialLineIndex !== undefined) {
+        // Restore scroll position with retry
+        const targetScrollPosition = myTab.value?.bookState?.scrollPosition
+        if (targetScrollPosition !== undefined) {
+            const restoreScroll = () => {
+                const scrollerEl = scrollerRef.value?.$el as HTMLElement
+                if (scrollerEl) {
+                    scrollerEl.scrollTop = targetScrollPosition
+                    // Verify and retry if needed
+                    setTimeout(() => {
+                        if (scrollerEl.scrollTop !== targetScrollPosition) {
+                            scrollerEl.scrollTop = targetScrollPosition
+                        }
+                    }, 100)
+                }
+            }
+
+            await nextTick()
+            await nextTick()
+            restoreScroll()
+        } else if (initialLineIndex !== undefined) {
+            await nextTick()
             await nextTick()
             scrollToLine(initialLineIndex)
-        } else if (myTab.value?.bookState?.scrollPosition !== undefined) {
-            // Restore scroll position
-            await nextTick()
-            restoreScrollPosition(myTab.value.bookState.scrollPosition)
         }
     }
 }, { immediate: true })
@@ -215,36 +227,48 @@ watch(() => myTab.value?.bookState?.isTocOpen, (isTocOpen) => {
     viewerState.setBufferingMode(isTocOpen || false)
 })
 
+watch(() => myTab.value?.bookState?.isTocOpen, (isTocOpen) => {
+    viewerState.setBufferingMode(isTocOpen || false)
+})
+
 // Restore scroll when tab becomes active
 watch(() => myTab.value?.isActive, async (isActive, wasActive) => {
     const bookId = myTab.value?.bookState?.bookId
-    const initialLineIndex = myTab.value?.bookState?.initialLineIndex
-    const scrollPosition = myTab.value?.bookState?.scrollPosition
-    if (isActive && !wasActive && bookId && viewerState.totalLines.value > 0) {
+    const targetLineIndex = myTab.value?.bookState?.scrollLineIndex
+    const targetScrollPosition = myTab.value?.bookState?.scrollPosition
+
+    if (isActive && !wasActive && bookId && viewerState.totalLines.value > 0 && targetScrollPosition !== undefined) {
         await nextTick()
-        if (initialLineIndex !== undefined) {
-            scrollToLine(initialLineIndex)
-        } else if (scrollPosition !== undefined) {
-            restoreScrollPosition(scrollPosition)
+        await nextTick()
+
+        const scrollerEl = scrollerRef.value?.$el as HTMLElement
+        if (scrollerEl) {
+            scrollerEl.scrollTop = targetScrollPosition
+            // Verify and retry if needed
+            setTimeout(() => {
+                if (scrollerEl.scrollTop !== targetScrollPosition) {
+                    scrollerEl.scrollTop = targetScrollPosition
+                }
+            }, 100)
         }
     }
 })
 
 function handleScrollDebounced() {
-    if (!scrollerRef.value || viewerState.isInitialLoad) return
-
-    const scrollTop = (scrollerRef.value.$el as HTMLElement).scrollTop
-    lastScrollTop = scrollTop
+    if (!scrollerRef.value) return
 
     if (scrollUpdateTimeout !== null) {
         clearTimeout(scrollUpdateTimeout)
     }
     scrollUpdateTimeout = window.setTimeout(() => {
-        // Save scroll position to tab state
+        const scrollerEl = scrollerRef.value?.$el as HTMLElement
+        if (!scrollerEl) return
+
+        const scrollTop = scrollerEl.scrollTop
+
         if (myTab.value?.bookState) {
             myTab.value.bookState.scrollPosition = scrollTop
         }
-        emit('updateScrollPosition', scrollTop)
     }, 300)
 }
 
@@ -264,12 +288,7 @@ function scrollToLine(lineIndex: number) {
     }
 }
 
-function restoreScrollPosition(scrollTop: number) {
-    if (!scrollerRef.value) return
-    const el = scrollerRef.value.$el as HTMLElement
-    el.scrollTop = scrollTop
-    lastScrollTop = scrollTop
-}
+
 
 async function handleTocSelection(lineIndex: number) {
     await viewerState.handleTocSelection(lineIndex)
@@ -340,12 +359,6 @@ function applyDiacriticsFilter(htmlContent: string, state: number): string {
 
 onUnmounted(() => {
     viewerState.cleanup()
-
-    // Save scroll position to tab state
-    if (myTab.value?.bookState && lastScrollTop > 0) {
-        myTab.value.bookState.scrollPosition = lastScrollTop
-        emit('updateScrollPosition', lastScrollTop)
-    }
 })
 
 defineExpose({

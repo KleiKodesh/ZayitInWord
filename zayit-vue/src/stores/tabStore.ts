@@ -178,6 +178,11 @@ export const useTabStore = defineStore('tabs', () => {
         }
     };
 
+    const closeAllTabs = () => {
+        tabs.value = [];
+        addTab();
+    };
+
     const toggleSplitPane = () => {
         const tab = tabs.value.find(t => t.isActive);
         if (tab?.bookState) {
@@ -277,6 +282,7 @@ export const useTabStore = defineStore('tabs', () => {
         addTab,
         closeTab,
         closeTabById,
+        closeAllTabs,
         setActiveTab,
         resetTab,
         setPage,

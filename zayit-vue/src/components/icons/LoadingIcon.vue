@@ -1,19 +1,22 @@
 <template>
     <div class="loading-icon">
-        <BookIcon />
+        <div class="loading-spinner" />
     </div>
 </template>
 
-<script setup lang="ts">
-import BookIcon from './BookIcon.vue';
-</script>
-
 <style scoped>
 .loading-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-    opacity: 0.6;
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border-color);
+    border-top-color: var(--accent-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 </style>

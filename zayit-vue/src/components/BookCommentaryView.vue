@@ -59,7 +59,7 @@
             <button class="flex-center c-pointer commentary-close-btn"
                     @click="handleClose"
                     title="סגור פאנל">
-                -
+                ‐
             </button>
         </div>
 
@@ -411,8 +411,26 @@ onMounted(() => {
         commentaryContentRef.value.addEventListener('scroll', () => {
             if (commentaryContentRef.value) {
                 savedScrollPosition.value = commentaryContentRef.value.scrollTop
+                saveScrollPositionToTab()
             }
         })
+    }
+})
+
+// Restore scroll position after content loads
+watch(() => linkGroups.value.length, (newLength) => {
+    if (newLength > 0 && commentaryContentRef.value) {
+        const activeTab = tabStore.activeTab
+        const savedScrollPos = activeTab?.bookState?.commentaryScrollPosition
+
+        if (savedScrollPos !== undefined) {
+            // Wait for content to render, then restore scroll
+            setTimeout(() => {
+                if (commentaryContentRef.value) {
+                    commentaryContentRef.value.scrollTop = savedScrollPos
+                }
+            }, 50)
+        }
     }
 })
 
@@ -424,15 +442,32 @@ function saveGroupIndexToTab() {
     }
 }
 
-// Reset group index when new commentary loads
+// Save scroll position to tab state
+function saveScrollPositionToTab() {
+    const activeTab = tabStore.activeTab
+    if (activeTab?.bookState && commentaryContentRef.value) {
+        activeTab.bookState.commentaryScrollPosition = commentaryContentRef.value.scrollTop
+    }
+}
+
+// Reset group index when new commentary loads (but don't scroll yet)
 watch(() => linkGroups.value, () => {
-    currentGroupIndex.value = 0
-    saveGroupIndexToTab()
+    const activeTab = tabStore.activeTab
+    const savedGroupIndex = activeTab?.bookState?.commentaryGroupIndex
+
+    // Only reset if no saved index or saved index is invalid
+    if (savedGroupIndex === undefined || savedGroupIndex >= linkGroups.value.length) {
+        currentGroupIndex.value = 0
+        saveGroupIndexToTab()
+    }
 }, { immediate: true })
 
-watch(currentGroupIndex, (newIndex) => {
-    saveGroupIndexToTab()
-    scrollToGroup(newIndex)
+watch(currentGroupIndex, (newIndex, oldIndex) => {
+    // Only scroll if user changed the index (not restoration)
+    if (oldIndex !== undefined) {
+        saveGroupIndexToTab()
+        scrollToGroup(newIndex)
+    }
 })
 
 watch(commentaryContentRef, (newVal, oldVal) => {
