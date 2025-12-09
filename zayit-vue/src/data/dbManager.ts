@@ -152,6 +152,32 @@ class DatabaseManager {
     }
 
     // --------------------------------------------------------------------------
+    // Public API - PDF Operations
+    // --------------------------------------------------------------------------
+
+    async openPdfFilePicker(): Promise<{ filePath: string | null, fileName: string | null, dataUrl: string | null }> {
+        if (this.isWebViewAvailable()) {
+            const promise = this.csharp.createRequest<{ filePath: string | null, fileName: string | null, dataUrl: string | null }>('OpenPdfFilePicker')
+            this.csharp.send('OpenPdfFilePicker', [])
+            return promise
+        } else {
+            // Fallback to browser file picker
+            return { filePath: null, fileName: null, dataUrl: null }
+        }
+    }
+
+    async loadPdfFromPath(filePath: string): Promise<string | null> {
+        if (this.isWebViewAvailable()) {
+            const promise = this.csharp.createRequest<string | null>(`LoadPdfFromPath:${filePath}`)
+            this.csharp.send('LoadPdfFromPath', [filePath])
+            return promise
+        } else {
+            // Cannot load from file path in browser
+            return null
+        }
+    }
+
+    // --------------------------------------------------------------------------
     // Utility - Background Loading
     // --------------------------------------------------------------------------
 

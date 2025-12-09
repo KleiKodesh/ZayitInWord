@@ -20,6 +20,7 @@ export interface BookState {
 export interface PdfState {
     fileName: string;
     fileUrl: string;
+    filePath?: string; // Original file path for persistence
 }
 
 export interface Tab {

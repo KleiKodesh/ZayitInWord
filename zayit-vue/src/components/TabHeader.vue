@@ -47,11 +47,21 @@
             <span class="dropdown-label">אודות</span>
           </div>
 
+          <!-- PDF viewer - available in both dev and C# modes -->
           <div @click.stop="handleOpenPdfClick"
                class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
                title="פתח PDF">
-            <file-icon />
+            <pdf-file-icon />
             <span class="dropdown-label">פתח PDF</span>
+          </div>
+
+          <!-- Popout toggle - only available in C# WebView -->
+          <div v-if="isWebViewAvailable"
+               @click.stop="handlePopoutClick"
+               class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
+               title="פתח בחלון נפרד">
+            <popout-icon />
+            <span class="dropdown-label">פתח בחלון נפרד</span>
           </div>
         </div>
       </div>
@@ -107,13 +117,20 @@ import AboutIcon from './icons/AboutIcon.vue';
 import MoreVerticalIcon from './icons/MoreVerticalIcon.vue';
 import AlignLeftIcon from './icons/AlignLeftIcon.vue';
 import AlignJustifyIcon from './icons/AlignJustifyIcon.vue';
-import FileIcon from './icons/FileIcon.vue';
+import PdfFileIcon from './icons/PdfFileIcon.vue';
+import PopoutIcon from './icons/PopoutIcon.vue';
 import DiacriticsDropdown from './TabHeaderDiacriticsDropdown.vue';
 import { useTabStore } from '../stores/tabStore';
 import { toggleTheme } from '../utils/theme';
+import { dbManager } from '../data/dbManager';
 
 const tabStore = useTabStore();
 const isDropdownOpen = ref(false);
+
+// Check if WebView is available for popout functionality
+const isWebViewAvailable = computed(() => {
+  return (window as any).chrome?.webview?.postMessage !== undefined;
+});
 
 
 
@@ -183,19 +200,72 @@ const handleLineDisplayClick = () => {
   tabStore.toggleLineDisplay();
 };
 
-const handleOpenPdfClick = () => {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.pdf';
-  input.onchange = (e: Event) => {
-    const target = e.target as HTMLInputElement;
-    const file = target.files?.[0];
-    if (file) {
-      const fileUrl = URL.createObjectURL(file);
-      tabStore.openPdf(file.name, fileUrl);
+const handleOpenPdfClick = async () => {
+  try {
+    // Try C# file picker first if WebView is available
+    console.log('Opening PDF file picker...');
+    const result = await dbManager.openPdfFilePicker();
+    console.log('PDF picker result:', result);
+
+    if (result.filePath && result.fileName && result.dataUrl) {
+      console.log('Converting base64 to blob URL, size:', result.dataUrl.length);
+
+      // Convert base64 string to blob URL for PDF.js
+      const binaryString = atob(result.dataUrl);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      console.log('Created blob URL:', blobUrl);
+
+      // C# file picker succeeded - create tab with both file path (persistence) and blob URL (viewing)
+      tabStore.openPdfWithFilePathAndBlobUrl(result.fileName, result.filePath, blobUrl);
+    } else {
+      // Fallback to browser file picker
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.pdf';
+      input.onchange = (e: Event) => {
+        const target = e.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (file && file.type === 'application/pdf') {
+          const fileUrl = URL.createObjectURL(file);
+          // Open PDF viewer with blob URL (no persistence across sessions)
+          tabStore.openPdfWithFile(file.name, fileUrl);
+        }
+      };
+      input.click();
     }
-  };
-  input.click();
+  } catch (error) {
+    console.error('Failed to open C# file picker, falling back to browser:', error);
+    // Fallback to browser file picker
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf';
+    input.onchange = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (file && file.type === 'application/pdf') {
+        const fileUrl = URL.createObjectURL(file);
+        tabStore.openPdfWithFile(file.name, fileUrl);
+      }
+    };
+    input.click();
+  }
+
+  isDropdownOpen.value = false;
+};
+
+const handlePopoutClick = () => {
+  if (isWebViewAvailable.value) {
+    (window as any).chrome.webview.postMessage({
+      command: 'TogglePopOut',
+      args: []
+    });
+  }
   isDropdownOpen.value = false;
 };
 

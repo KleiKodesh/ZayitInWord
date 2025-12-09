@@ -1,6 +1,5 @@
 ﻿using Microsoft.Web.WebView2.Core;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -20,8 +19,10 @@ namespace Zayit.Viewer
         {
             this.Dock = System.Windows.Forms.DockStyle.Fill;
             this.CoreWebView2InitializationCompleted += (_, __) =>
-            {
-                Source = new Uri(GetHtmlPath());
+            {            
+                this.CoreWebView2.SetVirtualHostNameToFolderMapping("zayitHost", GetHtmlPath(),
+                        CoreWebView2HostResourceAccessKind.Allow);
+                Source = new Uri("https://zayitHost/index.html");
             };
         }
 
@@ -29,7 +30,9 @@ namespace Zayit.Viewer
         /// Gets the path to the Vue application HTML file
         /// </summary>
         private string GetHtmlPath() =>
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Html", "index.html");
+           Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Html");
+        private string GetHtmlIndexPath() =>
+            Path.Combine(GetHtmlPath(), "index.html");
 
         // === Command Handlers ===
 
@@ -323,6 +326,129 @@ namespace Zayit.Viewer
             catch (Exception ex)
             {
                 Debug.WriteLine($"CheckHostingMode error: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Open PDF file picker dialog
+        /// </summary>
+        private async void OpenPdfFilePicker()
+        {
+            try
+            {
+                Debug.WriteLine("OpenPdfFilePicker called");
+                await OpenPdfFilePickerAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"OpenPdfFilePicker error: {ex}");
+                
+                // Send null result on error
+                string js = "window.receivePdfFilePath(null, null, null);";
+                await ExecuteScriptAsync(js);
+            }
+        }
+
+        /// <summary>
+        /// Async implementation of PDF file picker
+        /// </summary>
+        private async Task OpenPdfFilePickerAsync()
+        {
+            string filePath = null;
+            string fileName = null;
+            string dataUrl = null;
+
+            // Run file dialog on UI thread and wait for completion
+            await Task.Run(() =>
+            {
+                this.Invoke(new Action(() =>
+                {
+                    using (var openFileDialog = new System.Windows.Forms.OpenFileDialog())
+                    {
+                        openFileDialog.Filter = "PDF Files (*.pdf)|*.pdf";
+                        openFileDialog.Title = "בחר קובץ PDF";
+                        openFileDialog.Multiselect = false;
+
+                        if (openFileDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                        {
+                            filePath = openFileDialog.FileName;
+                            fileName = Path.GetFileName(filePath);
+
+                            try
+                            {
+                                // Read PDF file and convert to base64 (without data URL prefix)
+                                byte[] pdfBytes = File.ReadAllBytes(filePath);
+                                string base64 = Convert.ToBase64String(pdfBytes);
+                                dataUrl = base64; // Just the base64 string, not a data URL
+                                Debug.WriteLine($"PDF converted to base64, size: {pdfBytes.Length} bytes");
+                            }
+                            catch (Exception fileEx)
+                            {
+                                Debug.WriteLine($"Failed to read PDF file: {fileEx.Message}");
+                                dataUrl = null;
+                            }
+                        }
+                    }
+                }));
+            });
+
+            // Send result back to Vue with both file path (for persistence) and base64 data (for viewing)
+            string filePathJson = JsonSerializer.Serialize(filePath);
+            string fileNameJson = JsonSerializer.Serialize(fileName);
+            string base64Json = JsonSerializer.Serialize(dataUrl);
+            string js = $"window.receivePdfFilePath({filePathJson}, {fileNameJson}, {base64Json});";
+            await ExecuteScriptAsync(js);
+
+            Debug.WriteLine($"PDF file picker result sent: filePath={filePath}, fileName={fileName}, hasBase64={dataUrl != null}");
+        }
+
+        /// <summary>
+        /// Load PDF from file path and convert to data URL
+        /// </summary>
+        private async void LoadPdfFromPath(string filePath)
+        {
+            try
+            {
+                Debug.WriteLine($"LoadPdfFromPath called: {filePath}");
+
+                string dataUrl = null;
+
+                if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+                {
+                    try
+                    {
+                        // Read PDF file and convert to base64
+                        byte[] pdfBytes = File.ReadAllBytes(filePath);
+                        string base64 = Convert.ToBase64String(pdfBytes);
+                        dataUrl = base64; // Just the base64 string
+                        Debug.WriteLine($"PDF loaded from path, size: {pdfBytes.Length} bytes");
+                    }
+                    catch (Exception fileEx)
+                    {
+                        Debug.WriteLine($"Failed to read PDF file: {fileEx.Message}");
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine($"PDF file not found: {filePath}");
+                }
+
+                // Send result back to Vue
+                string filePathJson = JsonSerializer.Serialize(filePath);
+                string dataUrlJson = JsonSerializer.Serialize(dataUrl);
+                string js = $"window.receivePdfDataUrl({filePathJson}, {dataUrlJson});";
+                await ExecuteScriptAsync(js);
+
+                Debug.WriteLine($"PDF load result sent: filePath={filePath}, hasDataUrl={dataUrl != null}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"LoadPdfFromPath error: {ex}");
+                
+                // Send null result on error
+                string filePathJson = JsonSerializer.Serialize(filePath);
+                string js = $"window.receivePdfDataUrl({filePathJson}, null);";
+                await ExecuteScriptAsync(js);
             }
         }
 

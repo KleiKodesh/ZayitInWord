@@ -24,11 +24,20 @@ export const useTabStore = defineStore('tabs', () => {
                 const data = JSON.parse(stored);
                 tabs.value = data.tabs || [];
                 nextId.value = data.nextId || 2;
+
+                // Clear blob URLs on page reload (they become invalid)
+                tabs.value.forEach(tab => {
+                    if (tab.pdfState?.fileUrl?.startsWith('blob:')) {
+                        tab.pdfState.fileUrl = '';
+                    }
+                });
             }
         } catch (e) {
             console.error('Failed to load tabs from storage:', e);
         }
     };
+
+
 
     const saveToStorage = () => {
         try {
@@ -288,6 +297,131 @@ export const useTabStore = defineStore('tabs', () => {
         nextId.value = Math.max(newId + 1, nextId.value);
     };
 
+    const openPdfViewer = () => {
+        // Check if PDF viewer tab already exists
+        const existingPdfTab = tabs.value.find(t => t.currentPage === 'pdfview');
+        if (existingPdfTab) {
+            // Switch to existing PDF viewer tab
+            setActiveTab(existingPdfTab.id);
+            return;
+        }
+
+        // Create new PDF viewer tab
+        tabs.value.forEach(tab => tab.isActive = false);
+
+        const existingIds = new Set(tabs.value.map(t => t.id));
+        let newId = 1;
+        while (existingIds.has(newId)) {
+            newId++;
+        }
+
+        const newTab: Tab = {
+            id: newId,
+            title: PAGE_TITLES.pdfview,
+            isActive: true,
+            currentPage: 'pdfview'
+        };
+        tabs.value.push(newTab);
+        nextId.value = Math.max(newId + 1, nextId.value);
+    };
+
+    const openPdfWithFile = (fileName: string, fileUrl: string) => {
+        // Create new PDF tab with file already selected
+        tabs.value.forEach(tab => tab.isActive = false);
+
+        const existingIds = new Set(tabs.value.map(t => t.id));
+        let newId = 1;
+        while (existingIds.has(newId)) {
+            newId++;
+        }
+
+        // Ensure filename has .pdf extension
+        let displayName = fileName;
+        if (!displayName.toLowerCase().endsWith('.pdf')) {
+            displayName += '.pdf';
+        }
+
+        const newTab: Tab = {
+            id: newId,
+            title: displayName,
+            isActive: true,
+            currentPage: 'pdfview',
+            pdfState: {
+                fileName: displayName,
+                fileUrl
+            }
+        };
+
+        tabs.value.push(newTab);
+        nextId.value = Math.max(newId + 1, nextId.value);
+    };
+
+    const openPdfWithFilePath = (fileName: string, filePath: string) => {
+        // Create new PDF tab with file path for persistence
+        tabs.value.forEach(tab => tab.isActive = false);
+
+        const existingIds = new Set(tabs.value.map(t => t.id));
+        let newId = 1;
+        while (existingIds.has(newId)) {
+            newId++;
+        }
+
+        // Ensure filename has .pdf extension
+        let displayName = fileName;
+        if (!displayName.toLowerCase().endsWith('.pdf')) {
+            displayName += '.pdf';
+        }
+
+        const newTab: Tab = {
+            id: newId,
+            title: displayName,
+            isActive: true,
+            currentPage: 'pdfview',
+            pdfState: {
+                fileName: displayName,
+                fileUrl: '', // Not needed when using file path
+                filePath
+            }
+        };
+
+        tabs.value.push(newTab);
+        nextId.value = Math.max(newId + 1, nextId.value);
+    };
+
+    const openPdfWithFilePathAndBlobUrl = (fileName: string, filePath: string, blobUrl: string) => {
+        // Create new PDF tab with both file path (persistence) and blob URL (viewing)
+        tabs.value.forEach(tab => tab.isActive = false);
+
+        const existingIds = new Set(tabs.value.map(t => t.id));
+        let newId = 1;
+        while (existingIds.has(newId)) {
+            newId++;
+        }
+
+        // Ensure filename has .pdf extension
+        let displayName = fileName;
+        if (!displayName.toLowerCase().endsWith('.pdf')) {
+            displayName += '.pdf';
+        }
+
+        const newTab: Tab = {
+            id: newId,
+            title: displayName,
+            isActive: true,
+            currentPage: 'pdfview',
+            pdfState: {
+                fileName: displayName,
+                fileUrl: blobUrl, // Use blob URL for PDF.js viewing
+                filePath // Store file path for persistence
+            }
+        };
+
+        tabs.value.push(newTab);
+        nextId.value = Math.max(newId + 1, nextId.value);
+    };
+
+
+
     const toggleBookSearch = (isOpen: boolean) => {
         const tab = tabs.value.find(t => t.isActive);
         if (tab?.bookState) {
@@ -313,6 +447,10 @@ export const useTabStore = defineStore('tabs', () => {
         openSettings,
         openAbout,
         openPdf,
+        openPdfViewer,
+        openPdfWithFile,
+        openPdfWithFilePath,
+        openPdfWithFilePathAndBlobUrl,
         toggleBookSearch
     };
 });

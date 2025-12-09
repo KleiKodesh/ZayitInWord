@@ -33,7 +33,7 @@ button {
 button:hover {
   background: var(--hover-bg);
   /* Light background on hover */
-  transform: scale(1.05);
+  /* transform: scale(1.01); */
   /* Slightly grow on hover (matches vue-tabs) */
   color: var(--text-primary);
   /* primary text color on hover */
@@ -43,7 +43,7 @@ button:hover {
 button:active {
   background: var(--active-bg);
   /* Darker background when pressed */
-  transform: scale(0.95);
+  transform: scale(0.99);
   /* Slightly shrink for press effect */
 }
 

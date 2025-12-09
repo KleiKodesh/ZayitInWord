@@ -114,5 +114,27 @@ export class CSharpBridge {
                 this.pendingRequests.delete(`GetLineRange:${bookId}:${start}:${end}`)
             }
         }
+
+        // PDF file picker response
+        win.receivePdfFilePath = (filePath: string | null, fileName: string | null, dataUrl: string | null) => {
+            console.log('receivePdfFilePath called:', { filePath, fileName, dataUrlLength: dataUrl?.length });
+            const request = this.pendingRequests.get('OpenPdfFilePicker')
+            if (request) {
+                console.log('Resolving PDF picker request');
+                request.resolve({ filePath, fileName, dataUrl })
+                this.pendingRequests.delete('OpenPdfFilePicker')
+            } else {
+                console.log('No pending request found for OpenPdfFilePicker');
+            }
+        }
+
+        // PDF load from path response
+        win.receivePdfDataUrl = (filePath: string, dataUrl: string | null) => {
+            const request = this.pendingRequests.get(`LoadPdfFromPath:${filePath}`)
+            if (request) {
+                request.resolve(dataUrl)
+                this.pendingRequests.delete(`LoadPdfFromPath:${filePath}`)
+            }
+        }
     }
 }

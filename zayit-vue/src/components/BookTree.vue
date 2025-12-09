@@ -2,7 +2,11 @@
     <div ref="treeContainerRef"
          class="overflow-y height-fill"
          @keydown="navigator?.handleKeyDown">
-        <LoadingIcon v-if="categoryTreeStore.isLoading" />
+        <div v-if="categoryTreeStore.isLoading"
+             class="height-fill flex-center">
+            <LoadingSpinner :width="48"
+                            :height="48" />
+        </div>
         <template v-else>
             <BookTreeCategoryNode v-for="(category, index) in categoryTreeStore.categoryTree"
                                   :key="category.id"
@@ -14,10 +18,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import LoadingIcon from './icons/LoadingIcon.vue';
+
 import { useCategoryTreeStore } from '../stores/categoryTreeStore';
 import BookTreeCategoryNode from './BookTreeCategoryNode.vue';
 import { KeyboardNavigator } from '../utils/KeyboardNavigator';
+import LoadingSpinner from './icons/LoadingSpinner.vue';
 
 const categoryTreeStore = useCategoryTreeStore();
 const nodeRefs = ref<InstanceType<typeof BookTreeCategoryNode>[]>([]);
