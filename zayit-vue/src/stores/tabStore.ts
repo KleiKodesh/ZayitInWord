@@ -264,6 +264,37 @@ export const useTabStore = defineStore('tabs', () => {
         nextId.value = Math.max(newId + 1, nextId.value);
     };
 
+    const openPdf = (fileName: string, fileUrl: string) => {
+        // Create new PDF tab
+        tabs.value.forEach(tab => tab.isActive = false);
+
+        const existingIds = new Set(tabs.value.map(t => t.id));
+        let newId = 1;
+        while (existingIds.has(newId)) {
+            newId++;
+        }
+
+        const newTab: Tab = {
+            id: newId,
+            title: fileName,
+            isActive: true,
+            currentPage: 'pdfview',
+            pdfState: {
+                fileName,
+                fileUrl
+            }
+        };
+        tabs.value.push(newTab);
+        nextId.value = Math.max(newId + 1, nextId.value);
+    };
+
+    const toggleBookSearch = (isOpen: boolean) => {
+        const tab = tabs.value.find(t => t.isActive);
+        if (tab?.bookState) {
+            tab.bookState.isSearchOpen = isOpen;
+        }
+    };
+
     return {
         tabs,
         activeTab,
@@ -280,6 +311,8 @@ export const useTabStore = defineStore('tabs', () => {
         toggleDiacritics,
         toggleLineDisplay,
         openSettings,
-        openAbout
+        openAbout,
+        openPdf,
+        toggleBookSearch
     };
 });

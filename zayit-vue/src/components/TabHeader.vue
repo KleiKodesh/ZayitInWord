@@ -46,6 +46,13 @@
             <about-icon />
             <span class="dropdown-label">אודות</span>
           </div>
+
+          <div @click.stop="handleOpenPdfClick"
+               class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
+               title="פתח PDF">
+            <file-icon />
+            <span class="dropdown-label">פתח PDF</span>
+          </div>
         </div>
       </div>
 
@@ -73,7 +80,7 @@
 
     </div>
     <span class="center-text bold ellipsis">{{ tabStore.activeTab?.title
-    }}</span>
+      }}</span>
     <div class="flex-row justify-end">
       <button @click.stop="resetTab"
               class="flex-center c-pointer"
@@ -100,6 +107,7 @@ import AboutIcon from './icons/AboutIcon.vue';
 import MoreVerticalIcon from './icons/MoreVerticalIcon.vue';
 import AlignLeftIcon from './icons/AlignLeftIcon.vue';
 import AlignJustifyIcon from './icons/AlignJustifyIcon.vue';
+import FileIcon from './icons/FileIcon.vue';
 import DiacriticsDropdown from './TabHeaderDiacriticsDropdown.vue';
 import { useTabStore } from '../stores/tabStore';
 import { toggleTheme } from '../utils/theme';
@@ -173,6 +181,22 @@ const handleThemeClick = () => {
 
 const handleLineDisplayClick = () => {
   tabStore.toggleLineDisplay();
+};
+
+const handleOpenPdfClick = () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.pdf';
+  input.onchange = (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (file) {
+      const fileUrl = URL.createObjectURL(file);
+      tabStore.openPdf(file.name, fileUrl);
+    }
+  };
+  input.click();
+  isDropdownOpen.value = false;
 };
 
 const handleClickOutside = (event: MouseEvent) => {

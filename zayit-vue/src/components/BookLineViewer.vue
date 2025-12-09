@@ -17,7 +17,7 @@
                       :key="index - 1"
                       :data-line-index-observer="index - 1"
                       :ref="el => { if (el) lineRefs[index - 1] = el as any }"
-                      :content="processedLines[index - 1] || '-'"
+                      :content="processedLines[index - 1] || '\u00A0'"
                       :line-index="index - 1"
                       :is-selected="selectedLineIndex === (index - 1)"
                       :class="{
@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onUnmounted, computed } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import BookLine from './BookLine.vue'
 import GenericSearch from './common/GenericSearch.vue'
 import { BookLineViewerState } from '../data/bookLineViewerState'
@@ -54,6 +54,7 @@ const emit = defineEmits<{
 
 const myTab = computed(() => tabStore.tabs.find(t => t.id === props.tabId))
 const selectedLineIndex = ref<number | null>(null)
+const visibleLines = ref<Set<number>>(new Set())
 
 // Computed property for processed line content
 const processedLines = computed(() => {
@@ -65,8 +66,16 @@ const processedLines = computed(() => {
     const processedLines: Record<number, string> = {}
 
     Object.entries(lines).forEach(([index, line]) => {
-        if (!line || line === '-') {
-            processedLines[Number(index)] = line
+        const lineIndex = Number(index)
+
+        // If line is not visible and not loaded, return placeholder
+        if (!visibleLines.value.has(lineIndex) && (!line || line === '\u00A0')) {
+            processedLines[lineIndex] = '\u00A0' // Hard space placeholder
+            return
+        }
+
+        if (!line || line === '\u00A0') {
+            processedLines[lineIndex] = line
             return
         }
 
@@ -79,11 +88,11 @@ const processedLines = computed(() => {
 
         // Apply search highlighting
         if (query) {
-            const currentOccurrence = currentMatch?.itemIndex === Number(index) ? currentMatch.occurrence : -1
+            const currentOccurrence = currentMatch?.itemIndex === lineIndex ? currentMatch.occurrence : -1
             processedLine = search.highlightMatches(processedLine, query, currentOccurrence)
         }
 
-        processedLines[Number(index)] = processedLine
+        processedLines[lineIndex] = processedLine
     })
 
     return processedLines
@@ -133,7 +142,7 @@ function handleKeyDown(e: KeyboardEvent) {
 function handleSearchQueryChange(query: string) {
     // Build searchable items from current lines
     const items = Object.entries(viewerState.lines.value)
-        .filter(([_, content]) => content && content !== '-')
+        .filter(([_, content]) => content && content !== '\u00A0')
         .map(([index, content]) => ({
             index: Number(index),
             content
@@ -305,7 +314,37 @@ function applyDiacriticsFilter(htmlContent: string, state: number): string {
 
 
 
+// Set up IntersectionObserver for semi-virtualization
+let observer: IntersectionObserver | null = null
+
+onMounted(() => {
+    observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            const lineIndex = Number(entry.target.getAttribute('data-line-index-observer'))
+            if (entry.isIntersecting) {
+                visibleLines.value.add(lineIndex)
+                // Load this line if not already loaded
+                viewerState.loadLinesAround(lineIndex, 20)
+            } else {
+                visibleLines.value.delete(lineIndex)
+            }
+        })
+    }, {
+        root: containerRef.value,
+        rootMargin: '200px', // Load lines 200px before they come into view
+        threshold: 0
+    })
+
+    // Observe all line elements
+    lineRefs.value.forEach((lineRef, index) => {
+        if (lineRef && lineRef.$el) {
+            observer?.observe(lineRef.$el)
+        }
+    })
+})
+
 onUnmounted(() => {
+    observer?.disconnect()
     viewerState.cleanup()
 
     const topLine = getTopVisibleLine()

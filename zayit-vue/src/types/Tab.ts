@@ -14,6 +14,12 @@ export interface BookState {
     diacriticsState?: number; // 0 = show all, 1 = hide cantillation, 2 = hide nikkud too
     isLineDisplayInline?: boolean; // false = block display, true = inline display
     originalHtml?: string; // Store original HTML for diacritics restoration
+    isSearchOpen?: boolean; // Whether search overlay is open
+}
+
+export interface PdfState {
+    fileName: string;
+    fileUrl: string;
 }
 
 export interface Tab {
@@ -22,4 +28,5 @@ export interface Tab {
     isActive: boolean;
     currentPage: PageType;
     bookState?: BookState;
+    pdfState?: PdfState;
 }
