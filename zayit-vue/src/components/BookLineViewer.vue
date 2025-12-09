@@ -10,36 +10,28 @@
                        @search-query-change="handleSearchQueryChange"
                        @navigate-to-match="handleNavigateToMatch" />
 
-        <DynamicScroller ref="scrollerRef"
-                         class="height-fill justify line-viewer scroller"
-                         :items="lineItems"
-                         :min-item-size="30"
-                         key-field="index"
-                         @scroll.passive="handleScrollDebounced">
-            <template #default="{ item, index, active }">
-                <DynamicScrollerItem :item="item"
-                                     :active="active"
-                                     :data-index="index"
-                                     :size-dependencies="[
-                                        processedLines[item.index]
-                                    ]">
-                    <BookLine :content="processedLines[item.index] || '\u00A0'"
-                              :line-index="item.index"
-                              :is-selected="selectedLineIndex === item.index"
-                              :class="{
-                                'show-selection': myTab?.bookState?.showBottomPane
-                            }"
-                              @line-click="handleLineClick" />
-                </DynamicScrollerItem>
-            </template>
-        </DynamicScroller>
+        <div ref="scrollerRef"
+             class="overflow-y height-fill line-viewer scroller"
+             @scroll.passive="handleScrollDebounced">
+            <div class="lines-container">
+                <BookLine v-for="item in lineItems"
+                          :key="item.index"
+                          :content="getLineContent(item.index)"
+                          :line-index="item.index"
+                          :is-selected="selectedLineIndex === item.index"
+                          :inline-mode="myTab?.bookState?.isLineDisplayInline"
+                          :class="{
+                            'show-selection': myTab?.bookState?.showBottomPane,
+                            'inline-mode': myTab?.bookState?.isLineDisplayInline
+                        }"
+                          @line-click="handleLineClick" />
+            </div>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onUnmounted, computed } from 'vue'
-import { DynamicScroller, DynamicScrollerItem } from 'vue-virtual-scroller'
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
+import { ref, watch, nextTick, onUnmounted, computed, onMounted } from 'vue'
 import BookLine from './BookLine.vue'
 import GenericSearch from './common/GenericSearch.vue'
 import { BookLineViewerState } from '../data/bookLineViewerState'
@@ -64,14 +56,55 @@ const myTab = computed(() => tabStore.tabs.find(t => t.id === props.tabId))
 const selectedLineIndex = ref<number | null>(null)
 
 const viewerState = new BookLineViewerState()
-const scrollerRef = ref<InstanceType<typeof DynamicScroller> | null>(null)
+const scrollerRef = ref<HTMLElement | null>(null)
 const searchRef = ref<InstanceType<typeof GenericSearch> | null>(null)
 
-// Create items array for virtual scroller
+// Track visible range
+const visibleRange = ref({ start: 0, end: 50 })
+
+// Create items array
 const lineItems = computed(() => {
     const total = viewerState.totalLines.value
     return Array.from({ length: total }, (_, i) => ({ index: i }))
 })
+
+// Get line content - only load for visible lines
+function getLineContent(index: number): string {
+    // Always return content if available
+    const content = processedLines.value[index]
+    if (content) return content
+
+    // Return placeholder for non-visible lines
+    return '\u00A0'
+}
+
+// Update visible range based on scroll position
+function updateVisibleRange() {
+    if (!scrollerRef.value) return
+
+    const container = scrollerRef.value
+    const scrollTop = container.scrollTop
+    const containerHeight = container.clientHeight
+
+    // Estimate line height (adjust based on your content)
+    const estimatedLineHeight = 30
+    const buffer = 20 // Load extra lines above and below
+
+    const startIndex = Math.max(0, Math.floor(scrollTop / estimatedLineHeight) - buffer)
+    const visibleCount = Math.ceil(containerHeight / estimatedLineHeight)
+    const endIndex = Math.min(viewerState.totalLines.value, startIndex + visibleCount + buffer * 2)
+
+    visibleRange.value = { start: startIndex, end: endIndex }
+}
+
+// Load lines in visible range
+watch(() => visibleRange.value, async (range) => {
+    if (range.start !== undefined && range.end !== undefined) {
+        const centerLine = Math.floor((range.start + range.end) / 2)
+        const padding = Math.ceil((range.end - range.start) / 2) + 50
+        await viewerState.loadLinesAround(centerLine, padding)
+    }
+}, { deep: true })
 
 // Use content search composable
 const search = useContentSearch()
@@ -196,29 +229,19 @@ watch(() => myTab.value?.bookState?.bookId, async (bookId, oldBookId) => {
         await nextTick()
         emit('placeholdersReady')
 
-        // Restore scroll position with retry
+        // Restore scroll position
         const targetScrollPosition = myTab.value?.bookState?.scrollPosition
         if (targetScrollPosition !== undefined) {
-            const restoreScroll = () => {
-                const scrollerEl = scrollerRef.value?.$el as HTMLElement
-                if (scrollerEl) {
-                    scrollerEl.scrollTop = targetScrollPosition
-                    // Verify and retry if needed
-                    setTimeout(() => {
-                        if (scrollerEl.scrollTop !== targetScrollPosition) {
-                            scrollerEl.scrollTop = targetScrollPosition
-                        }
-                    }, 100)
+            setTimeout(() => {
+                if (scrollerRef.value) {
+                    scrollerRef.value.scrollTop = targetScrollPosition
+                    updateVisibleRange()
                 }
-            }
-
-            await nextTick()
-            await nextTick()
-            restoreScroll()
+            }, 150)
         } else if (initialLineIndex !== undefined) {
-            await nextTick()
-            await nextTick()
-            scrollToLine(initialLineIndex)
+            setTimeout(() => {
+                scrollToLine(initialLineIndex)
+            }, 150)
         }
     }
 }, { immediate: true })
@@ -238,33 +261,28 @@ watch(() => myTab.value?.isActive, async (isActive, wasActive) => {
     const targetScrollPosition = myTab.value?.bookState?.scrollPosition
 
     if (isActive && !wasActive && bookId && viewerState.totalLines.value > 0 && targetScrollPosition !== undefined) {
-        await nextTick()
-        await nextTick()
-
-        const scrollerEl = scrollerRef.value?.$el as HTMLElement
-        if (scrollerEl) {
-            scrollerEl.scrollTop = targetScrollPosition
-            // Verify and retry if needed
-            setTimeout(() => {
-                if (scrollerEl.scrollTop !== targetScrollPosition) {
-                    scrollerEl.scrollTop = targetScrollPosition
-                }
-            }, 100)
-        }
+        setTimeout(() => {
+            if (scrollerRef.value) {
+                scrollerRef.value.scrollTop = targetScrollPosition
+                updateVisibleRange()
+            }
+        }, 150)
     }
 })
 
 function handleScrollDebounced() {
     if (!scrollerRef.value) return
 
+    // Update visible range immediately
+    updateVisibleRange()
+
     if (scrollUpdateTimeout !== null) {
         clearTimeout(scrollUpdateTimeout)
     }
     scrollUpdateTimeout = window.setTimeout(() => {
-        const scrollerEl = scrollerRef.value?.$el as HTMLElement
-        if (!scrollerEl) return
+        if (!scrollerRef.value) return
 
-        const scrollTop = scrollerEl.scrollTop
+        const scrollTop = scrollerRef.value.scrollTop
 
         if (myTab.value?.bookState) {
             myTab.value.bookState.scrollPosition = scrollTop
@@ -274,17 +292,20 @@ function handleScrollDebounced() {
 
 function scrollToLine(lineIndex: number) {
     if (!scrollerRef.value) return
-    const scroller = scrollerRef.value as any
-    scroller.scrollToItem(lineIndex)
 
-    // If search is open, add offset to prevent search bar from covering result
-    if (isSearchOpen.value) {
-        nextTick(() => {
-            const el = scrollerRef.value?.$el as HTMLElement
-            if (el) {
-                el.scrollTop = Math.max(0, el.scrollTop - 60)
-            }
-        })
+    // Find the line element and scroll to it
+    const lineElement = scrollerRef.value.querySelector(`[data-line-index="${lineIndex}"]`)
+    if (lineElement) {
+        lineElement.scrollIntoView({ behavior: 'auto', block: 'start' })
+
+        // If search is open, add offset to prevent search bar from covering result
+        if (isSearchOpen.value) {
+            nextTick(() => {
+                if (scrollerRef.value) {
+                    scrollerRef.value.scrollTop = Math.max(0, scrollerRef.value.scrollTop - 60)
+                }
+            })
+        }
     }
 }
 
@@ -357,6 +378,10 @@ function applyDiacriticsFilter(htmlContent: string, state: number): string {
 
 
 
+onMounted(() => {
+    updateVisibleRange()
+})
+
 onUnmounted(() => {
     viewerState.cleanup()
 })
@@ -372,7 +397,7 @@ defineExpose({
     font-size: var(--font-size, 100%);
 }
 
-.line-viewer.scroller :deep(.vue-recycle-scroller__item-wrapper) {
-    overflow: visible;
+.lines-container {
+    padding: 25px 15px;
 }
 </style>

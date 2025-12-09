@@ -1,6 +1,6 @@
 <template>
-    <span class="selectable line-1.6 justify book-line"
-          :class="{ selected: isSelected }"
+    <span class="selectable line-1.6 book-line"
+          :class="{ selected: isSelected, justify: !inlineMode }"
           tabindex="0"
           :data-line-index="lineIndex"
           @click="handleClick"
@@ -13,6 +13,7 @@ const props = defineProps<{
     content: string
     lineIndex: number
     isSelected: boolean
+    inlineMode?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -30,9 +31,14 @@ const handleClick = () => {
     line-height: var(--line-height, 1.2);
 }
 
-.book-line {
+.book-line:not(.inline-mode) {
     padding: 0px 5px;
     display: block;
+}
+
+.book-line.inline-mode {
+    display: inline;
+    padding: 0;
 }
 
 .book-line :deep(h1),
