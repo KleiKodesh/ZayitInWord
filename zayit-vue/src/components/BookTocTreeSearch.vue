@@ -58,7 +58,9 @@ const filteredEntries = computed(() => {
         return []
     }
 
-    const searchWords = debouncedQuery.value.trim().toLowerCase().split(/\s+/)
+    // Remove quotation marks from search query
+    const cleanQuery = debouncedQuery.value.replace(/"/g, '')
+    const searchWords = cleanQuery.trim().toLowerCase().split(/\s+/)
     const results: TocEntry[] = []
 
     // Flatten all entries including nested children
@@ -76,8 +78,14 @@ const filteredEntries = computed(() => {
     const allEntries = flattenEntries(props.tocEntries)
 
     for (const entry of allEntries) {
-        const searchText = `${entry.path || ''} ${entry.text}`.toLowerCase()
-        if (searchWords.every(word => searchText.includes(word))) {
+        // Remove quotation marks from search text
+        const searchText = `${entry.path || ''} ${entry.text}`.replace(/"/g, '').toLowerCase()
+        if (searchWords.every(word => {
+            // Use word boundaries that include Hebrew characters
+            const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            const regex = new RegExp(`(?<![\\w\u0590-\u05FF])${escapedWord}(?![\\w\u0590-\u05FF])`, 'i')
+            return regex.test(searchText)
+        })) {
             results.push(entry)
             if (results.length === 100) {
                 break

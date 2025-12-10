@@ -111,9 +111,6 @@
     <Compile Include="Viewer\ZayitViewer.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Viewer\ZayitViewerBase.cs">
-      <SubType>Component</SubType>
-    </Compile>
     <Compile Include="Viewer\ZayitViewerCommands.cs" />
     <Compile Include="Viewer\ZayitViewerHost.cs">
       <SubType>UserControl</SubType>

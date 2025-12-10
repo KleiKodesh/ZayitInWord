@@ -9,8 +9,8 @@
 
             <ChevronIconLeft v-if="entry.hasChildren"
                              :class="{ 'rotate-90': isExpanded }" />
-            <span class="flex-110 line-1.4"
-                  @click="handleSelect">{{ entry.text }}</span>
+            <div class="flex-110 line-1.4 node-title"
+                 @click="handleSelect">{{ entry.text }}</div>
         </div>
 
         <template v-if="isExpanded && entry.children">
@@ -74,3 +74,10 @@ defineExpose({
     reset
 })
 </script>
+
+<style scoped>
+.node-title {
+    margin: -12px 0px;
+    padding: 12px 0px;
+}
+</style>

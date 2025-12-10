@@ -55,7 +55,7 @@
                     גודל גופן
                     <span class="text-secondary setting-value">{{
                         fontSize
-                        }}%</span>
+                    }}%</span>
                 </label>
                 <input type="range"
                        v-model.number="fontSize"
@@ -70,13 +70,28 @@
                 <label class="flex-between bold setting-label">
                     ריווח שורות
                     <span class="text-secondary setting-value">{{ linePadding
-                        }}</span>
+                    }}</span>
                 </label>
                 <input type="range"
                        v-model.number="linePadding"
                        min="1.2"
                        max="3.0"
                        step="0.1"
+                       class="setting-slider" />
+            </div>
+
+            <!-- App Zoom -->
+            <div class="setting-group">
+                <label class="flex-between bold setting-label">
+                    זום האפליקציה
+                    <span class="text-secondary setting-value">{{
+                        Math.round(appZoom * 100) }}%</span>
+                </label>
+                <input type="range"
+                       v-model.number="appZoom"
+                       min="0.5"
+                       max="1.5"
+                       step="0.05"
                        class="setting-slider" />
             </div>
 
@@ -116,7 +131,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { hebrewFonts } from '../../data/hebrewFonts'
 
 const settingsStore = useSettingsStore()
-const { headerFont, textFont, fontSize, linePadding, censorDivineNames } = storeToRefs(settingsStore)
+const { headerFont, textFont, fontSize, linePadding, censorDivineNames, appZoom } = storeToRefs(settingsStore)
 
 const availableFonts = ref<string[]>([])
 const isHeaderDropdownOpen = ref(false)

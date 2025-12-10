@@ -9,6 +9,7 @@ export interface Settings {
     fontSize: number
     linePadding: number
     censorDivineNames: boolean
+    appZoom: number
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -16,7 +17,8 @@ const DEFAULT_SETTINGS: Settings = {
     textFont: "'Times New Roman', Times, serif",
     fontSize: 100,
     linePadding: 1.6,
-    censorDivineNames: false
+    censorDivineNames: false,
+    appZoom: 0.85
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -25,6 +27,7 @@ export const useSettingsStore = defineStore('settings', () => {
     const fontSize = ref(DEFAULT_SETTINGS.fontSize)
     const linePadding = ref(DEFAULT_SETTINGS.linePadding)
     const censorDivineNames = ref(DEFAULT_SETTINGS.censorDivineNames)
+    const appZoom = ref(DEFAULT_SETTINGS.appZoom)
 
     const loadFromStorage = () => {
         try {
@@ -36,6 +39,7 @@ export const useSettingsStore = defineStore('settings', () => {
                 fontSize.value = settings.fontSize || DEFAULT_SETTINGS.fontSize
                 linePadding.value = settings.linePadding || DEFAULT_SETTINGS.linePadding
                 censorDivineNames.value = settings.censorDivineNames || DEFAULT_SETTINGS.censorDivineNames
+                appZoom.value = settings.appZoom || DEFAULT_SETTINGS.appZoom
             }
         } catch (e) {
             console.error('Failed to load settings:', e)
@@ -49,7 +53,8 @@ export const useSettingsStore = defineStore('settings', () => {
                 textFont: textFont.value,
                 fontSize: fontSize.value,
                 linePadding: linePadding.value,
-                censorDivineNames: censorDivineNames.value
+                censorDivineNames: censorDivineNames.value,
+                appZoom: appZoom.value
             }))
         } catch (e) {
             console.error('Failed to save settings:', e)
@@ -61,6 +66,12 @@ export const useSettingsStore = defineStore('settings', () => {
         document.documentElement.style.setProperty('--text-font', textFont.value)
         document.documentElement.style.setProperty('--font-size', `${fontSize.value}%`)
         document.documentElement.style.setProperty('--line-height', linePadding.value.toString())
+
+        // Apply zoom to the app element
+        const appElement = document.getElementById('app')
+        if (appElement) {
+            appElement.style.zoom = appZoom.value.toString()
+        }
     }
 
     const reset = () => {
@@ -69,6 +80,7 @@ export const useSettingsStore = defineStore('settings', () => {
         fontSize.value = DEFAULT_SETTINGS.fontSize
         linePadding.value = DEFAULT_SETTINGS.linePadding
         censorDivineNames.value = DEFAULT_SETTINGS.censorDivineNames
+        appZoom.value = DEFAULT_SETTINGS.appZoom
         localStorage.removeItem(STORAGE_KEY)
         applyCSSVariables()
     }
@@ -78,7 +90,7 @@ export const useSettingsStore = defineStore('settings', () => {
     applyCSSVariables()
 
     // Watch for changes and persist
-    watch([headerFont, textFont, fontSize, linePadding, censorDivineNames], () => {
+    watch([headerFont, textFont, fontSize, linePadding, censorDivineNames, appZoom], () => {
         saveToStorage()
         applyCSSVariables()
     })
@@ -89,6 +101,7 @@ export const useSettingsStore = defineStore('settings', () => {
         fontSize,
         linePadding,
         censorDivineNames,
+        appZoom,
         reset
     }
 })

@@ -9,7 +9,7 @@
           <more-vertical-icon />
         </button>
 
-        <transition name="fade">
+        <transition name="slide">
           <div v-if="isDropdownOpen"
                class="dropdown-menu">
 
@@ -61,30 +61,30 @@
             <div v-if="isWebViewAvailable"
                  @click.stop="handlePopoutClick"
                  class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-                 title="פתח בחלון נפרד">
+                 :title="popoutTitle">
               <popout-icon />
-              <span class="dropdown-label">פתח בחלון נפרד</span>
+              <span class="dropdown-label">{{ popoutLabel }}</span>
             </div>
           </div>
         </transition>
       </div>
 
-      <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
-              @click.stop="openSearch"
+      <button v-if="tabStore.activeTab?.currentPage === 'bookview' && !isTocVisible"
+              @click.stop="handleButtonClick(openSearch)"
               class="flex-center c-pointer"
               title="חיפוש (Ctrl+F)">
         <search-icon />
       </button>
 
-      <button v-if="tabStore.activeTab?.currentPage === 'bookview' && hasConnections"
-              @click.stop="toggleSplitPane"
+      <button v-if="tabStore.activeTab?.currentPage === 'bookview' && hasConnections && !isTocVisible"
+              @click.stop="handleButtonClick(toggleSplitPane)"
               class="flex-center c-pointer"
               title="פאנל תחתון">
         <split-pane-icon />
       </button>
 
       <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
-              @click.stop="goToToc"
+              @click.stop="handleButtonClick(goToToc)"
               class="flex-center c-pointer"
               title="תוכן עניינים">
         <tree-icon class="rtl-flip" />
@@ -95,14 +95,14 @@
     <span class="center-text bold ellipsis">{{ tabStore.activeTab?.title
       }}</span>
     <div class="flex-row justify-end">
-      <button @click.stop="resetTab"
+      <button @click.stop="handleButtonClick(resetTab)"
               class="flex-center c-pointer"
               title="דף הבית">
         <home-icon />
       </button>
-      <button @click.stop="newTab"
+      <button @click.stop="handleButtonClick(newTab)"
               class="flex-center c-pointer">+</button>
-      <button @click.stop="closeTab"
+      <button @click.stop="handleButtonClick(closeTab)"
               class="flex-center c-pointer">×</button>
     </div>
   </div>
@@ -129,6 +129,11 @@ import { dbManager } from '../data/dbManager';
 
 const tabStore = useTabStore();
 const isDropdownOpen = ref(false);
+const isPopoutMode = ref(false);
+
+const emit = defineEmits<{
+  'close-tab-dropdown': []
+}>();
 
 // Check if WebView is available for popout functionality
 const isWebViewAvailable = computed(() => {
@@ -146,6 +151,20 @@ const hasConnections = computed(() => {
   const bookState = tabStore.activeTab?.bookState;
   if (!bookState) return false;
   return bookState.hasConnections || false;
+});
+
+const isTocVisible = computed(() => {
+  const bookState = tabStore.activeTab?.bookState;
+  if (!bookState) return false;
+  return bookState.isTocOpen || false;
+});
+
+const popoutTitle = computed(() => {
+  return isPopoutMode.value ? 'חזור לפאנל צד' : 'פתח בחלון נפרד';
+});
+
+const popoutLabel = computed(() => {
+  return isPopoutMode.value ? 'פאנל צד' : 'חלון נפרד';
 });
 
 const goToToc = () => {
@@ -181,6 +200,11 @@ const closeTab = () => {
 
 const toggleDropdown = () => {
   isDropdownOpen.value = !isDropdownOpen.value;
+};
+
+const handleButtonClick = (action: () => void) => {
+  action();
+  emit('close-tab-dropdown');
 };
 
 const handleSettingsClick = () => {
@@ -268,6 +292,8 @@ const handlePopoutClick = () => {
       command: 'TogglePopOut',
       args: []
     });
+    // Toggle the local state
+    isPopoutMode.value = !isPopoutMode.value;
   }
   isDropdownOpen.value = false;
 };
