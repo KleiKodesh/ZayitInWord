@@ -8,8 +8,8 @@
                    type="text"
                    class="flex-110"
                    placeholder="חיפוש..."
-                   @keydown.enter="findNext"
-                   @keydown.shift.enter="findPrevious"
+                   @keydown.enter="handleEnter"
+                   @keydown.shift.enter.prevent="findPrevious"
                    @keydown.esc="close" />
             <span class="search-count">{{ currentMatchIndex + 1 }}/{{
                 totalMatches }}</span>
@@ -90,6 +90,13 @@ function findNext() {
     if (totalMatches.value === 0) return
     currentMatchIndex.value = (currentMatchIndex.value + 1) % totalMatches.value
     emit('navigateToMatch', currentMatchIndex.value)
+}
+
+function handleEnter(e: KeyboardEvent) {
+    // Only handle regular Enter (not Shift+Enter)
+    if (!e.shiftKey) {
+        findNext()
+    }
 }
 
 function findPrevious() {

@@ -3,7 +3,6 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import Database from 'better-sqlite3'
-import path from 'node:path'
 
 // SQLite Database Plugin for Vite Dev Server
 function sqlitePlugin() {
@@ -55,5 +54,8 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
+  },
+  optimizeDeps: {
+    exclude: ['canvas', 'path2d-polyfill']
   },
 })

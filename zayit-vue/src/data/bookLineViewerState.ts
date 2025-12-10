@@ -14,6 +14,7 @@ export class BookLineViewerState {
     // Public reactive state
     lines: Ref<Record<number, string>> = ref({})
     totalLines: Ref<number> = ref(0)
+    bufferUpdateCount: Ref<number> = ref(0) // Reactive counter for buffer updates
     isInitialLoad = true
 
     // Private state
@@ -28,6 +29,35 @@ export class BookLineViewerState {
      */
     setBufferingMode(enabled: boolean) {
         this.shouldBufferInsteadOfRender = enabled
+    }
+
+    /**
+     * Clean up non-visible lines to free memory
+     * Removes from UI but keeps in buffer (buffer is always complete)
+     */
+    cleanupNonVisibleLines(visibleLines: Set<number>, bufferSize = PADDING_LINES) {
+        const linesToKeep = new Set<number>()
+
+        // Calculate which lines to keep in UI (visible + buffer)
+        visibleLines.forEach(lineIndex => {
+            for (let i = Math.max(0, lineIndex - bufferSize);
+                i <= Math.min(this.totalLines.value - 1, lineIndex + bufferSize);
+                i++) {
+                linesToKeep.add(i)
+            }
+        })
+
+        // Remove non-visible lines from UI (but keep in buffer)
+        Object.keys(this.lines.value).forEach(indexStr => {
+            const lineIndex = Number(indexStr)
+            if (!linesToKeep.has(lineIndex)) {
+                const content = this.lines.value[lineIndex]
+                if (content && content !== '\u00A0') {
+                    // Content already in buffer, just remove from UI
+                    delete this.lines.value[lineIndex]
+                }
+            }
+        })
     }
 
     /**
@@ -64,6 +94,7 @@ export class BookLineViewerState {
 
     /**
      * Load lines around a center point (from buffer first, then DB)
+     * This is called by intersection observer for immediate UI rendering
      */
     async loadLinesAround(centerLine: number, padding = PADDING_LINES): Promise<void> {
         const start = Math.max(0, centerLine - padding)
@@ -74,14 +105,14 @@ export class BookLineViewerState {
             const bufferedLine = this.lineBuffer[i]
             if (this.lines.value[i] === undefined && bufferedLine !== undefined) {
                 this.lines.value[i] = bufferedLine
-                delete this.lineBuffer[i]
+                // Keep in buffer too - don't delete
             }
         }
 
         // Then load missing lines from DB
         const needsLoading: number[] = []
         for (let i = start; i <= end; i++) {
-            if (this.lines.value[i] === undefined) {
+            if (this.lines.value[i] === undefined && this.lineBuffer[i] === undefined) {
                 needsLoading.push(i)
             }
         }
@@ -91,7 +122,9 @@ export class BookLineViewerState {
             const lastLine = needsLoading[needsLoading.length - 1]!
             const loadedLines = await bookLinesLoader.loadLineRange(this.bookId, firstLine, lastLine)
             loadedLines.forEach(line => {
+                // Add to both UI and buffer immediately
                 this.lines.value[line.lineIndex] = line.content
+                this.lineBuffer[line.lineIndex] = line.content
             })
         }
     }
@@ -115,6 +148,7 @@ export class BookLineViewerState {
 
     /**
      * Start background loading of all lines
+     * Only buffers content, doesn't render to UI - intersection observer handles rendering
      */
     private startBackgroundLoading() {
         if (this.bookId === null || this.totalLines.value === 0) return
@@ -127,20 +161,23 @@ export class BookLineViewerState {
                 this.bookId,
                 this.totalLines.value,
                 (loadedLines: LineLoadResult[]) => {
-                    // Throttle UI updates with setTimeout
-                    setTimeout(() => {
-                        loadedLines.forEach(line => {
-                            if (this.lines.value[line.lineIndex] === undefined &&
-                                this.lineBuffer[line.lineIndex] === undefined) {
+                    // Only buffer content, don't render to UI
+                    // Intersection observer will move from buffer to UI when needed
+                    let hasNewContent = false
+                    loadedLines.forEach(line => {
+                        if (this.lines.value[line.lineIndex] === undefined &&
+                            this.lineBuffer[line.lineIndex] === undefined) {
 
-                                if (this.shouldBufferInsteadOfRender) {
-                                    this.lineBuffer[line.lineIndex] = line.content
-                                } else {
-                                    this.lines.value[line.lineIndex] = line.content
-                                }
-                            }
-                        })
-                    }, 0)
+                            // Always buffer, never directly render
+                            this.lineBuffer[line.lineIndex] = line.content
+                            hasNewContent = true
+                        }
+                    })
+
+                    // Trigger reactive update for search
+                    if (hasNewContent) {
+                        this.bufferUpdateCount.value++
+                    }
                 }
             )
         }, 100)
@@ -154,6 +191,29 @@ export class BookLineViewerState {
             this.backgroundAbort()
             this.backgroundAbort = null
         }
+    }
+
+    /**
+     * Get all lines from buffer for search (buffer is source of truth)
+     */
+    getBufferLinesForSearch(): Array<{ index: number, content: string }> {
+        const allLines: Array<{ index: number, content: string }> = []
+
+        // Debug: log buffer size
+        console.log('Buffer size for search:', Object.keys(this.lineBuffer).length)
+
+        // Only search the buffer - it contains all loaded content
+        Object.entries(this.lineBuffer).forEach(([indexStr, content]) => {
+            if (content && content !== '\u00A0') {
+                allLines.push({
+                    index: Number(indexStr),
+                    content
+                })
+            }
+        })
+
+        console.log('Search lines found:', allLines.length)
+        return allLines.sort((a, b) => a.index - b.index)
     }
 
     /**

@@ -39,6 +39,11 @@ import { useContainedSelection } from '../composables/useContainedSelection'
 import { useContentSearch } from '../composables/useContentSearch'
 import { useTabStore } from '../stores/tabStore'
 
+// Buffer zone configuration
+const LOAD_BUFFER_SIZE = 20    // Lines to load around visible area
+const MEMORY_BUFFER_SIZE = 50  // Lines to keep in memory around visible area (regular mode)
+const MEMORY_BUFFER_SIZE_INLINE = 500  // Lines to keep in memory around visible area (inline mode)
+
 const tabStore = useTabStore()
 
 const props = defineProps<{
@@ -65,18 +70,14 @@ const processedLines = computed(() => {
 
     const processedLines: Record<number, string> = {}
 
-    Object.entries(lines).forEach(([index, line]) => {
-        const lineIndex = Number(index)
+    // Process all lines up to totalLines
+    for (let lineIndex = 0; lineIndex < viewerState.totalLines.value; lineIndex++) {
+        const line = lines[lineIndex]
 
-        // If line is not visible and not loaded, return placeholder
-        if (!visibleLines.value.has(lineIndex) && (!line || line === '\u00A0')) {
-            processedLines[lineIndex] = '\u00A0' // Hard space placeholder
-            return
-        }
-
+        // If line is not loaded (undefined or placeholder), show placeholder
         if (!line || line === '\u00A0') {
-            processedLines[lineIndex] = line
-            return
+            processedLines[lineIndex] = '\u00A0' // Hard space placeholder
+            continue
         }
 
         let processedLine = line
@@ -93,7 +94,7 @@ const processedLines = computed(() => {
         }
 
         processedLines[lineIndex] = processedLine
-    })
+    }
 
     return processedLines
 })
@@ -136,21 +137,52 @@ function handleKeyDown(e: KeyboardEvent) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault()
         isSearchOpen.value = true
+        return
+    }
+
+    // Handle Ctrl+Home and Ctrl+End for virtualized content
+    if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'Home') {
+            e.preventDefault()
+            scrollToLine(0)
+        } else if (e.key === 'End') {
+            e.preventDefault()
+            const lastLine = viewerState.totalLines.value - 1
+            if (lastLine >= 0) {
+                scrollToLine(lastLine)
+            }
+        }
     }
 }
 
-function handleSearchQueryChange(query: string) {
-    // Build searchable items from current lines
-    const items = Object.entries(viewerState.lines.value)
-        .filter(([_, content]) => content && content !== '\u00A0')
-        .map(([index, content]) => ({
-            index: Number(index),
-            content
-        }))
+// Current search query for reactive updates
+const currentSearchQuery = ref('')
 
-    search.searchInItems(items, query)
+function handleSearchQueryChange(query: string) {
+    currentSearchQuery.value = query
+    performSearch()
+}
+
+function performSearch() {
+    const query = currentSearchQuery.value
+    if (!query.trim()) {
+        search.searchInItems([], query)
+        searchRef.value?.setMatches(0)
+        return
+    }
+
+    // Search only the buffer (now contains all loaded content)
+    const allLines = viewerState.getBufferLinesForSearch()
+    search.searchInItems(allLines, query)
     searchRef.value?.setMatches(search.totalMatches.value)
 }
+
+// Re-search when buffer updates
+watch(() => viewerState.bufferUpdateCount.value, () => {
+    if (currentSearchQuery.value.trim()) {
+        performSearch()
+    }
+})
 
 function handleNavigateToMatch(matchIndex: number) {
     search.navigateToMatch(matchIndex)
@@ -193,6 +225,10 @@ watch(() => myTab.value?.bookState?.bookId, async (bookId, oldBookId) => {
         const isRestore = oldBookId === undefined && initialLineIndex !== undefined
         await viewerState.loadBook(bookId, isRestore, initialLineIndex)
         await nextTick()
+
+        // Set up observer after lines are rendered
+        setupObserver()
+
         emit('placeholdersReady')
 
         // Scroll to initial position if provided
@@ -243,7 +279,13 @@ function handleScrollDebounced() {
     }, 300)
 }
 
-function scrollToLine(lineIndex: number) {
+async function scrollToLine(lineIndex: number) {
+    // Ensure the target line is loaded first
+    await viewerState.loadLinesAround(lineIndex, LOAD_BUFFER_SIZE)
+
+    // Wait for DOM update
+    await nextTick()
+
     const lineRef = lineRefs.value[lineIndex]
     const lineElement = lineRef?.$el
 
@@ -317,18 +359,41 @@ function applyDiacriticsFilter(htmlContent: string, state: number): string {
 // Set up IntersectionObserver for semi-virtualization
 let observer: IntersectionObserver | null = null
 
-onMounted(() => {
+function setupObserver() {
+    if (observer) {
+        observer.disconnect()
+    }
+
     observer = new IntersectionObserver((entries) => {
+        let hasChanges = false
+
         entries.forEach(entry => {
             const lineIndex = Number(entry.target.getAttribute('data-line-index-observer'))
             if (entry.isIntersecting) {
-                visibleLines.value.add(lineIndex)
-                // Load this line if not already loaded
-                viewerState.loadLinesAround(lineIndex, 20)
+                if (!visibleLines.value.has(lineIndex)) {
+                    visibleLines.value.add(lineIndex)
+                    hasChanges = true
+                }
+                // Load this line and surrounding lines for UI rendering
+                // This will check buffer first, then DB if needed
+                viewerState.loadLinesAround(lineIndex, LOAD_BUFFER_SIZE)
             } else {
-                visibleLines.value.delete(lineIndex)
+                if (visibleLines.value.has(lineIndex)) {
+                    visibleLines.value.delete(lineIndex)
+                    hasChanges = true
+                }
             }
         })
+
+        // Clean up non-visible lines after visibility changes
+        if (hasChanges) {
+            // Debounce cleanup to avoid excessive calls
+            setTimeout(() => {
+                const isInlineMode = myTab.value?.bookState?.isLineDisplayInline
+                const bufferSize = isInlineMode ? MEMORY_BUFFER_SIZE_INLINE : MEMORY_BUFFER_SIZE
+                viewerState.cleanupNonVisibleLines(visibleLines.value, bufferSize)
+            }, 500)
+        }
     }, {
         root: containerRef.value,
         rootMargin: '200px', // Load lines 200px before they come into view
@@ -336,11 +401,17 @@ onMounted(() => {
     })
 
     // Observe all line elements
-    lineRefs.value.forEach((lineRef, index) => {
-        if (lineRef && lineRef.$el) {
-            observer?.observe(lineRef.$el)
-        }
+    nextTick(() => {
+        lineRefs.value.forEach((lineRef, index) => {
+            if (lineRef && lineRef.$el) {
+                observer?.observe(lineRef.$el)
+            }
+        })
     })
+}
+
+onMounted(() => {
+    // Observer will be set up when book loads
 })
 
 onUnmounted(() => {
