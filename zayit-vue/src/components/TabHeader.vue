@@ -9,61 +9,64 @@
           <more-vertical-icon />
         </button>
 
-        <div v-if="isDropdownOpen"
-             class="dropdown-menu">
+        <transition name="fade">
+          <div v-if="isDropdownOpen"
+               class="dropdown-menu">
 
-          <!-- Diacritics toggle dropdown item -->
-          <DiacriticsDropdown />
+            <!-- Diacritics toggle dropdown item -->
+            <DiacriticsDropdown />
 
-          <!-- Line display toggle dropdown item -->
-          <div v-if="tabStore.activeTab?.currentPage === 'bookview'"
-               @click.stop="handleLineDisplayClick"
-               class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-               title="החלף תצוגת שורות">
-            <align-left-icon v-if="isLineDisplayInline" />
-            <align-justify-icon v-else />
-            <span class="dropdown-label">{{ isLineDisplayInline ? 'תצוגת בלוק' :
-              'תצוגת שורה' }}</span>
+            <!-- Line display toggle dropdown item -->
+            <div v-if="tabStore.activeTab?.currentPage === 'bookview'"
+                 @click.stop="handleLineDisplayClick"
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
+                 title="החלף תצוגת שורות">
+              <align-left-icon v-if="isLineDisplayInline" />
+              <align-justify-icon v-else />
+              <span class="dropdown-label">{{ isLineDisplayInline ? 'תצוגת בלוק'
+                :
+                'תצוגת שורה' }}</span>
+            </div>
+
+            <div @click.stop="handleThemeClick"
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
+                 title="ערכת נושא">
+              <theme-icon class="theme-icon" />
+              <span class="dropdown-label">ערכת נושא</span>
+            </div>
+
+            <div @click.stop="handleSettingsClick"
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
+                 title="הגדרות">
+              <settings-icon />
+              <span class="dropdown-label">הגדרות</span>
+            </div>
+
+            <div @click.stop="handleAboutClick"
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
+                 title="אודות">
+              <about-icon />
+              <span class="dropdown-label">אודות</span>
+            </div>
+
+            <!-- PDF viewer - available in both dev and C# modes -->
+            <div @click.stop="handleOpenPdfClick"
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
+                 title="פתח PDF">
+              <pdf-file-icon />
+              <span class="dropdown-label">פתח PDF</span>
+            </div>
+
+            <!-- Popout toggle - only available in C# WebView -->
+            <div v-if="isWebViewAvailable"
+                 @click.stop="handlePopoutClick"
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
+                 title="פתח בחלון נפרד">
+              <popout-icon />
+              <span class="dropdown-label">פתח בחלון נפרד</span>
+            </div>
           </div>
-
-          <div @click.stop="handleThemeClick"
-               class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-               title="ערכת נושא">
-            <theme-icon class="theme-icon" />
-            <span class="dropdown-label">ערכת נושא</span>
-          </div>
-
-          <div @click.stop="handleSettingsClick"
-               class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-               title="הגדרות">
-            <settings-icon />
-            <span class="dropdown-label">הגדרות</span>
-          </div>
-
-          <div @click.stop="handleAboutClick"
-               class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-               title="אודות">
-            <about-icon />
-            <span class="dropdown-label">אודות</span>
-          </div>
-
-          <!-- PDF viewer - available in both dev and C# modes -->
-          <div @click.stop="handleOpenPdfClick"
-               class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-               title="פתח PDF">
-            <pdf-file-icon />
-            <span class="dropdown-label">פתח PDF</span>
-          </div>
-
-          <!-- Popout toggle - only available in C# WebView -->
-          <div v-if="isWebViewAvailable"
-               @click.stop="handlePopoutClick"
-               class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-               title="פתח בחלון נפרד">
-            <popout-icon />
-            <span class="dropdown-label">פתח בחלון נפרד</span>
-          </div>
-        </div>
+        </transition>
       </div>
 
       <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
@@ -276,12 +279,28 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 };
 
+const handleWindowBlur = () => {
+  if (isDropdownOpen.value) {
+    isDropdownOpen.value = false;
+  }
+};
+
+const handleVisibilityChange = () => {
+  if (document.hidden && isDropdownOpen.value) {
+    isDropdownOpen.value = false;
+  }
+};
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
+  window.addEventListener('blur', handleWindowBlur);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside);
+  window.removeEventListener('blur', handleWindowBlur);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
 </script>
 

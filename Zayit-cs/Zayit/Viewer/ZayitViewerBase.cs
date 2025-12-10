@@ -10,7 +10,7 @@ namespace Zayit.Viewer
 {
     public class ZayitViewerBase : WebView2
     {
-        private readonly object _commandHandler;
+        private object _commandHandler;
         CoreWebView2Environment _environment;
 
         public ZayitViewerBase(object commandHandler = null)
@@ -18,10 +18,15 @@ namespace Zayit.Viewer
             Dock = DockStyle.Fill;
 
             // Optional external handler
-            _commandHandler = commandHandler ?? this;
+            SetCommandHandler(commandHandler);
             WebMessageReceived += ZayitViewer_WebMessageReceived;
 
             EnsurCoreAsync();
+        }
+
+        public void SetCommandHandler(object commandHandler)
+        {
+            _commandHandler = commandHandler ?? this;
         }
 
         public async void EnsurCoreAsync()

@@ -1,21 +1,18 @@
 ﻿using Dapper;
 using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Linq;
-using Zayit.Models;
 
 namespace Zayit.SeforimDb
 {
-    public static class DbQueries
+    public class DbQueries
     {
-        static readonly DbManager _db = new DbManager();
+        readonly DbManager _db = new DbManager();
 
         /// <summary>
         /// Execute arbitrary SQL query sent from TypeScript
         /// SQL queries are defined in sqlQueries.ts
         /// </summary>
-        public static object ExecuteQuery(string sql, object[] parameters = null)
+        public object ExecuteQuery(string sql, object[] parameters = null)
         {
             System.Diagnostics.Debug.WriteLine($"Executing SQL: {sql}");
             System.Diagnostics.Debug.WriteLine($"DB Connection null: {_db?.DapperConnection == null}");

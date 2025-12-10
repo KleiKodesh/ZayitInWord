@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useTabStore } from '../stores/tabStore';
 
 const tabStore = useTabStore();
@@ -37,6 +37,28 @@ const selectTab = (id: number) => {
   tabStore.setActiveTab(id);
   close();
 };
+
+const handleWindowBlur = () => {
+  if (isVisible.value) {
+    close();
+  }
+};
+
+const handleVisibilityChange = () => {
+  if (document.hidden && isVisible.value) {
+    close();
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('blur', handleWindowBlur);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('blur', handleWindowBlur);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+});
 
 defineExpose({ toggle, close, isVisible });
 </script>
