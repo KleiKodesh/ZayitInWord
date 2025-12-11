@@ -152,6 +152,34 @@ class DatabaseManager {
     }
 
     // --------------------------------------------------------------------------
+    // Public API - Search Operations
+    // --------------------------------------------------------------------------
+
+    async searchLines(bookId: number, searchTerm: string): Promise<LineLoadResult[]> {
+        let lines: LineLoadResult[]
+
+        if (this.isWebViewAvailable()) {
+            const promise = this.csharp.createRequest<LineLoadResult[]>(`SearchLines:${bookId}:${searchTerm}`)
+            this.csharp.send('SearchLines', [bookId, searchTerm])
+            lines = await promise
+        } else if (this.isDevServerAvailable()) {
+            lines = await sqliteDb.searchLines(bookId, searchTerm)
+        } else {
+            throw new Error('No database source available')
+        }
+
+        // Apply censoring if enabled
+        if (useSettingsStore().censorDivineNames) {
+            lines = lines.map(line => ({
+                ...line,
+                content: censorDivineNames(line.content)
+            }))
+        }
+
+        return lines
+    }
+
+    // --------------------------------------------------------------------------
     // Public API - PDF Operations
     // --------------------------------------------------------------------------
 

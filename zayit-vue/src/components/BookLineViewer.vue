@@ -173,7 +173,7 @@ function handleSearchQueryChange(query: string) {
     performSearch()
 }
 
-function performSearch() {
+async function performSearch() {
     const query = currentSearchQuery.value
     if (!query.trim()) {
         search.searchInItems([], query)
@@ -181,15 +181,22 @@ function performSearch() {
         return
     }
 
-    // Search the buffer - it contains all loaded content (progressively loaded in virtualized mode)
-    const allLines = viewerState.getBufferLinesForSearch()
-    search.searchInItems(allLines, query)
-    searchRef.value?.setMatches(search.totalMatches.value)
+    if (settingsStore.enableVirtualization) {
+        // Virtualization ON: Search DB directly
+        const searchResults = await viewerState.searchInDB(query)
+        search.searchInItems(searchResults, query)
+        searchRef.value?.setMatches(search.totalMatches.value)
+    } else {
+        // Virtualization OFF: Search buffer
+        const allLines = await viewerState.getSearchData()
+        search.searchInItems(allLines, query)
+        searchRef.value?.setMatches(search.totalMatches.value)
+    }
 }
 
-// Re-search when buffer updates
+// Re-search when buffer updates (only in non-virtualization mode)
 watch(() => viewerState.bufferUpdateCount.value, () => {
-    if (currentSearchQuery.value.trim()) {
+    if (currentSearchQuery.value.trim() && !settingsStore.enableVirtualization) {
         performSearch()
     }
 })
@@ -231,13 +238,13 @@ let scrollUpdateTimeout: number | null = null
 // Load book when bookId changes
 watch(() => myTab.value?.bookState?.bookId, async (bookId, oldBookId) => {
     if (bookId && bookId !== oldBookId) {
+        // Set virtualization mode before loading
+        viewerState.setVirtualizationMode(settingsStore.enableVirtualization)
+
         const initialLineIndex = myTab.value?.bookState?.initialLineIndex
         const isRestore = oldBookId === undefined && initialLineIndex !== undefined
         await viewerState.loadBook(bookId, isRestore, initialLineIndex)
         await nextTick()
-
-        // Progressive loading always happens via background loading
-        // Virtualization setting only controls memory management (intersection observer)
 
         // Set up observer after lines are rendered (only if virtualization enabled)
         setupObserver()
@@ -259,6 +266,9 @@ watch(() => myTab.value?.bookState?.isTocOpen, (isTocOpen) => {
 watch(() => settingsStore.enableVirtualization, async (enableVirtualization, wasEnabled) => {
     const bookId = myTab.value?.bookState?.bookId
     if (!bookId || viewerState.totalLines.value === 0) return
+
+    // Update virtualization mode in state
+    viewerState.setVirtualizationMode(enableVirtualization)
 
     if (enableVirtualization && !wasEnabled) {
         // Switching from non-virtualized to virtualized
@@ -428,6 +438,7 @@ function applyDiacriticsFilter(htmlContent: string, state: number): string {
 
 // Set up IntersectionObserver for semi-virtualization
 let observer: IntersectionObserver | null = null
+let loadingTimeout: number | null = null
 
 function setupObserver() {
     if (observer) {
@@ -441,17 +452,16 @@ function setupObserver() {
 
     observer = new IntersectionObserver((entries) => {
         let hasChanges = false
+        const newlyVisibleLines: number[] = []
 
         entries.forEach(entry => {
             const lineIndex = Number(entry.target.getAttribute('data-line-index-observer'))
             if (entry.isIntersecting) {
                 if (!visibleLines.value.has(lineIndex)) {
                     visibleLines.value.add(lineIndex)
+                    newlyVisibleLines.push(lineIndex)
                     hasChanges = true
                 }
-                // Load this line and surrounding lines for UI rendering
-                // This will check buffer first, then DB if needed
-                viewerState.loadLinesAround(lineIndex, LOAD_BUFFER_SIZE)
             } else {
                 if (visibleLines.value.has(lineIndex)) {
                     visibleLines.value.delete(lineIndex)
@@ -459,6 +469,20 @@ function setupObserver() {
                 }
             }
         })
+
+        // Batch load newly visible lines
+        if (newlyVisibleLines.length > 0) {
+            // Clear any pending load timeout
+            if (loadingTimeout) {
+                clearTimeout(loadingTimeout)
+            }
+
+            // Debounce loading to batch multiple visibility changes
+            loadingTimeout = window.setTimeout(() => {
+                batchLoadVisibleLines(newlyVisibleLines)
+                loadingTimeout = null
+            }, 50) // Short delay to batch rapid visibility changes
+        }
 
         // Clean up non-visible lines after visibility changes
         if (hasChanges) {
@@ -474,6 +498,24 @@ function setupObserver() {
         rootMargin: '200px', // Load lines 200px before they come into view
         threshold: 0
     })
+
+    // Batch load function for newly visible lines
+    async function batchLoadVisibleLines(lineIndices: number[]) {
+        if (lineIndices.length === 0) return
+
+        // Calculate the overall range needed for all visible lines
+        const minLine = Math.min(...lineIndices)
+        const maxLine = Math.max(...lineIndices)
+
+        // Expand range to include buffer around visible area
+        const start = Math.max(0, minLine - LOAD_BUFFER_SIZE)
+        const end = Math.min(viewerState.totalLines.value - 1, maxLine + LOAD_BUFFER_SIZE)
+
+        console.log(`📚 Batch loading lines ${start}-${end} for ${lineIndices.length} newly visible lines`)
+
+        // Load the entire range in one efficient call
+        await viewerState.loadLinesAround(Math.floor((start + end) / 2), Math.max(LOAD_BUFFER_SIZE, (end - start) / 2))
+    }
 
     // Observe all line elements
     nextTick(() => {
@@ -491,6 +533,10 @@ onMounted(() => {
 
 onUnmounted(() => {
     observer?.disconnect()
+    if (loadingTimeout) {
+        clearTimeout(loadingTimeout)
+        loadingTimeout = null
+    }
     viewerState.cleanup()
 
     const topLine = getTopVisibleLine()

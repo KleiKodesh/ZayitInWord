@@ -43,7 +43,7 @@ namespace Zayit.Viewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"GetTree error: {ex}");
+                Debug.WriteLine($"GetTree error: {ex}");
             }
         }
 
@@ -70,7 +70,7 @@ namespace Zayit.Viewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"GetToc error: {ex}");
+                Debug.WriteLine($"GetToc error: {ex}");
             }
         }
 
@@ -96,7 +96,7 @@ namespace Zayit.Viewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"GetLinks error: {ex}");
+                Debug.WriteLine($"GetLinks error: {ex}");
             }
         }
 
@@ -155,13 +155,13 @@ namespace Zayit.Viewer
                     }
                 }
 
-                MessageBox.Show($"No result or no valid data returned for bookId={bookId}");
+                Debug.WriteLine($"No result or no valid data returned for bookId={bookId}");
                 string fallbackJs = $"window.receiveTotalLines({bookId}, 0);";
                 await _webView.ExecuteScriptAsync(fallbackJs);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"GetTotalLines error: {ex}");
+                Debug.WriteLine($"GetTotalLines error: {ex}");
             }
         }
 
@@ -206,7 +206,7 @@ namespace Zayit.Viewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"GetLineContent error: {ex}");
+                Debug.WriteLine($"GetLineContent error: {ex}");
             }
         }
 
@@ -255,7 +255,7 @@ namespace Zayit.Viewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"GetLineId error: {ex}");
+                Debug.WriteLine($"GetLineId error: {ex}");
             }
         }
 
@@ -282,7 +282,7 @@ namespace Zayit.Viewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"GetLineRange error: {ex}");
+                Debug.WriteLine($"GetLineRange error: {ex}");
             }
         }
 
@@ -300,7 +300,7 @@ namespace Zayit.Viewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"CheckHostingMode error: {ex}");
+                Debug.WriteLine($"CheckHostingMode error: {ex}");
             }
         }
 
@@ -332,7 +332,7 @@ namespace Zayit.Viewer
                         }
                         catch (Exception fileEx)
                         {
-                            MessageBox.Show($"Failed to read PDF: {fileEx}");
+                            Debug.WriteLine($"Failed to read PDF: {fileEx}");
                         }
                     }
                 }
@@ -351,7 +351,7 @@ namespace Zayit.Viewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"OpenPdfFilePicker error: {ex}");
+                Debug.WriteLine($"OpenPdfFilePicker error: {ex}");
             }
         }
 
@@ -398,12 +398,40 @@ namespace Zayit.Viewer
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"LoadPdfFromPath error: {ex}");
+                Debug.WriteLine($"LoadPdfFromPath error: {ex}");
 
                 // Send null result on error
                 string filePathJson = JsonSerializer.Serialize(filePath);
                 string js = $"window.receivePdfDataUrl({filePathJson}, null);";
                 await _webView.ExecuteScriptAsync(js);
+            }
+        }
+
+        /// <summary>
+        /// Search for lines containing a search term
+        /// </summary>
+        private async void SearchLines(int bookId, string searchTerm)
+        {
+            try
+            {
+                Debug.WriteLine($"SearchLines called: bookId={bookId}, searchTerm={searchTerm}");
+
+                var lines = _db.ExecuteQuery(SeforimDb.SqlQueries.SearchLines(bookId, searchTerm));
+
+                string json = JsonSerializer.Serialize(lines, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+
+                string searchTermJson = JsonSerializer.Serialize(searchTerm);
+                string js = $"window.receiveSearchResults({bookId}, {searchTermJson}, {json});";
+                await _webView.ExecuteScriptAsync(js);
+
+                Debug.WriteLine($"Search results sent for bookId={bookId}, searchTerm={searchTerm}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SearchLines error: {ex}");
             }
         }
 

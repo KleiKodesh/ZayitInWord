@@ -105,3 +105,10 @@ export async function loadLineRange(bookId: number, start: number, end: number):
   return await query<LineLoadResult>(SqlQueries.getLineRange(bookId, start, end))
 }
 
+/**
+ * Search lines in a book
+ */
+export async function searchLines(bookId: number, searchTerm: string): Promise<LineLoadResult[]> {
+  return await query<LineLoadResult>(SqlQueries.searchLines(bookId, searchTerm))
+}
+

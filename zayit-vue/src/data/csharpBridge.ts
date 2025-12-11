@@ -136,5 +136,16 @@ export class CSharpBridge {
                 this.pendingRequests.delete(`LoadPdfFromPath:${filePath}`)
             }
         }
+
+        // Search lines response
+        win.receiveSearchResults = (bookId: number, searchTerm: string, lines: any[]) => {
+            const request = this.pendingRequests.get(`SearchLines:${bookId}:${searchTerm}`)
+            if (request) {
+                request.resolve(lines)
+                this.pendingRequests.delete(`SearchLines:${bookId}:${searchTerm}`)
+            }
+        }
+
+
     }
 }

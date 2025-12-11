@@ -2,11 +2,15 @@
  * BookLineViewerState
  * 
  * Manages line loading state and strategy for a single BookLineViewer instance.
- * Handles buffer management, background loading, and coordinating between DB and UI.
+ * 
+ * Architecture:
+ * - Virtualization ON: DB is source of truth, no buffer, load only visible content
+ * - Virtualization OFF: Buffer is source of truth, progressive loading, search buffer
  */
 
 import { ref, type Ref } from 'vue'
 import { bookLinesLoader, type LineLoadResult } from './bookLinesManager'
+import { dbManager } from './dbManager'
 
 const PADDING_LINES = 100
 
@@ -22,6 +26,7 @@ export class BookLineViewerState {
     private backgroundAbort: (() => void) | null = null
     private bookId: number | null = null
     private shouldBufferInsteadOfRender = false
+    private virtualizationEnabled = false
 
     /**
      * Enable or disable buffering mode for background loading
@@ -29,6 +34,20 @@ export class BookLineViewerState {
      */
     setBufferingMode(enabled: boolean) {
         this.shouldBufferInsteadOfRender = enabled
+    }
+
+    /**
+     * Set virtualization mode
+     * When enabled, DB becomes source of truth and buffer is cleared
+     */
+    setVirtualizationMode(enabled: boolean) {
+        this.virtualizationEnabled = enabled
+
+        if (enabled) {
+            // Clear buffer when switching to virtualization mode
+            this.lineBuffer = {}
+            this.bufferUpdateCount.value++
+        }
     }
 
     /**
@@ -64,7 +83,7 @@ export class BookLineViewerState {
      * Load a new book
      */
     async loadBook(bookId: number, isRestore: boolean, initialLineIndex?: number): Promise<void> {
-        console.log('📚 Loading book:', bookId, 'isRestore:', isRestore, 'initialLineIndex:', initialLineIndex)
+        console.log('📚 Loading book:', bookId, 'isRestore:', isRestore, 'initialLineIndex:', initialLineIndex, 'virtualization:', this.virtualizationEnabled)
 
         this.cleanup()
 
@@ -76,8 +95,10 @@ export class BookLineViewerState {
         try {
             this.totalLines.value = await bookLinesLoader.getTotalLines(bookId)
 
-            // Start background buffer loading immediately
-            this.startBackgroundLoading()
+            // Only start background loading if virtualization is OFF
+            if (!this.virtualizationEnabled) {
+                this.startBackgroundLoading()
+            }
 
             // Only load initial content if restoring
             if (isRestore && initialLineIndex !== undefined) {
@@ -93,39 +114,102 @@ export class BookLineViewerState {
     }
 
     /**
-     * Load lines around a center point (from buffer first, then DB)
-     * This is called by intersection observer for immediate UI rendering
+     * Load lines around a center point
+     * Virtualization ON: Efficient batched loading directly to UI
+     * Virtualization OFF: Load to both UI and buffer
      */
     async loadLinesAround(centerLine: number, padding = PADDING_LINES): Promise<void> {
         const start = Math.max(0, centerLine - padding)
         const end = Math.min(this.totalLines.value - 1, centerLine + padding)
 
-        // First check buffer for already loaded lines
+        if (this.virtualizationEnabled) {
+            // Virtualization ON: Efficient batched loading
+            await this.loadRangeEfficiently(start, end)
+        } else {
+            // Virtualization OFF: Use buffer-first approach
+            // First check buffer for already loaded lines
+            for (let i = start; i <= end; i++) {
+                const bufferedLine = this.lineBuffer[i]
+                if (this.lines.value[i] === undefined && bufferedLine !== undefined) {
+                    this.lines.value[i] = bufferedLine
+                    // Keep in buffer too - don't delete
+                }
+            }
+
+            // Then load missing lines from DB
+            const needsLoading: number[] = []
+            for (let i = start; i <= end; i++) {
+                if (this.lines.value[i] === undefined && this.lineBuffer[i] === undefined) {
+                    needsLoading.push(i)
+                }
+            }
+
+            if (needsLoading.length > 0 && this.bookId !== null) {
+                const firstLine = needsLoading[0]!
+                const lastLine = needsLoading[needsLoading.length - 1]!
+                const loadedLines = await bookLinesLoader.loadLineRange(this.bookId, firstLine, lastLine)
+                loadedLines.forEach(line => {
+                    // Add to both UI and buffer
+                    this.lines.value[line.lineIndex] = line.content
+                    this.lineBuffer[line.lineIndex] = line.content
+                })
+            }
+        }
+    }
+
+    /**
+     * Efficiently load a range of lines in virtualization mode
+     * Batches requests to minimize DB calls and avoid loading already loaded lines
+     */
+    private async loadRangeEfficiently(start: number, end: number): Promise<void> {
+        if (!this.bookId) return
+
+        // Find continuous ranges that need loading
+        const rangesToLoad: Array<{ start: number, end: number }> = []
+        let rangeStart: number | null = null
+
         for (let i = start; i <= end; i++) {
-            const bufferedLine = this.lineBuffer[i]
-            if (this.lines.value[i] === undefined && bufferedLine !== undefined) {
-                this.lines.value[i] = bufferedLine
-                // Keep in buffer too - don't delete
+            const needsLoading = this.lines.value[i] === undefined
+
+            if (needsLoading) {
+                if (rangeStart === null) {
+                    rangeStart = i
+                }
+            } else {
+                if (rangeStart !== null) {
+                    rangesToLoad.push({ start: rangeStart, end: i - 1 })
+                    rangeStart = null
+                }
             }
         }
 
-        // Then load missing lines from DB
-        const needsLoading: number[] = []
-        for (let i = start; i <= end; i++) {
-            if (this.lines.value[i] === undefined && this.lineBuffer[i] === undefined) {
-                needsLoading.push(i)
-            }
+        // Handle final range if it extends to the end
+        if (rangeStart !== null) {
+            rangesToLoad.push({ start: rangeStart, end })
         }
 
-        if (needsLoading.length > 0 && this.bookId !== null) {
-            const firstLine = needsLoading[0]!
-            const lastLine = needsLoading[needsLoading.length - 1]!
-            const loadedLines = await bookLinesLoader.loadLineRange(this.bookId, firstLine, lastLine)
-            loadedLines.forEach(line => {
-                // Add to both UI and buffer immediately
-                this.lines.value[line.lineIndex] = line.content
-                this.lineBuffer[line.lineIndex] = line.content
+        // Load all ranges in parallel for maximum efficiency
+        if (rangesToLoad.length > 0) {
+            console.log(`📚 Loading ${rangesToLoad.length} ranges in virtualization mode:`, rangesToLoad)
+
+            const loadPromises = rangesToLoad.map(async (range) => {
+                try {
+                    const loadedLines = await dbManager.loadLineRange(this.bookId!, range.start, range.end)
+                    return loadedLines
+                } catch (error) {
+                    console.error(`❌ Failed to load range ${range.start}-${range.end}:`, error)
+                    return []
+                }
             })
+
+            const results = await Promise.all(loadPromises)
+
+            // Apply all loaded lines to UI
+            results.flat().forEach(line => {
+                this.lines.value[line.lineIndex] = line.content
+            })
+
+            console.log(`✅ Loaded ${results.flat().length} lines in ${rangesToLoad.length} batched requests`)
         }
     }
 
@@ -147,15 +231,15 @@ export class BookLineViewerState {
     }
 
     /**
-     * Start background loading of all lines
+     * Start background loading of all lines (only when virtualization is OFF)
      * Only buffers content, doesn't render to UI - intersection observer handles rendering
      */
     private startBackgroundLoading() {
-        if (this.bookId === null || this.totalLines.value === 0) return
+        if (this.bookId === null || this.totalLines.value === 0 || this.virtualizationEnabled) return
 
         // Delay start to let UI render first
         setTimeout(() => {
-            if (this.bookId === null) return
+            if (this.bookId === null || this.virtualizationEnabled) return
 
             this.backgroundAbort = bookLinesLoader.startBackgroundLoad(
                 this.bookId,
@@ -194,26 +278,55 @@ export class BookLineViewerState {
     }
 
     /**
-     * Get all lines from buffer for search (buffer is source of truth)
+     * Get search data based on virtualization mode
+     * Virtualization ON: Search DB directly
+     * Virtualization OFF: Search buffer (source of truth)
      */
-    getBufferLinesForSearch(): Array<{ index: number, content: string }> {
-        const allLines: Array<{ index: number, content: string }> = []
+    async getSearchData(): Promise<Array<{ index: number, content: string }>> {
+        if (this.virtualizationEnabled) {
+            // Virtualization ON: Search DB directly
+            if (!this.bookId) return []
 
-        // Debug: log buffer size
-        console.log('Buffer size for search:', Object.keys(this.lineBuffer).length)
+            console.log('🔍 Searching DB directly (virtualization mode)')
+            // For now, return empty array - search will be handled by DB search
+            return []
+        } else {
+            // Virtualization OFF: Search buffer
+            const allLines: Array<{ index: number, content: string }> = []
 
-        // Only search the buffer - it contains all loaded content
-        Object.entries(this.lineBuffer).forEach(([indexStr, content]) => {
-            if (content && content !== '\u00A0') {
-                allLines.push({
-                    index: Number(indexStr),
-                    content
-                })
-            }
-        })
+            console.log('Buffer size for search:', Object.keys(this.lineBuffer).length)
 
-        console.log('Search lines found:', allLines.length)
-        return allLines.sort((a, b) => a.index - b.index)
+            Object.entries(this.lineBuffer).forEach(([indexStr, content]) => {
+                if (content && content !== '\u00A0') {
+                    allLines.push({
+                        index: Number(indexStr),
+                        content
+                    })
+                }
+            })
+
+            console.log('Search lines found:', allLines.length)
+            return allLines.sort((a, b) => a.index - b.index)
+        }
+    }
+
+    /**
+     * Search lines in DB (for virtualization mode)
+     */
+    async searchInDB(searchTerm: string): Promise<Array<{ index: number, content: string }>> {
+        if (!this.bookId || !this.virtualizationEnabled) return []
+
+        try {
+            console.log('🔍 Searching DB for term:', searchTerm)
+            const results = await dbManager.searchLines(this.bookId, searchTerm)
+            return results.map(result => ({
+                index: result.lineIndex,
+                content: result.content
+            }))
+        } catch (error) {
+            console.error('❌ DB search failed:', error)
+            return []
+        }
     }
 
     /**

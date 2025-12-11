@@ -422,6 +422,17 @@ export const useTabStore = defineStore('tabs', () => {
 
 
 
+    const closeAllTabs = () => {
+        // Clear all tabs and create a new default tab
+        tabs.value = [{
+            id: 1,
+            title: PAGE_TITLES.landing,
+            isActive: true,
+            currentPage: 'landing'
+        }];
+        nextId.value = 2;
+    };
+
     const toggleBookSearch = (isOpen: boolean) => {
         const tab = tabs.value.find(t => t.isActive);
         if (tab?.bookState) {
@@ -435,6 +446,7 @@ export const useTabStore = defineStore('tabs', () => {
         addTab,
         closeTab,
         closeTabById,
+        closeAllTabs,
         setActiveTab,
         resetTab,
         setPage,

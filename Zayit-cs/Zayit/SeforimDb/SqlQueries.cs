@@ -93,5 +93,13 @@ namespace Zayit.SeforimDb
               AND lineIndex <= {end} 
             ORDER BY lineIndex
         ";
+
+        public static string SearchLines(int bookId, string searchTerm) => $@"
+            SELECT lineIndex, content 
+            FROM line 
+            WHERE bookId = {bookId} 
+              AND content LIKE '%{searchTerm}%'
+            ORDER BY lineIndex
+        ";
     }
 }

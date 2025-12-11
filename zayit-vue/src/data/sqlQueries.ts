@@ -83,5 +83,13 @@ export const SqlQueries = {
       AND lineIndex >= ${start} 
       AND lineIndex <= ${end} 
     ORDER BY lineIndex
+  `,
+
+  searchLines: (bookId: number, searchTerm: string) => `
+    SELECT lineIndex, content 
+    FROM line 
+    WHERE bookId = ${bookId} 
+      AND content LIKE '%${searchTerm}%'
+    ORDER BY lineIndex
   `
 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -17,6 +18,7 @@ namespace Zayit.Viewer
     public class ZayitViewer : WebView2
     {
         private object _commandHandler;
+        private ZayitViewerCommands _commands;
         protected CoreWebView2Environment _environment;
         private readonly string HtmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Html");
 
@@ -30,7 +32,8 @@ namespace Zayit.Viewer
                 Source = new Uri("https://zayitHost/index.html");
             };
 
-            // Optional external handler
+            // Initialize command handler
+            _commands = new ZayitViewerCommands(this);
             SetCommandHandler(commandHandler);
             WebMessageReceived += ZayitViewer_WebMessageReceived;
 
@@ -39,7 +42,7 @@ namespace Zayit.Viewer
 
         public void SetCommandHandler(object commandHandler)
         {
-            _commandHandler = commandHandler ?? this;
+            _commandHandler = commandHandler ?? _commands;
         }
 
         public async void EnsurCoreAsync()
@@ -77,7 +80,7 @@ namespace Zayit.Viewer
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"WebMessage error: {ex}");
-                MessageBox.Show("JS message error: " + ex.Message);
+                Debug.WriteLine("JS message error: " + ex.Message);
             }
         }
 
@@ -101,7 +104,7 @@ namespace Zayit.Viewer
             if (method == null)
             {
                 System.Diagnostics.Debug.WriteLine($"No handler found for command: {cmd.Command}");
-                MessageBox.Show($"No handler for command: {cmd.Command}");
+                Debug.WriteLine($"No handler for command: {cmd.Command}");
                 return;
             }
 
@@ -133,6 +136,15 @@ namespace Zayit.Viewer
                 if (index >= Args.Length)
                     return null;
 
+                // Handle decimal numbers for integer parameters (round to nearest int)
+                if (targetType == typeof(int) && Args[index].ValueKind == JsonValueKind.Number)
+                {
+                    if (Args[index].TryGetDouble(out double doubleValue))
+                    {
+                        return (int)Math.Round(doubleValue);
+                    }
+                }
+
                 return Args[index].Deserialize(targetType, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
@@ -144,7 +156,7 @@ namespace Zayit.Viewer
         // Example handler method inside control
         private void ShowAlert(string message)
         {
-            MessageBox.Show("From JS: " + message);
+            Debug.WriteLine("From JS: " + message);
         }
     }
 }
