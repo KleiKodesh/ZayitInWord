@@ -217,29 +217,33 @@ export class BookLineViewerState {
     }
 
     /**
-     * Load all lines immediately (for non-virtualized mode)
+     * Load full document for search when virtualization is enabled
      */
-    async loadAllLines(): Promise<void> {
-        if (this.bookId === null || this.totalLines.value === 0) return
+    async loadFullDocumentForSearch(bookId: number): Promise<LineLoadResult[]> {
+        console.log('🔍 Loading full document for search, total lines:', this.totalLines.value)
 
-        console.log('📚 Loading all lines immediately (non-virtualized mode)')
+        if (this.totalLines.value === 0) return []
 
         try {
-            const allLines = await bookLinesLoader.loadLineRange(this.bookId, 0, this.totalLines.value - 1)
-
-            // Load all lines into both UI and buffer
-            allLines.forEach(line => {
-                this.lines.value[line.lineIndex] = line.content
-                this.lineBuffer[line.lineIndex] = line.content
-            })
-
-            // Trigger reactive update for search
-            this.bufferUpdateCount.value++
-
-            console.log('✅ All lines loaded:', allLines.length)
+            const allLines = await bookLinesLoader.loadLineRange(bookId, 0, this.totalLines.value - 1)
+            console.log('✅ Full document loaded for search:', allLines.length, 'lines')
+            return allLines
         } catch (error) {
-            console.error('❌ Failed to load all lines:', error)
+            console.error('❌ Failed to load full document for search:', error)
+            throw error
         }
+    }
+
+    /**
+     * Move all buffer content to UI (for non-virtualized mode)
+     */
+    moveBufferToUI(): void {
+        console.log('📚 Moving all buffer content to UI (non-virtualized mode)')
+
+        // Copy all buffer content to UI
+        Object.assign(this.lines.value, this.lineBuffer)
+
+        console.log('✅ Buffer content moved to UI:', Object.keys(this.lineBuffer).length, 'lines')
     }
 
     /**

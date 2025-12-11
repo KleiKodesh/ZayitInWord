@@ -28,6 +28,19 @@
                 'תצוגת שורה' }}</span>
             </div>
 
+            <!-- Virtualization toggle dropdown item -->
+            <div v-if="tabStore.activeTab?.currentPage === 'bookview'"
+                 @click.stop="handleVirtualizationClick"
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
+                 :title="settingsStore.enableVirtualization
+                  ? 'כבה וירטואליזציה - כל השורות נטענות'
+                  : 'הפעל וירטואליזציה - רק חלק מהשורות נטענות'">
+              <bolt-icon v-if="settingsStore.enableVirtualization" />
+              <leaf-icon v-else />
+              <span class="dropdown-label">{{ settingsStore.enableVirtualization
+                ? 'בטל וירטואליזציה' : 'הפעל וירטואליזציה' }}</span>
+            </div>
+
             <div @click.stop="handleThemeClick"
                  class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
                  title="ערכת נושא">
@@ -93,7 +106,7 @@
 
     </div>
     <span class="center-text bold ellipsis">{{ tabStore.activeTab?.title
-    }}</span>
+      }}</span>
     <div class="flex-row justify-end">
       <button @click.stop="handleButtonClick(resetTab)"
               class="flex-center c-pointer"
@@ -122,12 +135,16 @@ import AlignLeftIcon from './icons/AlignLeftIcon.vue';
 import AlignJustifyIcon from './icons/AlignJustifyIcon.vue';
 import PdfFileIcon from './icons/PdfFileIcon.vue';
 import PopoutIcon from './icons/PopoutIcon.vue';
+import BoltIcon from './icons/BoltIcon.vue';
+import LeafIcon from './icons/LeafIcon.vue';
 import DiacriticsDropdown from './TabHeaderDiacriticsDropdown.vue';
 import { useTabStore } from '../stores/tabStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { toggleTheme } from '../utils/theme';
 import { dbManager } from '../data/dbManager';
 
 const tabStore = useTabStore();
+const settingsStore = useSettingsStore();
 const isDropdownOpen = ref(false);
 const isPopoutMode = ref(false);
 
@@ -225,6 +242,11 @@ const handleThemeClick = () => {
 
 const handleLineDisplayClick = () => {
   tabStore.toggleLineDisplay();
+};
+
+const handleVirtualizationClick = () => {
+  settingsStore.enableVirtualization = !settingsStore.enableVirtualization;
+  isDropdownOpen.value = false;
 };
 
 const handleOpenPdfClick = async () => {

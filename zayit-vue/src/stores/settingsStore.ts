@@ -10,6 +10,7 @@ export interface Settings {
     linePadding: number
     censorDivineNames: boolean
     appZoom: number
+    enableVirtualization: boolean
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -18,7 +19,8 @@ const DEFAULT_SETTINGS: Settings = {
     fontSize: 100,
     linePadding: 1.6,
     censorDivineNames: false,
-    appZoom: 0.85
+    appZoom: 0.85,
+    enableVirtualization: false
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -28,6 +30,7 @@ export const useSettingsStore = defineStore('settings', () => {
     const linePadding = ref(DEFAULT_SETTINGS.linePadding)
     const censorDivineNames = ref(DEFAULT_SETTINGS.censorDivineNames)
     const appZoom = ref(DEFAULT_SETTINGS.appZoom)
+    const enableVirtualization = ref(DEFAULT_SETTINGS.enableVirtualization)
 
     const loadFromStorage = () => {
         try {
@@ -40,6 +43,7 @@ export const useSettingsStore = defineStore('settings', () => {
                 linePadding.value = settings.linePadding || DEFAULT_SETTINGS.linePadding
                 censorDivineNames.value = settings.censorDivineNames || DEFAULT_SETTINGS.censorDivineNames
                 appZoom.value = settings.appZoom || DEFAULT_SETTINGS.appZoom
+                enableVirtualization.value = settings.enableVirtualization ?? DEFAULT_SETTINGS.enableVirtualization
             }
         } catch (e) {
             console.error('Failed to load settings:', e)
@@ -54,7 +58,8 @@ export const useSettingsStore = defineStore('settings', () => {
                 fontSize: fontSize.value,
                 linePadding: linePadding.value,
                 censorDivineNames: censorDivineNames.value,
-                appZoom: appZoom.value
+                appZoom: appZoom.value,
+                enableVirtualization: enableVirtualization.value
             }))
         } catch (e) {
             console.error('Failed to save settings:', e)
@@ -81,6 +86,7 @@ export const useSettingsStore = defineStore('settings', () => {
         linePadding.value = DEFAULT_SETTINGS.linePadding
         censorDivineNames.value = DEFAULT_SETTINGS.censorDivineNames
         appZoom.value = DEFAULT_SETTINGS.appZoom
+        enableVirtualization.value = DEFAULT_SETTINGS.enableVirtualization
         localStorage.removeItem(STORAGE_KEY)
         applyCSSVariables()
     }
@@ -90,7 +96,7 @@ export const useSettingsStore = defineStore('settings', () => {
     applyCSSVariables()
 
     // Watch for changes and persist
-    watch([headerFont, textFont, fontSize, linePadding, censorDivineNames, appZoom], () => {
+    watch([headerFont, textFont, fontSize, linePadding, censorDivineNames, appZoom, enableVirtualization], () => {
         saveToStorage()
         applyCSSVariables()
     })
@@ -102,6 +108,7 @@ export const useSettingsStore = defineStore('settings', () => {
         linePadding,
         censorDivineNames,
         appZoom,
+        enableVirtualization,
         reset
     }
 })

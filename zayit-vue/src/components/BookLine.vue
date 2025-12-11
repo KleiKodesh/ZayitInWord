@@ -1,5 +1,14 @@
 <template>
-    <div dir="rtl"
+    <span v-if="inlineMode"
+          dir="rtl"
+          class="selectable line-1.6 justify book-line"
+          :class="{ selected: isSelected }"
+          :data-line-index="lineIndex"
+          @click="handleClick"
+          v-html="content + ' '">
+    </span>
+    <div v-else
+         dir="rtl"
          class="selectable line-1.6 justify book-line"
          :class="{ selected: isSelected }"
          :data-line-index="lineIndex"
@@ -13,6 +22,7 @@ const props = defineProps<{
     content: string
     lineIndex: number
     isSelected: boolean
+    inlineMode: boolean
 }>()
 
 const emit = defineEmits<{
@@ -30,13 +40,15 @@ const handleClick = () => {
     line-height: var(--line-height, 1.2);
 }
 
-.book-line:not(.inline-mode) {
+/* Block mode (div) gets padding and block display */
+div.book-line {
     padding: 0px 5px;
     display: block;
 }
 
-.book-line.inline-mode {
-    /* padding-left: 5px; */
+/* Inline mode (span) is inline by default */
+span.book-line {
+    display: inline;
 }
 
 .book-line :deep(h1),
@@ -62,12 +74,13 @@ const handleClick = () => {
     position: relative;
 }
 
-/* Block mode selection - only when NOT in inline mode AND split pane is open */
-.book-line.selected:not(.inline-mode).show-selection {
+/* Block mode selection - only for div elements when split pane is open */
+div.book-line.selected.show-selection {
     position: relative;
 }
 
-/* .book-line.selected:not(.inline-mode).show-selection::after {
+/* Commented out - using background instead of ::after indicator
+div.book-line.selected.show-selection::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -76,11 +89,6 @@ const handleClick = () => {
     width: 3px;
     height: 1em;
     background-color: var(--accent-color);
-} */
-
-/* Inline mode selection - use background instead of ::after AND split pane is open */
-/* .book-line.inline-mode.selected.show-selection {
-    background-color: var(--accent-bg);
 } */
 
 .book-line.selected.show-selection {

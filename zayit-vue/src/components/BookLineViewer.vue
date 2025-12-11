@@ -21,9 +21,9 @@
                       :content="processedLines[index - 1] || '\u00A0'"
                       :line-index="index - 1"
                       :is-selected="selectedLineIndex === (index - 1)"
+                      :inline-mode="myTab?.bookState?.isLineDisplayInline || false"
                       :class="{
-                        'show-selection': myTab?.bookState?.showBottomPane,
-                        'inline-mode': myTab?.bookState?.isLineDisplayInline
+                        'show-selection': myTab?.bookState?.showBottomPane
                     }"
                       @line-click="handleLineClick" />
         </div>
@@ -39,14 +39,7 @@ import { getTopVisibleElementIndex } from '../utils/topVisibleElement'
 
 import { useContentSearch } from '../composables/useContentSearch'
 import { useTabStore } from '../stores/tabStore'
-
-// ============================================================================
-// VIRTUALIZATION TOGGLE
-// ============================================================================
-// Set to false to disable all virtualization and load all lines immediately
-// This will disable intersection observer, background loading, and memory cleanup
-// Useful for debugging virtualization issues
-const ENABLE_VIRTUALIZATION = false
+import { useSettingsStore } from '../stores/settingsStore'
 
 // Buffer zone configuration
 const LOAD_BUFFER_SIZE = 20    // Lines to load around visible area
@@ -54,6 +47,7 @@ const MEMORY_BUFFER_SIZE = 50  // Lines to keep in memory around visible area (r
 const MEMORY_BUFFER_SIZE_INLINE = 500  // Lines to keep in memory around visible area (inline mode)
 
 const tabStore = useTabStore()
+const settingsStore = useSettingsStore()
 
 const props = defineProps<{
     tabId?: number
@@ -187,7 +181,7 @@ function performSearch() {
         return
     }
 
-    // Search only the buffer (now contains all loaded content)
+    // Search the buffer - it contains all loaded content (progressively loaded in virtualized mode)
     const allLines = viewerState.getBufferLinesForSearch()
     search.searchInItems(allLines, query)
     searchRef.value?.setMatches(search.totalMatches.value)
@@ -242,10 +236,8 @@ watch(() => myTab.value?.bookState?.bookId, async (bookId, oldBookId) => {
         await viewerState.loadBook(bookId, isRestore, initialLineIndex)
         await nextTick()
 
-        // If virtualization is disabled, load all lines immediately
-        if (!ENABLE_VIRTUALIZATION) {
-            await viewerState.loadAllLines()
-        }
+        // Progressive loading always happens via background loading
+        // Virtualization setting only controls memory management (intersection observer)
 
         // Set up observer after lines are rendered (only if virtualization enabled)
         setupObserver()
@@ -261,6 +253,48 @@ watch(() => myTab.value?.bookState?.bookId, async (bookId, oldBookId) => {
 
 watch(() => myTab.value?.bookState?.isTocOpen, (isTocOpen) => {
     viewerState.setBufferingMode(isTocOpen || false)
+})
+
+// Watch for virtualization setting changes
+watch(() => settingsStore.enableVirtualization, async (enableVirtualization, wasEnabled) => {
+    const bookId = myTab.value?.bookState?.bookId
+    if (!bookId || viewerState.totalLines.value === 0) return
+
+    if (enableVirtualization && !wasEnabled) {
+        // Switching from non-virtualized to virtualized
+        // Set up observer and clean up excess lines
+        setupObserver()
+
+        // Clean up non-visible lines to free memory
+        const isInlineMode = myTab.value?.bookState?.isLineDisplayInline
+        const bufferSize = isInlineMode ? MEMORY_BUFFER_SIZE_INLINE : MEMORY_BUFFER_SIZE
+        viewerState.cleanupNonVisibleLines(visibleLines.value, bufferSize)
+
+    } else if (!enableVirtualization && wasEnabled) {
+        // Switching from virtualized to non-virtualized
+        // Disconnect observer but keep progressive loading
+        if (observer) {
+            observer.disconnect()
+            observer = null
+        }
+
+        // Move all buffer content to UI for immediate display
+        viewerState.moveBufferToUI()
+    }
+})
+
+// Watch for inline mode changes - need to reset observer
+watch(() => myTab.value?.bookState?.isLineDisplayInline, async (isInline, wasInline) => {
+    if (isInline !== wasInline && settingsStore.enableVirtualization) {
+        // Reset observer when switching between inline/block modes
+        await nextTick() // Wait for DOM to update
+        setupObserver()
+
+        // Also ensure buffer content is visible if virtualization is off
+        if (!settingsStore.enableVirtualization) {
+            viewerState.moveBufferToUI()
+        }
+    }
 })
 
 // Restore scroll when tab becomes active
@@ -302,7 +336,7 @@ function handleScrollDebounced() {
 
 async function scrollToLine(lineIndex: number) {
     // Only load lines around if virtualization is enabled
-    if (ENABLE_VIRTUALIZATION) {
+    if (settingsStore.enableVirtualization) {
         await viewerState.loadLinesAround(lineIndex, LOAD_BUFFER_SIZE)
     }
 
@@ -401,7 +435,7 @@ function setupObserver() {
     }
 
     // Skip observer setup if virtualization is disabled
-    if (!ENABLE_VIRTUALIZATION) {
+    if (!settingsStore.enableVirtualization) {
         return
     }
 
