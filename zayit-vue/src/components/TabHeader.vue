@@ -93,7 +93,7 @@
 
     </div>
     <span class="center-text bold ellipsis">{{ tabStore.activeTab?.title
-      }}</span>
+    }}</span>
     <div class="flex-row justify-end">
       <button @click.stop="handleButtonClick(resetTab)"
               class="flex-center c-pointer"

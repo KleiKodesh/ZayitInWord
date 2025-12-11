@@ -104,7 +104,7 @@ import { ref, computed, onMounted, watch, type ComponentPublicInstance } from 'v
 import Combobox, { type ComboboxOption } from './common/Combobox.vue'
 import GenericSearch from './common/GenericSearch.vue'
 import SearchIcon from './icons/SearchIcon.vue'
-import { useContainedSelection } from '../composables/useContainedSelection'
+
 import { useContentSearch } from '../composables/useContentSearch'
 import { commentaryManager, type CommentaryLinkGroup } from '../data/commentaryManager'
 import { useTabStore } from '../stores/tabStore'
@@ -140,6 +140,14 @@ function handleKeyDown(e: KeyboardEvent) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault()
         isSearchOpen.value = true
+        return
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault()
+        e.stopPropagation()
+        selectAllInContainer()
+        return
     }
 }
 
@@ -396,14 +404,27 @@ const nextGroup = () => {
     }
 }
 
-// Set up contained selection behavior
-const { clearSelection } = useContainedSelection(commentaryContentRef, {
-    handleSelectAll: true,
-    preventSelectionSpanning: true,
-    onSelectionStart: () => {
-        emit('clearOtherSelections')
+// Handle selection directly
+function selectAllInContainer() {
+    if (!commentaryContentRef.value) return
+
+    const selection = window.getSelection()
+    if (!selection) return
+
+    const range = document.createRange()
+    range.selectNodeContents(commentaryContentRef.value)
+    selection.removeAllRanges()
+    selection.addRange(range)
+
+    emit('clearOtherSelections')
+}
+
+function clearSelection() {
+    const selection = window.getSelection()
+    if (selection) {
+        selection.removeAllRanges()
     }
-})
+}
 
 
 

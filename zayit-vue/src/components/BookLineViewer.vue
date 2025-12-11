@@ -1,9 +1,7 @@
 <template>
     <div v-if="viewerState.totalLines.value > 0"
          class="height-fill"
-         style="position: relative;"
-         tabindex="0"
-         @keydown="handleKeyDown">
+         style="position: relative;">
         <GenericSearch ref="searchRef"
                        :is-open="isSearchOpen"
                        @close="isSearchOpen = false"
@@ -12,6 +10,9 @@
 
         <div ref="containerRef"
              class="overflow-y height-fill justify line-viewer"
+             tabindex="0"
+             @keydown="handleKeyDown"
+             @click="() => containerRef?.focus()"
              @scroll.passive="handleScrollDebounced">
             <BookLine v-for="index in viewerState.totalLines.value"
                       :key="index - 1"
@@ -35,9 +36,17 @@ import BookLine from './BookLine.vue'
 import GenericSearch from './common/GenericSearch.vue'
 import { BookLineViewerState } from '../data/bookLineViewerState'
 import { getTopVisibleElementIndex } from '../utils/topVisibleElement'
-import { useContainedSelection } from '../composables/useContainedSelection'
+
 import { useContentSearch } from '../composables/useContentSearch'
 import { useTabStore } from '../stores/tabStore'
+
+// ============================================================================
+// VIRTUALIZATION TOGGLE
+// ============================================================================
+// Set to false to disable all virtualization and load all lines immediately
+// This will disable intersection observer, background loading, and memory cleanup
+// Useful for debugging virtualization issues
+const ENABLE_VIRTUALIZATION = false
 
 // Buffer zone configuration
 const LOAD_BUFFER_SIZE = 20    // Lines to load around visible area
@@ -140,6 +149,13 @@ function handleKeyDown(e: KeyboardEvent) {
         return
     }
 
+    if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault()
+        e.stopPropagation()
+        selectAllInContainer()
+        return
+    }
+
     // Handle Ctrl+Home and Ctrl+End for virtualized content
     if (e.ctrlKey || e.metaKey) {
         if (e.key === 'Home') {
@@ -226,7 +242,12 @@ watch(() => myTab.value?.bookState?.bookId, async (bookId, oldBookId) => {
         await viewerState.loadBook(bookId, isRestore, initialLineIndex)
         await nextTick()
 
-        // Set up observer after lines are rendered
+        // If virtualization is disabled, load all lines immediately
+        if (!ENABLE_VIRTUALIZATION) {
+            await viewerState.loadAllLines()
+        }
+
+        // Set up observer after lines are rendered (only if virtualization enabled)
         setupObserver()
 
         emit('placeholdersReady')
@@ -280,8 +301,10 @@ function handleScrollDebounced() {
 }
 
 async function scrollToLine(lineIndex: number) {
-    // Ensure the target line is loaded first
-    await viewerState.loadLinesAround(lineIndex, LOAD_BUFFER_SIZE)
+    // Only load lines around if virtualization is enabled
+    if (ENABLE_VIRTUALIZATION) {
+        await viewerState.loadLinesAround(lineIndex, LOAD_BUFFER_SIZE)
+    }
 
     // Wait for DOM update
     await nextTick()
@@ -302,14 +325,27 @@ async function handleTocSelection(lineIndex: number) {
     scrollToLine(lineIndex)
 }
 
-// Set up contained selection behavior
-const { clearSelection } = useContainedSelection(containerRef, {
-    handleSelectAll: true,
-    preventSelectionSpanning: true,
-    onSelectionStart: () => {
-        emit('clearOtherSelections')
+// Handle selection directly
+function selectAllInContainer() {
+    if (!containerRef.value) return
+
+    const selection = window.getSelection()
+    if (!selection) return
+
+    const range = document.createRange()
+    range.selectNodeContents(containerRef.value)
+    selection.removeAllRanges()
+    selection.addRange(range)
+
+    emit('clearOtherSelections')
+}
+
+function clearSelection() {
+    const selection = window.getSelection()
+    if (selection) {
+        selection.removeAllRanges()
     }
-})
+}
 
 // Helper function to apply diacritics filtering to HTML content
 function applyDiacriticsFilter(htmlContent: string, state: number): string {
@@ -362,6 +398,11 @@ let observer: IntersectionObserver | null = null
 function setupObserver() {
     if (observer) {
         observer.disconnect()
+    }
+
+    // Skip observer setup if virtualization is disabled
+    if (!ENABLE_VIRTUALIZATION) {
+        return
     }
 
     observer = new IntersectionObserver((entries) => {

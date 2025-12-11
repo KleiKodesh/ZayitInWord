@@ -217,6 +217,32 @@ export class BookLineViewerState {
     }
 
     /**
+     * Load all lines immediately (for non-virtualized mode)
+     */
+    async loadAllLines(): Promise<void> {
+        if (this.bookId === null || this.totalLines.value === 0) return
+
+        console.log('📚 Loading all lines immediately (non-virtualized mode)')
+
+        try {
+            const allLines = await bookLinesLoader.loadLineRange(this.bookId, 0, this.totalLines.value - 1)
+
+            // Load all lines into both UI and buffer
+            allLines.forEach(line => {
+                this.lines.value[line.lineIndex] = line.content
+                this.lineBuffer[line.lineIndex] = line.content
+            })
+
+            // Trigger reactive update for search
+            this.bufferUpdateCount.value++
+
+            console.log('✅ All lines loaded:', allLines.length)
+        } catch (error) {
+            console.error('❌ Failed to load all lines:', error)
+        }
+    }
+
+    /**
      * Cleanup resources
      */
     cleanup() {

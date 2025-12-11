@@ -1,11 +1,11 @@
 <template>
-    <span class="selectable line-1.6 justify book-line"
-          :class="{ selected: isSelected }"
-          tabindex="0"
-          :data-line-index="lineIndex"
-          @click="handleClick"
-          v-html="content + ' '">
-    </span>
+    <div dir="rtl"
+         class="selectable line-1.6 justify book-line"
+         :class="{ selected: isSelected }"
+         :data-line-index="lineIndex"
+         @click="handleClick"
+         v-html="content + ' '">
+    </div>
 </template>
 
 <script setup lang="ts">
