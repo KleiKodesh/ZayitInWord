@@ -16,10 +16,10 @@ export interface Settings {
 const DEFAULT_SETTINGS: Settings = {
     headerFont: "'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif",
     textFont: "'Times New Roman', Times, serif",
-    fontSize: 100,
+    fontSize: 105,
     linePadding: 1.6,
     censorDivineNames: false,
-    appZoom: 0.85,
+    appZoom: 0.95,
     enableVirtualization: false
 }
 

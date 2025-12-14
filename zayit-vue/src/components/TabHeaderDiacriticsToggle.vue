@@ -3,13 +3,17 @@
             @click.stop="handleClick"
             :class="['flex-center c-pointer diacritics-toggle-btn', stateClass]"
             :title="title">
-        <span class="diacritics-icon">{{ icon }}</span>
+        <component :is="iconComponent"
+                   class="diacritics-icon" />
     </button>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useTabStore } from '../stores/tabStore'
+import DiacriticsFullIcon from './icons/DiacriticsFullIcon.vue'
+import DiacriticsNikkudOnlyIcon from './icons/DiacriticsNikkudOnlyIcon.vue'
+import DiacriticsNoneIcon from './icons/DiacriticsNoneIcon.vue'
 
 const tabStore = useTabStore()
 
@@ -27,10 +31,10 @@ const stateClass = computed(() => {
     return ''
 })
 
-const icon = computed(() => {
-    if (diacriticsState.value === 1) return 'אָ' // With cantillation mark
-    if (diacriticsState.value === 2) return 'א'   // Plain letter
-    return 'אָ֑'  // With both nikkud and cantillation
+const iconComponent = computed(() => {
+    if (diacriticsState.value === 1) return DiacriticsNikkudOnlyIcon // Nikkud only
+    if (diacriticsState.value === 2) return DiacriticsNoneIcon       // No diacritics
+    return DiacriticsFullIcon  // Full diacritics (nikkud + cantillation)
 })
 
 const title = computed(() => {
@@ -51,17 +55,16 @@ const handleClick = () => {
 }
 
 .diacritics-icon {
-    font-size: 18px;
-    font-family: 'Times New Roman', Times, serif;
-    transition: opacity 0.2s ease, color 0.2s ease;
-    transform: translateY(-3px);
+    width: 16px;
+    height: 16px;
+    transition: opacity 0.2s ease;
 }
 
-.diacritics-toggle-btn.state-1 .diacritics-icon {
-    color: #ff8c00;
+.diacritics-toggle-btn.state-1 .diacritics-icon :deep(svg) {
+    fill: #ff8c00;
 }
 
-.diacritics-toggle-btn.state-2 .diacritics-icon {
-    color: #ff4500;
+.diacritics-toggle-btn.state-2 .diacritics-icon :deep(svg) {
+    fill: #ff4500;
 }
 </style>

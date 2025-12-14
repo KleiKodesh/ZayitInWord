@@ -6,126 +6,183 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Zayit.Viewer
 {
-        /// <summary>
-    /// ZayitViewer with Vue.js UI integration
-    /// Handles communication between C# backend and Vue frontend
-    /// SQL queries are defined in TypeScript (sqlQueries.ts) and executed here
-    /// </summary>
     public class ZayitViewer : WebView2
     {
+        private static CoreWebView2Environment _sharedEnvironment;
+        private static readonly object _envLock = new object();
+
         private object _commandHandler;
         private ZayitViewerCommands _commands;
-        protected CoreWebView2Environment _environment;
         private readonly string HtmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Html");
+
+        private bool _coreInitialized;
 
         public ZayitViewer(object commandHandler = null)
         {
             this.Dock = DockStyle.Fill;
-            this.CoreWebView2InitializationCompleted += (_, __) =>
-            {
-                this.CoreWebView2.SetVirtualHostNameToFolderMapping("zayitHost", HtmlPath,
-                        CoreWebView2HostResourceAccessKind.Allow);
-                Source = new Uri("https://zayitHost/index.html");
-            };
 
-            // Initialize command handler
+            // Initialize commands first
             _commands = new ZayitViewerCommands(this);
             SetCommandHandler(commandHandler);
-            WebMessageReceived += ZayitViewer_WebMessageReceived;
 
-            EnsurCoreAsync();
+            // Wire initialization event
+            this.CoreWebView2InitializationCompleted += ZayitViewer_CoreWebView2InitializationCompleted;
+
+            // Fire-and-forget async safely
+            _ = EnsureCoreAsyncSafe();
         }
 
         public void SetCommandHandler(object commandHandler)
         {
-            _commandHandler = commandHandler ?? _commands;
+            _commandHandler = commandHandler ?? _commands ?? throw new InvalidOperationException("Command handler not initialized");
         }
 
-        public async void EnsurCoreAsync()
+        public async Task EnsureCoreAsyncSafe()
         {
-            if (_environment == null)
+            try
             {
-                string tempWebCacheDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                _environment = await CoreWebView2Environment.CreateAsync(userDataFolder: tempWebCacheDir);
+                var environment = await GetSharedEnvironmentAsync();
+                await EnsureCoreWebView2Async(environment);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("WebView2 initialization failed: " + ex);
+            }
+        }
+
+
+        private static async Task<CoreWebView2Environment> GetSharedEnvironmentAsync()
+        {
+            if (_sharedEnvironment != null)
+                return _sharedEnvironment;
+
+            lock (_envLock)
+            {
+                if (_sharedEnvironment != null)
+                    return _sharedEnvironment; // double-check after lock
             }
 
-            await EnsureCoreWebView2Async(_environment);
+            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                                       "ZayitWebView2SharedCache");
+
+            var env = await CoreWebView2Environment.CreateAsync(userDataFolder: path);
+
+            lock (_envLock)
+            {
+                _sharedEnvironment = env; // save for all instances
+            }
+
+            return _sharedEnvironment;
+        }
+
+
+        private void ZayitViewer_CoreWebView2InitializationCompleted(object sender, CoreWebView2InitializationCompletedEventArgs e)
+        {
+            if (_coreInitialized) return; // prevent double initialization
+            _coreInitialized = true;
+
+            if (!e.IsSuccess)
+            {
+                Debug.WriteLine("WebView2 failed to initialize: " + e.InitializationException);
+                return;
+            }
+
+            try
+            {
+                // Map local HTML files
+                this.CoreWebView2.SetVirtualHostNameToFolderMapping("zayitHost", HtmlPath,
+                    CoreWebView2HostResourceAccessKind.Allow);
+
+                // Wire message handler
+                WebMessageReceived += ZayitViewer_WebMessageReceived;
+
+                // Navigate
+                Source = new Uri("https://zayitHost/index.html");
+
+                // Optional: wait until page is fully loaded before sending messages
+                CoreWebView2.NavigationCompleted += (_, __) =>
+                {
+                    Debug.WriteLine("WebView navigation completed, JS safe to call now");
+                };
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Error in CoreWebView2InitializationCompleted: " + ex);
+            }
         }
 
         private void ZayitViewer_WebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
             try
             {
-                string json = e.WebMessageAsJson;
-                System.Diagnostics.Debug.WriteLine($"WebMessage received: {json}");
+                HandleWebMessage(e.WebMessageAsJson);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("WebView message handler error: " + ex);
+            }
+        }
 
-                var cmd = JsonSerializer.Deserialize<JsCommand> (
+        private void HandleWebMessage(string json)
+        {
+            try
+            {
+                Debug.WriteLine($"WebMessage received: {json}");
+
+                var cmd = JsonSerializer.Deserialize<JsCommand>(
                     json,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-                );
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-                if (cmd == null || string.IsNullOrWhiteSpace(cmd.Command))
-                {
-                    System.Diagnostics.Debug.WriteLine("Command is null or empty");
+                if (cmd?.Command is null)
                     return;
-                }
 
-                System.Diagnostics.Debug.WriteLine($"Dispatching command: {cmd.Command}");
                 DispatchCommand(cmd);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"WebMessage error: {ex}");
-                Debug.WriteLine("JS message error: " + ex.Message);
+                Debug.WriteLine("JS message error: " + ex);
             }
         }
 
-        /// <summary>
-        /// Invoke method by name using reflection
-        /// </summary>
         private void DispatchCommand(JsCommand cmd)
         {
-            var target = _commandHandler;
-            System.Diagnostics.Debug.WriteLine($"Command handler type: {target.GetType().Name}");
-            
-            var methods = target.GetType()
-                .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic);
-
-            System.Diagnostics.Debug.WriteLine($"Found {methods.Length} methods on handler");
-
-            // Find method with matching name (case-insensitive)
-            var method = methods.FirstOrDefault(
-                m => string.Equals(m.Name, cmd.Command, StringComparison.OrdinalIgnoreCase));
-
-            if (method == null)
+            try
             {
-                System.Diagnostics.Debug.WriteLine($"No handler found for command: {cmd.Command}");
-                Debug.WriteLine($"No handler for command: {cmd.Command}");
-                return;
+                var target = _commandHandler ?? throw new InvalidOperationException("Command handler is null");
+
+                var method = target.GetType()
+                    .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic)
+                    .FirstOrDefault(m => string.Equals(m.Name, cmd.Command, StringComparison.OrdinalIgnoreCase));
+
+                if (method == null)
+                {
+                    Debug.WriteLine($"No handler for {cmd.Command}");
+                    return;
+                }
+
+                var parameters = method.GetParameters();
+                var args = new object[parameters.Length];
+
+                for (int i = 0; i < parameters.Length; i++)
+                    args[i] = cmd.GetArg(i, parameters[i].ParameterType);
+
+                method.Invoke(target, args);
             }
-
-            System.Diagnostics.Debug.WriteLine($"Found method: {method.Name}");
-
-            var parameters = method.GetParameters();
-            object[] finalArgs = new object[parameters.Length];
-
-            // Map args from JSON array to method parameters
-            for (int i = 0; i < parameters.Length; i++)
+            catch (TargetInvocationException tie)
             {
-                finalArgs[i] = cmd.GetArg(i, parameters[i].ParameterType);
+                Debug.WriteLine($"Handler threw: {tie.InnerException}");
             }
-
-            System.Diagnostics.Debug.WriteLine($"Invoking method with {finalArgs.Length} args");
-            method.Invoke(target, finalArgs);
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Dispatch failed: {ex}");
+            }
         }
 
-        /// <summary>
-        /// Structure of JS → C# message
-        /// </summary>
         private class JsCommand
         {
             public string Command { get; set; }
@@ -136,67 +193,20 @@ namespace Zayit.Viewer
                 if (index >= Args.Length)
                     return null;
 
-                // Handle decimal numbers for integer parameters (round to nearest int)
                 if (targetType == typeof(int) && Args[index].ValueKind == JsonValueKind.Number)
                 {
                     if (Args[index].TryGetDouble(out double doubleValue))
-                    {
                         return (int)Math.Round(doubleValue);
-                    }
                 }
 
-                return Args[index].Deserialize(targetType, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                return Args[index].Deserialize(targetType, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             }
         }
 
-
-        // Example handler method inside control
+        // Example method for testing
         private void ShowAlert(string message)
         {
             Debug.WriteLine("From JS: " + message);
         }
     }
 }
-
-
-
-//// === Example commands ===
-
-//< script >
-//    // Send a command object to C#
-//    function sendCommand(command, ...args) {
-//    window.chrome.webview.postMessage({
-//    command: command,
-//            args: args
-//        });
-//}
-
-//function testAlert()
-//{
-//    sendCommand("ShowAlert", "Hello from JS!");
-//}
-
-//function logSomething()
-//{
-//    sendCommand("Log", "This is a log message from JS");
-//}
-
-//function openDocument(id)
-//{
-//    sendCommand("OpenDocument", id);
-//}
-
-//function calculateSum(a, b)
-//{
-//    sendCommand("CalculateSum", a, b);
-//}
-
-//// === OPTIONAL: Receive messages from C# ===
-//window.chrome.webview.addEventListener("message", event => {
-//    console.log("Message from C#:", event.data);
-//    // event.data may be JSON or string
-//});
-//</ script >

@@ -1,10 +1,10 @@
 <template>
     <div v-if="showItem"
          @click.stop="handleClick"
-         class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-         :title="title">
-        <span class="diacritics-icon"
-              :class="stateClass">{{ icon }}</span>
+         class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
+        <component :is="iconComponent"
+                   class="diacritics-icon"
+                   :class="stateClass" />
         <span class="dropdown-label">{{ label }}</span>
     </div>
 </template>
@@ -12,6 +12,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useTabStore } from '../stores/tabStore'
+import DiacriticsFullIcon from './icons/DiacriticsFullIcon.vue'
+import DiacriticsNikkudOnlyIcon from './icons/DiacriticsNikkudOnlyIcon.vue'
+import DiacriticsNoneIcon from './icons/DiacriticsNoneIcon.vue'
 
 const tabStore = useTabStore()
 
@@ -29,10 +32,10 @@ const stateClass = computed(() => {
     return ''
 })
 
-const icon = computed(() => {
-    if (diacriticsState.value === 1) return 'אָ'
-    if (diacriticsState.value === 2) return 'א'
-    return 'אָ֑'
+const iconComponent = computed(() => {
+    if (diacriticsState.value === 1) return DiacriticsNikkudOnlyIcon // Nikkud only
+    if (diacriticsState.value === 2) return DiacriticsNoneIcon       // No diacritics
+    return DiacriticsFullIcon  // Full diacritics (nikkud + cantillation)
 })
 
 const label = computed(() => {
@@ -41,9 +44,7 @@ const label = computed(() => {
     return 'שחזר טעמים וניקוד'
 })
 
-const title = computed(() => {
-    return label.value
-})
+
 
 const handleClick = () => {
     tabStore.toggleDiacritics()
@@ -53,8 +54,6 @@ const handleClick = () => {
 <style scoped>
 .diacritics-icon {
     flex-shrink: 0;
-    font-size: 20px;
-    font-family: 'Times New Roman', Times, serif;
     width: 20px;
     height: 20px;
     display: flex;
@@ -73,11 +72,11 @@ const handleClick = () => {
     opacity: 1;
 }
 
-.diacritics-icon.state-1 {
-    color: #ff8c00;
+.diacritics-icon.state-1 :deep(svg) {
+    fill: #ff8c00;
 }
 
-.diacritics-icon.state-2 {
-    color: #ff4500;
+.diacritics-icon.state-2 :deep(svg) {
+    fill: #ff4500;
 }
 </style>

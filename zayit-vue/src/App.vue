@@ -40,7 +40,7 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
     if (activeElement && (
         activeElement.tagName === 'INPUT' || 
         activeElement.tagName === 'TEXTAREA' ||
-        activeElement.contentEditable === 'true'
+        (activeElement as HTMLElement).contentEditable === 'true'
     )) {
         return;
     }

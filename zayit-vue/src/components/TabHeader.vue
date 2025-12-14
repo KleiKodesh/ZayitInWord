@@ -19,8 +19,7 @@
             <!-- Line display toggle dropdown item -->
             <div v-if="tabStore.activeTab?.currentPage === 'bookview'"
                  @click.stop="handleLineDisplayClick"
-                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-                 title="החלף תצוגת שורות">
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
               <align-left-icon v-if="isLineDisplayInline" />
               <align-justify-icon v-else />
               <span class="dropdown-label">{{ isLineDisplayInline ? 'תצוגת בלוק'
@@ -33,8 +32,8 @@
                  @click.stop="handleVirtualizationClick"
                  class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
                  :title="settingsStore.enableVirtualization
-                  ? 'כבה וירטואליזציה - כל השורות נטענות'
-                  : 'הפעל וירטואליזציה - רק חלק מהשורות נטענות'">
+                  ? 'כל השורות נטענות'
+                  : 'רק חלק מהשורות נטענות'">
               <bolt-icon v-if="settingsStore.enableVirtualization" />
               <leaf-icon v-else />
               <span class="dropdown-label">{{ settingsStore.enableVirtualization
@@ -42,30 +41,26 @@
             </div>
 
             <div @click.stop="handleThemeClick"
-                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-                 title="ערכת נושא">
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
               <theme-icon class="theme-icon" />
               <span class="dropdown-label">ערכת נושא</span>
             </div>
 
             <div @click.stop="handleSettingsClick"
-                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-                 title="הגדרות">
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
               <settings-icon />
               <span class="dropdown-label">הגדרות</span>
             </div>
 
             <div @click.stop="handleAboutClick"
-                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-                 title="אודות">
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
               <about-icon />
               <span class="dropdown-label">אודות</span>
             </div>
 
             <!-- PDF viewer - available in both dev and C# modes -->
             <div @click.stop="handleOpenPdfClick"
-                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-                 title="פתח PDF">
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
               <pdf-file-icon />
               <span class="dropdown-label">פתח PDF</span>
             </div>
@@ -73,8 +68,7 @@
             <!-- Popout toggle - only available in C# WebView -->
             <div v-if="isWebViewAvailable"
                  @click.stop="handlePopoutClick"
-                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item"
-                 :title="popoutTitle">
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
               <popout-icon />
               <span class="dropdown-label">{{ popoutLabel }}</span>
             </div>
@@ -92,7 +86,7 @@
       <button v-if="tabStore.activeTab?.currentPage === 'bookview' && hasConnections && !isTocVisible"
               @click.stop="handleButtonClick(toggleSplitPane)"
               class="flex-center c-pointer"
-              title="פאנל תחתון">
+              title="הצג קשרים">
         <split-pane-icon />
       </button>
 
@@ -114,9 +108,11 @@
         <home-icon />
       </button>
       <button @click.stop="handleButtonClick(newTab)"
-              class="flex-center c-pointer">+</button>
+              class="flex-center c-pointer"
+              title="פתח טאב חדש">+</button>
       <button @click.stop="handleButtonClick(closeTab)"
-              class="flex-center c-pointer">×</button>
+              class="flex-center c-pointer"
+              title="סגור">×</button>
     </div>
   </div>
 </template>
