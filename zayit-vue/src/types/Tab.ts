@@ -1,6 +1,6 @@
 import type { Book } from './Book'
 
-export type PageType = 'landing' | 'bookview' | 'pdfview' | 'search' | 'settings' | 'about';
+export type PageType = 'kezayit-landing' | 'bookview' | 'pdfview' | 'search' | 'settings' | 'about';
 
 export interface BookState {
     bookId: number;

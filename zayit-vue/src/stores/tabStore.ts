@@ -5,7 +5,7 @@ import type { Tab, PageType } from '../types/Tab';
 const STORAGE_KEY = 'tabStore';
 
 const PAGE_TITLES: Record<PageType, string> = {
-    landing: 'איתור',
+    'kezayit-landing': 'איתור',
     search: 'חיפוש',
     bookview: 'תצוגת ספר',
     pdfview: 'תצוגת PDF',
@@ -24,6 +24,14 @@ export const useTabStore = defineStore('tabs', () => {
                 const data = JSON.parse(stored);
                 tabs.value = data.tabs || [];
                 nextId.value = data.nextId || 2;
+
+                // Migrate old 'landing' page type to 'kezayit-landing'
+                tabs.value.forEach(tab => {
+                    if (tab.currentPage === 'landing') {
+                        tab.currentPage = 'kezayit-landing';
+                        tab.title = PAGE_TITLES['kezayit-landing'];
+                    }
+                });
 
                 // Clear blob URLs on page reload (they become invalid)
                 tabs.value.forEach(tab => {
@@ -54,9 +62,9 @@ export const useTabStore = defineStore('tabs', () => {
     if (tabs.value.length === 0) {
         tabs.value.push({
             id: 1,
-            title: PAGE_TITLES.landing,
+            title: PAGE_TITLES['kezayit-landing'],
             isActive: true,
-            currentPage: 'landing'
+            currentPage: 'kezayit-landing'
         });
     }
 
@@ -77,9 +85,9 @@ export const useTabStore = defineStore('tabs', () => {
 
         const newTab: Tab = {
             id: newId,
-            title: PAGE_TITLES.landing,
+            title: PAGE_TITLES['kezayit-landing'],
             isActive: true,
-            currentPage: 'landing'
+            currentPage: 'kezayit-landing'
         };
         tabs.value.push(newTab);
 
@@ -111,8 +119,8 @@ export const useTabStore = defineStore('tabs', () => {
     const resetTab = () => {
         const tab = tabs.value.find(t => t.isActive);
         if (tab) {
-            tab.currentPage = 'landing';
-            tab.title = PAGE_TITLES.landing;
+            tab.currentPage = 'kezayit-landing';
+            tab.title = PAGE_TITLES['kezayit-landing'];
             delete tab.bookState;
         }
     };
@@ -426,9 +434,9 @@ export const useTabStore = defineStore('tabs', () => {
         // Clear all tabs and create a new default tab
         tabs.value = [{
             id: 1,
-            title: PAGE_TITLES.landing,
+            title: PAGE_TITLES['kezayit-landing'],
             isActive: true,
-            currentPage: 'landing'
+            currentPage: 'kezayit-landing'
         }];
         nextId.value = 2;
     };
