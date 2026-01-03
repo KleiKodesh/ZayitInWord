@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, watch } from 'vue';
 import BookTree from '../BookTree.vue';
 import BookTreeSearch from '../BookTreeSearch.vue';
 import TreeIcon from '../icons/TreeIcon.vue';
@@ -34,7 +34,7 @@ import { useCategoryTreeStore } from '../../stores/categoryTreeStore';
 import { storeToRefs } from 'pinia';
 
 const categoryTreeStore = useCategoryTreeStore();
-const { allBooks } = storeToRefs(categoryTreeStore);
+const { allBooks, isLoading } = storeToRefs(categoryTreeStore);
 
 const searchInput = ref('');
 const searchInputRef = ref<HTMLInputElement | null>(null);
@@ -76,6 +76,16 @@ onMounted(() => {
   nextTick(() => {
     searchInputRef.value?.focus();
   });
+});
+
+// Restore focus when tree finishes loading
+watch(isLoading, (newIsLoading, oldIsLoading) => {
+  // When loading changes from true to false (tree finished loading)
+  if (oldIsLoading && !newIsLoading) {
+    nextTick(() => {
+      searchInputRef.value?.focus();
+    });
+  }
 });
 </script>
 

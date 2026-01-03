@@ -12,7 +12,7 @@ import { ref, type Ref } from 'vue'
 import { bookLinesLoader, type LineLoadResult } from './bookLinesManager'
 import { dbManager } from './dbManager'
 
-const PADDING_LINES = 100
+const PADDING_LINES = 200
 
 export class BookLineViewerState {
     // Public reactive state
@@ -25,28 +25,26 @@ export class BookLineViewerState {
     private lineBuffer: Record<number, string> = {}
     private backgroundAbort: (() => void) | null = null
     private bookId: number | null = null
-    private shouldBufferInsteadOfRender = false
     private virtualizationEnabled = false
-
-    /**
-     * Enable or disable buffering mode for background loading
-     * When enabled, lines are stored in memory buffer instead of being rendered
-     */
-    setBufferingMode(enabled: boolean) {
-        this.shouldBufferInsteadOfRender = enabled
-    }
 
     /**
      * Set virtualization mode
      * When enabled, DB becomes source of truth and buffer is cleared
+     * When disabled, buffer becomes source of truth
      */
     setVirtualizationMode(enabled: boolean) {
+        const wasEnabled = this.virtualizationEnabled
         this.virtualizationEnabled = enabled
 
-        if (enabled) {
-            // Clear buffer when switching to virtualization mode
+        if (enabled && !wasEnabled) {
+            // Switching to virtualization mode: Clear buffer, DB becomes source of truth
             this.lineBuffer = {}
             this.bufferUpdateCount.value++
+            console.log('📚 Virtualization enabled: Buffer cleared, DB is source of truth')
+        } else if (!enabled && wasEnabled) {
+            // Switching from virtualization mode: Buffer will become source of truth
+            // Don't clear anything here - let startProgressiveLoading handle the transition
+            console.log('📚 Virtualization disabled: Buffer will become source of truth')
         }
     }
 
@@ -232,7 +230,6 @@ export class BookLineViewerState {
 
     /**
      * Start background loading of all lines (only when virtualization is OFF)
-     * Only buffers content, doesn't render to UI - intersection observer handles rendering
      */
     private startBackgroundLoading() {
         if (this.bookId === null || this.totalLines.value === 0 || this.virtualizationEnabled) return
@@ -245,16 +242,18 @@ export class BookLineViewerState {
                 this.bookId,
                 this.totalLines.value,
                 (loadedLines: LineLoadResult[]) => {
-                    // Only buffer content, don't render to UI
-                    // Intersection observer will move from buffer to UI when needed
+                    // In buffer mode (virtualization OFF), update both buffer and visible lines
                     let hasNewContent = false
                     loadedLines.forEach(line => {
-                        if (this.lines.value[line.lineIndex] === undefined &&
-                            this.lineBuffer[line.lineIndex] === undefined) {
-
-                            // Always buffer, never directly render
+                        if (this.lineBuffer[line.lineIndex] === undefined) {
+                            // Add to buffer (source of truth for buffer mode)
                             this.lineBuffer[line.lineIndex] = line.content
                             hasNewContent = true
+                        }
+
+                        // Also update visible lines if not already loaded
+                        if (this.lines.value[line.lineIndex] === undefined) {
+                            this.lines.value[line.lineIndex] = line.content
                         }
                     })
 
@@ -330,33 +329,32 @@ export class BookLineViewerState {
     }
 
     /**
-     * Load full document for search when virtualization is enabled
-     */
-    async loadFullDocumentForSearch(bookId: number): Promise<LineLoadResult[]> {
-        console.log('🔍 Loading full document for search, total lines:', this.totalLines.value)
-
-        if (this.totalLines.value === 0) return []
-
-        try {
-            const allLines = await bookLinesLoader.loadLineRange(bookId, 0, this.totalLines.value - 1)
-            console.log('✅ Full document loaded for search:', allLines.length, 'lines')
-            return allLines
-        } catch (error) {
-            console.error('❌ Failed to load full document for search:', error)
-            throw error
-        }
-    }
-
-    /**
      * Move all buffer content to UI (for non-virtualized mode)
      */
     moveBufferToUI(): void {
-        console.log('📚 Moving all buffer content to UI (non-virtualized mode)')
-
-        // Copy all buffer content to UI
         Object.assign(this.lines.value, this.lineBuffer)
+    }
 
-        console.log('✅ Buffer content moved to UI:', Object.keys(this.lineBuffer).length, 'lines')
+    /**
+     * Start progressive loading when switching from virtualization ON to OFF
+     * Preserves currently loaded lines and starts background loading
+     */
+    async startProgressiveLoading(): Promise<void> {
+        if (!this.bookId || this.virtualizationEnabled) return
+
+        console.log('📚 Starting progressive loading after virtualization switch')
+
+        // Copy currently loaded UI lines to buffer to preserve them
+        Object.entries(this.lines.value).forEach(([indexStr, content]) => {
+            if (content && content !== '\u00A0') {
+                this.lineBuffer[Number(indexStr)] = content
+            }
+        })
+
+        // Start background loading to fill the rest
+        this.startBackgroundLoading()
+
+        console.log('✅ Progressive loading started, preserved', Object.keys(this.lineBuffer).length, 'lines')
     }
 
     /**

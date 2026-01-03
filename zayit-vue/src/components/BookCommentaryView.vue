@@ -268,6 +268,8 @@ function applyDiacriticsFilter(htmlContent: string, state: number): string {
         // State 2: Remove nikkud as well (U+05B0-U+05BD, U+05C1, U+05C2, U+05C4, U+05C5)
         if (state >= 2) {
             text = text.replace(/[\u05B0-\u05BD\u05C1\u05C2\u05C4\u05C5]/g, '')
+            // Replace ? and ! with . and remove em dash (—)
+            text = text.replace(/[?!]/g, '.').replace(/—/g, '')
         }
 
         textNode.nodeValue = text
@@ -507,6 +509,7 @@ watch(commentaryContentRef, (newVal, oldVal) => {
 .commentary-content {
     padding: 16px;
     direction: rtl;
+    font-size: var(--font-size, 100%);
 }
 
 .commentary-loading {
@@ -535,7 +538,7 @@ watch(commentaryContentRef, (newVal, oldVal) => {
 }
 
 .placeholder-text {
-    font-size: 16px;
+    font-size: 1em;
     font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
     direction: rtl;
 }
@@ -552,7 +555,7 @@ watch(commentaryContentRef, (newVal, oldVal) => {
 }
 
 .group-header {
-    font-size: 18px;
+    font-size: 1.125em;
     color: var(--text-primary);
     margin: 0 0 12px 0;
     padding: 8px 0;

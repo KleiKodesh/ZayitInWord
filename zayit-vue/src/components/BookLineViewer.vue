@@ -42,9 +42,9 @@ import { useTabStore } from '../stores/tabStore'
 import { useSettingsStore } from '../stores/settingsStore'
 
 // Buffer zone configuration
-const LOAD_BUFFER_SIZE = 20    // Lines to load around visible area
-const MEMORY_BUFFER_SIZE = 50  // Lines to keep in memory around visible area (regular mode)
-const MEMORY_BUFFER_SIZE_INLINE = 500  // Lines to keep in memory around visible area (inline mode)
+const LOAD_BUFFER_SIZE = 100   // Lines to load around visible area (increased for smoother scrolling)
+const MEMORY_BUFFER_SIZE = 200 // Lines to keep in memory around visible area (regular mode)
+const MEMORY_BUFFER_SIZE_INLINE = 1000  // Lines to keep in memory around visible area (inline mode)
 
 const tabStore = useTabStore()
 const settingsStore = useSettingsStore()
@@ -259,7 +259,7 @@ watch(() => myTab.value?.bookState?.bookId, async (bookId, oldBookId) => {
 }, { immediate: true })
 
 watch(() => myTab.value?.bookState?.isTocOpen, (isTocOpen) => {
-    viewerState.setBufferingMode(isTocOpen || false)
+    viewerState.setVirtualizationMode(isTocOpen || false)
 })
 
 // Watch for virtualization setting changes
@@ -282,14 +282,15 @@ watch(() => settingsStore.enableVirtualization, async (enableVirtualization, was
 
     } else if (!enableVirtualization && wasEnabled) {
         // Switching from virtualized to non-virtualized
-        // Disconnect observer but keep progressive loading
+        // Disconnect observer and start progressive loading
         if (observer) {
             observer.disconnect()
             observer = null
         }
 
-        // Move all buffer content to UI for immediate display
-        viewerState.moveBufferToUI()
+        // Start progressive background loading for buffer mode
+        // This preserves current content and loads the rest in background
+        await viewerState.startProgressiveLoading()
     }
 })
 
@@ -424,6 +425,8 @@ function applyDiacriticsFilter(htmlContent: string, state: number): string {
         // State 2: Remove nikkud as well (U+05B0-U+05BD, U+05C1, U+05C2, U+05C4, U+05C5)
         if (state >= 2) {
             text = text.replace(/[\u05B0-\u05BD\u05C1\u05C2\u05C4\u05C5]/g, '')
+            // Replace ? and ! with . and remove em dash (—)
+            text = text.replace(/[?!]/g, '.').replace(/—/g, '')
         }
 
         textNode.nodeValue = text
@@ -495,7 +498,7 @@ function setupObserver() {
         }
     }, {
         root: containerRef.value,
-        rootMargin: '200px', // Load lines 200px before they come into view
+        rootMargin: '500px', // Load lines 500px before they come into view (increased for smoother scrolling)
         threshold: 0
     })
 
