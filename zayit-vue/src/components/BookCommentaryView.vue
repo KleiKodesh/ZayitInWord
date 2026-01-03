@@ -16,7 +16,8 @@
                 <button class="flex-center c-pointer nav-btn"
                         @click="openSearch"
                         title="חיפוש (Ctrl+F)">
-                    <SearchIcon />
+                    <Icon icon="fluent:search-28-regular"
+                          class="small-icon" />
                 </button>
 
                 <Combobox v-model="currentGroupIndex"
@@ -28,38 +29,24 @@
                         @click="previousGroup"
                         :disabled="currentGroupIndex === 0"
                         title="קבוצה קודמת">
-                    <svg width="16"
-                         height="16"
-                         viewBox="0 0 24 24"
-                         fill="none"
-                         stroke="currentColor"
-                         stroke-width="2"
-                         style="transform: scaleX(-1)">
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>
-
+                    <Icon icon="fluent:chevron-right-28-regular"
+                          class="small-icon" />
                 </button>
 
                 <button class="flex-center c-pointer nav-btn"
                         @click="nextGroup"
                         :disabled="currentGroupIndex === linkGroups.length - 1"
                         title="קבוצה הבאה">
-                    <svg width="16"
-                         height="16"
-                         viewBox="0 0 24 24"
-                         fill="none"
-                         stroke="currentColor"
-                         stroke-width="2"
-                         style="transform: scaleX(-1)">
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
+                    <Icon icon="fluent:chevron-left-28-regular"
+                          class="small-icon" />
                 </button>
             </div>
 
             <button class="flex-center c-pointer commentary-close-btn"
                     @click="handleClose"
                     title="סגור פאנל">
-                -
+                <Icon icon="fluent:dismiss-16-regular"
+                      class="small-icon" />
             </button>
         </div>
 
@@ -103,7 +90,7 @@
 import { ref, computed, onMounted, watch, type ComponentPublicInstance } from 'vue'
 import Combobox, { type ComboboxOption } from './common/Combobox.vue'
 import GenericSearch from './common/GenericSearch.vue'
-import SearchIcon from './icons/SearchIcon.vue'
+import { Icon } from '@iconify/vue'
 
 import { useContentSearch } from '../composables/useContentSearch'
 import { commentaryManager, type CommentaryLinkGroup } from '../data/commentaryManager'
@@ -490,11 +477,6 @@ watch(commentaryContentRef, (newVal, oldVal) => {
     color: var(--text-primary);
     flex-shrink: 0;
     padding: 0;
-}
-
-.nav-btn svg {
-    width: 14px;
-    height: 14px;
 }
 
 .nav-btn:hover:not(:disabled) {

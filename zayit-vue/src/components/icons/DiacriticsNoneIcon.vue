@@ -2,7 +2,8 @@
   <svg width="16"
        height="16"
        viewBox="0 0 88 111"
-       fill="none">
+       fill="none"
+       style="transform: scale(0.85);">
     <g transform="translate(0,111) scale(0.1,-0.1)">
       <path d="M198 903 c-37 -40 -48 -66 -48 -112 0 -56 15 -90 62 -138 39 -40 40
 -41 19 -52 -28 -15 -68 -87 -76 -137 -3 -22 -1 -70 5 -106 13 -71 4 -108 -25

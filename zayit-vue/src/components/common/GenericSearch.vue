@@ -16,14 +16,16 @@
             <button @click.stop="findPrevious"
                     class="flex-center c-pointer search-btn"
                     title="הקודם (Shift+Enter)">
-                <ChevronIconLeft class="search-icon"
-                                 style="transform: rotate(90deg);" />
+                <Icon icon="fluent:chevron-left-28-regular"
+                      class="search-icon"
+                      style="transform: rotate(90deg);" />
             </button>
             <button @click.stop="findNext"
                     class="flex-center c-pointer search-btn"
                     title="הבא (Enter)">
-                <ChevronIconLeft class="search-icon"
-                                 style="transform: rotate(-90deg);" />
+                <Icon icon="fluent:chevron-left-28-regular"
+                      class="search-icon"
+                      style="transform: rotate(-90deg);" />
             </button>
             <button @click.stop="close"
                     class="flex-center c-pointer search-btn close-btn"
@@ -34,7 +36,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
-import ChevronIconLeft from '../icons/ChevronIconLeft.vue'
+import { Icon } from '@iconify/vue'
 
 const props = withDefaults(defineProps<{
     isOpen: boolean

@@ -8,8 +8,9 @@
              @keydown.enter.stop="toggleExpand"
              @keydown.space.stop.prevent="toggleExpand">
 
-            <ChevronIconLeft v-if="category.children.length > 0 || category.books.length > 0"
-                             :class="{ 'rotate-90': isExpanded }" />
+            <Icon icon="fluent:chevron-left-24-regular"
+                  v-if="category.children.length > 0 || category.books.length > 0"
+                  :class="{ 'rotate-90': isExpanded }" />
             <span class="flex-110 line-1.4">{{ category.title }}</span>
         </div>
 
@@ -30,7 +31,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import ChevronIconLeft from './icons/ChevronIconLeft.vue'
+import { Icon } from '@iconify/vue'
 import type { Category } from '../types/BookCategoryTree'
 import BookTreeNode from './BookTreeNode.vue'
 

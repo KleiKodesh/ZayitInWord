@@ -4,8 +4,10 @@
          @keydown="navigator?.handleKeyDown">
         <div v-if="categoryTreeStore.isLoading"
              class="height-fill flex-center">
-            <LoadingSpinner :width="48"
-                            :height="48" />
+            <Icon icon="fluent:spinner-ios-20-regular"
+                  :width="48"
+                  :height="48"
+                  class="animate-spin" />
         </div>
         <template v-else>
             <BookTreeCategoryNode v-for="(category, index) in categoryTreeStore.categoryTree"
@@ -22,7 +24,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useCategoryTreeStore } from '../stores/categoryTreeStore';
 import BookTreeCategoryNode from './BookTreeCategoryNode.vue';
 import { KeyboardNavigator } from '../utils/KeyboardNavigator';
-import LoadingSpinner from './icons/LoadingSpinner.vue';
+import { Icon } from '@iconify/vue';
 
 const categoryTreeStore = useCategoryTreeStore();
 const nodeRefs = ref<InstanceType<typeof BookTreeCategoryNode>[]>([]);

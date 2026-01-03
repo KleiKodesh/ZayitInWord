@@ -13,7 +13,8 @@
       <button @click="resetTree"
               class="flex-center c-pointer"
               title="אפס עץ">
-        <TreeIcon class="rtl-flip" />
+        <Icon icon="fluent:text-bullet-list-tree-24-regular"
+              class="rtl-flip" />
       </button>
       <input ref="searchInputRef"
              v-model="searchInput"
@@ -29,7 +30,7 @@
 import { ref, onMounted, nextTick, watch } from 'vue';
 import BookTree from '../BookTree.vue';
 import BookTreeSearch from '../BookTreeSearch.vue';
-import TreeIcon from '../icons/TreeIcon.vue';
+import { Icon } from '@iconify/vue';
 import { useCategoryTreeStore } from '../../stores/categoryTreeStore';
 import { storeToRefs } from 'pinia';
 

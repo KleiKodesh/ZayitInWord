@@ -59,7 +59,11 @@ const handleClick = () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.7;
+    color: var(--text-primary);
+}
+
+.diacritics-icon :deep(svg) {
+    fill: currentColor;
 }
 
 .dropdown-label {

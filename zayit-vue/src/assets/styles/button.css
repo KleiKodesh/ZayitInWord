@@ -15,7 +15,7 @@ button {
   /* Slightly rounded corners (matches vue-tabs) */
   font-size: 1.25rem;
   /* Icon/text size (matches vue-tabs) */
-  color: var(--text-secondary);
+  color: var(--text-primary);
   /* Secondary text color */
   cursor: pointer;
   /* Show hand cursor */
@@ -27,6 +27,7 @@ button {
   /* Horizontally center content */
   flex-shrink: 0;
   /* Prevent button from shrinking */
+  opacity: 0.8;
 }
 
 /* Button hover effect */
@@ -37,6 +38,7 @@ button:hover {
   /* Slightly grow on hover (matches vue-tabs) */
   color: var(--text-primary);
   /* primary text color on hover */
+  opacity: 0.9;
 }
 
 /* Button active/pressed effect */
@@ -58,13 +60,15 @@ button svg {
   /* Prevent icon from blocking clicks */
 }
 
-button img {
-  opacity: 0.8;
+/* Iconify icons inside buttons - inherit color */
+button .iconify {
+  color: inherit !important;
 }
 
-button:hover img {
-  opacity: 1;
-  /* Full opacity on hover */
+button .iconify svg,
+button .iconify svg * {
+  fill: currentColor !important;
+  stroke: currentColor !important;
 }
 
 /* Icon/Text Button */

@@ -6,15 +6,15 @@
          :style="{ paddingInlineStart: `${20 + depth * 20}px` }"
          @click="selectBook"
          @keydown.enter="handleKeyboardSelect">
-        <BookIcon />
+        <Icon icon="fluent:book-open-24-regular" />
         <span class="flex-110 line-1.4">{{ props.book.title }}</span>
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { Icon } from '@iconify/vue'
 import type { Book } from '../types/Book'
-import BookIcon from './icons/BookIcon.vue';
 import { useTabStore } from '../stores/tabStore';
 
 const props = withDefaults(defineProps<{

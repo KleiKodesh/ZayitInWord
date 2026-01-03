@@ -10,7 +10,7 @@
              style="display: none">
       <button @click="openFilePicker"
               class="select-pdf-btn flex-row">
-        <PdfFileIcon />
+        <Icon icon="fluent:document-pdf-28-regular" />
         {{ placeholderMessage }}
       </button>
     </div>
@@ -26,8 +26,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { Icon } from '@iconify/vue';
 import { useTabStore } from '../../stores/tabStore';
-import PdfFileIcon from '../icons/PdfFileIcon.vue';
 import { dbManager } from '../../data/dbManager';
 
 const tabStore = useTabStore();

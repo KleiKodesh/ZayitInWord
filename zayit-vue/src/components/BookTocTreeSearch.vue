@@ -1,6 +1,9 @@
 <template>
-    <BookIconWithText v-if="filteredEntries.length === 0"
-                      text="לא נמצאו תוצאות" />
+    <div v-if="filteredEntries.length === 0"
+         class="flex-center height-fill">
+        <Icon icon="fluent:book-open-28-regular" />
+        <span class="text-secondary">לא נמצאו תוצאות</span>
+    </div>
     <div v-else
          ref="containerRef"
          class="flex-column overflow-y"
@@ -25,7 +28,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import type { TocEntry } from '../types/BookToc'
-import BookIconWithText from './icons/BookIconWithText.vue'
+import { Icon } from '@iconify/vue'
 import { KeyboardNavigator } from '../utils/KeyboardNavigator'
 
 const props = defineProps<{

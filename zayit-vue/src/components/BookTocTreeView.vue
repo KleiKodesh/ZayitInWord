@@ -19,7 +19,8 @@
                 <button @click="resetTree"
                         class="flex-center c-pointer"
                         title="אפס עץ">
-                    <TreeIcon class="rtl-flip" />
+                    <Icon icon="fluent:text-bullet-list-tree-24-regular"
+                          class="rtl-flip" />
                 </button>
                 <input ref="searchInputRef"
                        v-model="searchInput"
@@ -31,7 +32,7 @@
                 <button @click="skipToDocument"
                         class="flex-center c-pointer"
                         title="דלג לתצוגת מסמך">
-                    <SkipIcon />
+                    <Icon icon="fluent:chevron-left-28-regular" />
                 </button>
 
             </div>
@@ -43,8 +44,7 @@
 import { ref, onMounted, nextTick, watch } from 'vue';
 import BookTocTree from './BookTocTree.vue';
 import BookTocTreeSearch from './BookTocTreeSearch.vue';
-import TreeIcon from './icons/TreeIcon.vue';
-import SkipIcon from './icons/SkipIcon.vue';
+import { Icon } from '@iconify/vue';
 
 import type { TocEntry } from '../types/BookToc';
 import { useTabStore } from '../stores/tabStore';

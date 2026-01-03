@@ -7,8 +7,9 @@
              @keydown.enter.stop="handleSelect"
              @keydown.space.stop.prevent="toggleExpand">
 
-            <ChevronIconLeft v-if="entry.hasChildren"
-                             :class="{ 'rotate-90': isExpanded }" />
+            <Icon icon="fluent:chevron-left-28-regular"
+                  v-if="entry.hasChildren"
+                  :class="{ 'rotate-90': isExpanded }" />
             <div class="flex-110 line-1.4 node-title"
                  @click="handleSelect">{{ entry.text }}</div>
         </div>
@@ -25,7 +26,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import ChevronIconLeft from './icons/ChevronIconLeft.vue'
+import { Icon } from '@iconify/vue'
 import type { TocEntry } from '../types/BookToc'
 import { useTabStore } from '../stores/tabStore'
 import { storeToRefs } from 'pinia'

@@ -7,10 +7,13 @@
         <div :class="['flex-row bar c-pointer tab-item', { active: tab.isActive }]"
              @click="selectTab(tab.id)">
           <div></div> <!-- spacer -->
-          <span class="center-text bold ellipsis">{{ tab.title }}</span>
+          <span class="center-text ellipsis">{{ tab.title }}</span>
           <div class="justify-end">
             <button @click.stop="tabStore.closeTabById(tab.id)"
-                    class="flex-center c-pointer">×</button>
+                    class="flex-center c-pointer">
+              <Icon icon="fluent:dismiss-16-regular"
+                    class="small-icon" />
+            </button>
           </div>
         </div>
       </template>
@@ -20,6 +23,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
+import { Icon } from '@iconify/vue';
 import { useTabStore } from '../stores/tabStore';
 
 const tabStore = useTabStore();
@@ -93,7 +97,6 @@ defineExpose({ toggle, close, isVisible });
 .tab-dropdown .bar.active {
   border-right: 3.5px solid var(--accent-color);
   color: var(--accent-color);
-  font-weight: 600;
 }
 
 .tab-item>div {

@@ -6,7 +6,7 @@
         <button @click.stop="toggleDropdown"
                 class="flex-center c-pointer dropdown-toggle"
                 title="אפשרויות">
-          <more-vertical-icon />
+          <Icon icon="fluent:more-vertical-28-regular" />
         </button>
 
         <transition name="slide">
@@ -20,8 +20,10 @@
             <div v-if="tabStore.activeTab?.currentPage === 'bookview'"
                  @click.stop="handleLineDisplayClick"
                  class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
-              <align-left-icon v-if="isLineDisplayInline" />
-              <align-justify-icon v-else />
+              <Icon icon="fluent:text-align-right-24-regular"
+                    v-if="isLineDisplayInline" />
+              <Icon icon="fluent:text-align-justify-24-regular"
+                    v-else />
               <span class="dropdown-label">{{ isLineDisplayInline ? 'תצוגת בלוק'
                 :
                 'תצוגת שורה' }}</span>
@@ -34,34 +36,37 @@
                  :title="settingsStore.enableVirtualization
                   ? 'כל השורות נטענות'
                   : 'רק חלק מהשורות נטענות'">
-              <bolt-icon v-if="settingsStore.enableVirtualization" />
-              <leaf-icon v-else />
+              <Icon icon="fluent:flash-28-regular"
+                    v-if="settingsStore.enableVirtualization" />
+              <Icon icon="fluent:leaf-24-regular"
+                    v-else />
               <span class="dropdown-label">{{ settingsStore.enableVirtualization
-                ? 'בטל וירטואליזציה' : 'הפעל וירטואליזציה' }}</span>
+                ? 'בטל טעינת שורות דינמית' : 'הפעל טעינת שורות דינמית' }}</span>
             </div>
 
             <div @click.stop="handleThemeClick"
                  class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
-              <theme-icon class="theme-icon" />
-              <span class="dropdown-label">ערכת נושא</span>
+              <Icon :icon="themeToggleIcon"
+                    class="theme-icon" />
+              <span class="dropdown-label">{{ themeToggleText }}</span>
             </div>
 
             <div @click.stop="handleSettingsClick"
                  class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
-              <settings-icon />
+              <Icon icon="fluent:settings-28-regular" />
               <span class="dropdown-label">הגדרות</span>
             </div>
 
             <div @click.stop="handleAboutClick"
                  class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
-              <about-icon />
+              <Icon icon="fluent:info-28-regular" />
               <span class="dropdown-label">אודות</span>
             </div>
 
             <!-- PDF viewer - available in both dev and C# modes -->
             <div @click.stop="handleOpenPdfClick"
                  class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
-              <pdf-file-icon />
+              <Icon icon="fluent:document-pdf-28-regular" />
               <span class="dropdown-label">פתח PDF</span>
             </div>
 
@@ -69,80 +74,82 @@
             <div v-if="isWebViewAvailable"
                  @click.stop="handlePopoutClick"
                  class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
-              <popout-icon />
+              <Icon icon="fluent:open-28-regular" />
               <span class="dropdown-label">{{ popoutLabel }}</span>
             </div>
           </div>
         </transition>
       </div>
 
+      <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
+              @click.stop="handleButtonClick(goToToc)"
+              class="flex-center c-pointer"
+              title="תוכן עניינים">
+        <Icon icon="fluent:text-bullet-list-tree-24-regular"
+              class="rtl-flip" />
+      </button>
+
       <button v-if="tabStore.activeTab?.currentPage === 'bookview' && !isTocVisible"
               @click.stop="handleButtonClick(openSearch)"
               class="flex-center c-pointer"
               title="חיפוש (Ctrl+F)">
-        <search-icon />
+        <Icon icon="fluent:search-28-filled" />
       </button>
 
       <button v-if="tabStore.activeTab?.currentPage === 'bookview' && hasConnections && !isTocVisible"
               @click.stop="handleButtonClick(toggleSplitPane)"
               class="flex-center c-pointer"
-              title="הצג קשרים">
-        <split-pane-icon />
+              :title="isSplitPaneOpen ? 'הסתר קשרים' : 'הצג קשרים'">
+        <Icon
+              :icon="isSplitPaneOpen ? 'fluent:panel-bottom-expand-20-filled' : 'fluent:panel-bottom-contract-20-filled'" />
       </button>
 
-      <button v-if="tabStore.activeTab?.currentPage === 'bookview'"
-              @click.stop="handleButtonClick(goToToc)"
-              class="flex-center c-pointer"
-              title="תוכן עניינים">
-        <tree-icon class="rtl-flip" />
-      </button>
+
 
 
     </div>
-    <span class="center-text bold ellipsis">{{ tabStore.activeTab?.title
+    <span class="center-text ellipsis activetab-title">{{ tabStore.activeTab?.title
       }}</span>
     <div class="flex-row justify-end">
       <button @click.stop="handleButtonClick(resetTab)"
               class="flex-center c-pointer"
               title="דף הבית">
-        <home-icon />
+        <Icon icon="fluent:home-28-regular" />
       </button>
+
       <button @click.stop="handleButtonClick(newTab)"
               class="flex-center c-pointer"
-              title="פתח טאב חדש">+</button>
+              title="פתח טאב חדש">
+        <Icon icon="fluent:add-16-filled"
+              class="small-icon" />
+      </button>
+
       <button @click.stop="handleButtonClick(closeTab)"
               class="flex-center c-pointer"
-              title="סגור">×</button>
+              title="סגור">
+        <Icon icon="fluent:dismiss-16-filled"
+              class="small-icon" />
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue';
-import ThemeIcon from './icons/ThemeIcon.vue';
-import HomeIcon from './icons/HomeIcon.vue';
-import TreeIcon from './icons/TreeIcon.vue';
-import SplitPaneIcon from './icons/SplitPaneIcon.vue';
-import SearchIcon from './icons/SearchIcon.vue';
-import SettingsIcon from './icons/SettingsIcon.vue';
-import AboutIcon from './icons/AboutIcon.vue';
-import MoreVerticalIcon from './icons/MoreVerticalIcon.vue';
-import AlignLeftIcon from './icons/AlignLeftIcon.vue';
-import AlignJustifyIcon from './icons/AlignJustifyIcon.vue';
-import PdfFileIcon from './icons/PdfFileIcon.vue';
-import PopoutIcon from './icons/PopoutIcon.vue';
-import BoltIcon from './icons/BoltIcon.vue';
-import LeafIcon from './icons/LeafIcon.vue';
+import { Icon } from '@iconify/vue';
 import DiacriticsDropdown from './TabHeaderDiacriticsDropdown.vue';
 import { useTabStore } from '../stores/tabStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { toggleTheme } from '../utils/theme';
+import { toggleTheme, isDarkTheme } from '../utils/theme';
 import { dbManager } from '../data/dbManager';
 
 const tabStore = useTabStore();
 const settingsStore = useSettingsStore();
 const isDropdownOpen = ref(false);
 const isPopoutMode = ref(false);
+
+// Theme state - reactive to theme changes
+const currentTheme = ref(isDarkTheme());
 
 const emit = defineEmits<{
   'close-tab-dropdown': []
@@ -172,12 +179,23 @@ const isTocVisible = computed(() => {
   return bookState.isTocOpen || false;
 });
 
-const popoutTitle = computed(() => {
-  return isPopoutMode.value ? 'חזור לפאנל צד' : 'פתח בחלון נפרד';
+const isSplitPaneOpen = computed(() => {
+  const bookState = tabStore.activeTab?.bookState;
+  if (!bookState) return false;
+  return bookState.showBottomPane || false;
 });
 
 const popoutLabel = computed(() => {
   return isPopoutMode.value ? 'פאנל צד' : 'חלון נפרד';
+});
+
+// Theme toggle computed properties
+const themeToggleText = computed(() => {
+  return currentTheme.value ? 'מצב בהיר' : 'מצב כהה';
+});
+
+const themeToggleIcon = computed(() => {
+  return currentTheme.value ? 'fluent:weather-sunny-24-regular' : 'fluent:dark-theme-24-regular';
 });
 
 const goToToc = () => {
@@ -232,6 +250,8 @@ const handleAboutClick = () => {
 
 const handleThemeClick = () => {
   toggleTheme();
+  // Update reactive state after theme toggle
+  currentTheme.value = isDarkTheme();
 };
 
 
@@ -362,29 +382,7 @@ onUnmounted(() => {
 .dropdown-container {
   position: relative;
   z-index: 9999;
-}
-
-.dropdown-toggle {
-  padding: 6px;
-  background: transparent;
-  border: none;
-  border-radius: 4px;
-  width: 32px;
-  height: 32px;
-}
-
-.dropdown-toggle:hover {
-  background: var(--hover-bg);
-  transform: scale(1.05);
-}
-
-.dropdown-toggle svg {
   color: var(--text-primary);
-  opacity: 0.7;
-}
-
-.dropdown-toggle:hover svg {
-  opacity: 1;
 }
 
 .dropdown-menu {
@@ -392,12 +390,9 @@ onUnmounted(() => {
   top: 48px;
   right: 0;
   background: var(--bg-secondary);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border-left: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
   border-radius: 0 0 0 4px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   min-width: 200px;
   z-index: 9999;
   overflow: hidden;
@@ -411,22 +406,40 @@ onUnmounted(() => {
   border: none;
   text-align: right;
   direction: rtl;
+  color: var(--text-primary);
+  border-radius: 0;
+  transition: background-color 0.15s ease;
+  opacity: 0.8;
 }
 
-.dropdown-item svg {
+.dropdown-item:hover {
+  background: var(--hover-bg);
+  opacity: 0.9;
+}
+
+.dropdown-item:active {
+  background: var(--active-bg);
+}
+
+/* Force dropdown icons to match button icons exactly */
+.dropdown-item svg,
+.dropdown-item .iconify {
   flex-shrink: 0;
-  opacity: 0.7;
   width: 20px;
   height: 20px;
+  color: var(--text-primary);
+}
+
+/* Apply the exact same styling as button .iconify */
+.dropdown-item .iconify svg,
+.dropdown-item .iconify svg * {
+  fill: currentColor !important;
+  stroke: currentColor !important;
 }
 
 .dropdown-item .theme-icon {
   width: 18px;
   height: 18px;
-}
-
-.dropdown-item:hover svg {
-  opacity: 1;
 }
 
 .dropdown-label {
@@ -437,5 +450,9 @@ onUnmounted(() => {
 
 .dropdown-item :deep(.theme-toggle) {
   pointer-events: none;
+}
+
+.activetab-title {
+  opacity: 0.9;
 }
 </style>

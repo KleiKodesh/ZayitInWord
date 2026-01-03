@@ -42,3 +42,7 @@
 .fade-leave-from {
   opacity: 1;
 }
+/* Utility class for spinning icons */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}

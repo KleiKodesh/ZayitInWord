@@ -2,10 +2,17 @@
     <div ref="containerRef"
          class="overflow-y height-fill"
          @keydown="navigator?.handleKeyDown">
-        <BookIconWithText v-if="isLoading"
-                          text="טוען..." />
-        <BookIconWithText v-else-if="tocEntries.length === 0"
-                          text="אין תוכן עניינים זמין" />
+        <div v-if="isLoading"
+             class="flex-center height-fill">
+            <Icon icon="fluent:spinner-ios-20-regular"
+                  class="animate-spin" />
+            <span class="text-secondary">טוען...</span>
+        </div>
+        <div v-else-if="tocEntries.length === 0"
+             class="flex-center height-fill">
+            <Icon icon="fluent:book-open-24-regular" />
+            <span class="text-secondary">אין תוכן עניינים זמין</span>
+        </div>
         <template v-else>
             <BookTocTreeNode v-for="(entry, index) in tocEntries"
                              :key="entry.id"
@@ -18,7 +25,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import BookIconWithText from './icons/BookIconWithText.vue';
+import { Icon } from '@iconify/vue';
 import BookTocTreeNode from './BookTocTreeNode.vue';
 import { KeyboardNavigator } from '../utils/KeyboardNavigator';
 import type { TocEntry } from '../types/BookToc';

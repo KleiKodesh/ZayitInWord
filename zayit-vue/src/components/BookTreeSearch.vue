@@ -1,6 +1,9 @@
 <template>
-    <BookIconWithText v-if="filteredBooks.length === 0"
-                      text="לא נמצאו תוצאות" />
+    <div v-if="filteredBooks.length === 0"
+         class="flex-center height-fill">
+        <Icon icon="fluent:book-open-24-regular" />
+        <span class="text-secondary">לא נמצאו תוצאות</span>
+    </div>
     <div v-else
          ref="containerRef"
          class="flex-column overflow-y"
@@ -11,7 +14,7 @@
              tabindex="0"
              @click="selectBook(book)"
              @keydown.enter.prevent="selectBook(book)">
-            <BookIcon />
+            <Icon icon="fluent:book-open-24-regular" />
             <div class="flex-column flex-110 smaller-rem">
                 <span class="bold">{{ book.title }}</span>
                 <span v-if="book.path"
@@ -24,8 +27,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import type { Book } from '../types/Book'
-import BookIcon from './icons/BookIcon.vue'
-import BookIconWithText from './icons/BookIconWithText.vue'
+import { Icon } from '@iconify/vue'
 import { KeyboardNavigator } from '../utils/KeyboardNavigator'
 import { useTabStore } from '../stores/tabStore'
 
