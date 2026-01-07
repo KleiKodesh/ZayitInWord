@@ -1,16 +1,22 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
 import type { Tab, PageType } from '../types/Tab';
+import { checkConnectivity } from '../utils/connectivity';
+import { useSettingsStore } from './settingsStore';
 
 const STORAGE_KEY = 'tabStore';
 
 const PAGE_TITLES: Record<PageType, string> = {
+    'homepage': 'דף הבית',
     'kezayit-landing': 'איתור',
-    search: 'חיפוש',
-    bookview: 'תצוגת ספר',
-    pdfview: 'תצוגת PDF',
-    settings: 'הגדרות',
-    about: 'אודות'
+    'bookview': 'תצוגת ספר',
+    'pdfview': 'תצוגת PDF',
+    'hebrewbooks-view': 'ספר עברי',
+    'search': 'חיפוש',
+    'settings': 'הגדרות',
+    'about': 'אודות',
+    'hebrewbooks': 'HebrewBooks',
+    'kezayit-search': 'חיפוש כזית'
 };
 
 export const useTabStore = defineStore('tabs', () => {
@@ -27,7 +33,7 @@ export const useTabStore = defineStore('tabs', () => {
 
                 // Migrate old 'landing' page type to 'kezayit-landing'
                 tabs.value.forEach(tab => {
-                    if (tab.currentPage === 'landing') {
+                    if ((tab.currentPage as string) === 'landing') {
                         tab.currentPage = 'kezayit-landing';
                         tab.title = PAGE_TITLES['kezayit-landing'];
                     }
@@ -39,6 +45,15 @@ export const useTabStore = defineStore('tabs', () => {
                         tab.pdfState.fileUrl = '';
                     }
                 });
+
+                // Ensure at least one tab is active
+                const hasActiveTab = tabs.value.some(tab => tab.isActive);
+                if (tabs.value.length > 0 && !hasActiveTab) {
+                    const firstTab = tabs.value[0];
+                    if (firstTab) {
+                        firstTab.isActive = true;
+                    }
+                }
             }
         } catch (e) {
             console.error('Failed to load tabs from storage:', e);
@@ -49,8 +64,15 @@ export const useTabStore = defineStore('tabs', () => {
 
     const saveToStorage = () => {
         try {
+            // Only persist content tabs (bookview, pdfview, and hebrewbooks-view)
+            const contentTabs = tabs.value.filter(tab =>
+                tab.currentPage === 'bookview' ||
+                tab.currentPage === 'pdfview' ||
+                tab.currentPage === 'hebrewbooks-view'
+            );
+
             localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                tabs: tabs.value,
+                tabs: contentTabs,
                 nextId: nextId.value
             }));
         } catch (e) {
@@ -60,11 +82,50 @@ export const useTabStore = defineStore('tabs', () => {
 
     loadFromStorage();
     if (tabs.value.length === 0) {
+        // Create initial tab using centralized homepage logic
+        createDefaultTab();
+    }
+
+    // Centralized function to determine appropriate homepage based on user preference and connectivity
+    async function navigateToHomepage(): Promise<{ pageType: PageType, title: string }> {
+        const settingsStore = useSettingsStore();
+
+        // Check connectivity first
+        const isOnline = await checkConnectivity();
+
+        // If offline, always use kezayit-landing regardless of user preference
+        if (!isOnline) {
+            return {
+                pageType: 'kezayit-landing',
+                title: PAGE_TITLES['kezayit-landing']
+            };
+        }
+
+        // If online, use user preference
+        if (settingsStore.useOfflineHomepage) {
+            // User prefers kezayit-landing page even when online
+            return {
+                pageType: 'kezayit-landing',
+                title: PAGE_TITLES['kezayit-landing']
+            };
+        } else {
+            // User prefers regular homepage when online
+            return {
+                pageType: 'homepage',
+                title: PAGE_TITLES['homepage']
+            };
+        }
+    }
+
+    // Helper function to create default tab based on connectivity
+    async function createDefaultTab() {
+        const { pageType, title } = await navigateToHomepage();
+
         tabs.value.push({
             id: 1,
-            title: PAGE_TITLES['kezayit-landing'],
+            title,
             isActive: true,
-            currentPage: 'kezayit-landing'
+            currentPage: pageType
         });
     }
 
@@ -73,7 +134,7 @@ export const useTabStore = defineStore('tabs', () => {
 
     const activeTab = computed(() => tabs.value.find(tab => tab.isActive));
 
-    const addTab = () => {
+    const addTab = async () => {
         tabs.value.forEach(tab => tab.isActive = false);
 
         // Find the lowest available ID
@@ -83,11 +144,14 @@ export const useTabStore = defineStore('tabs', () => {
             newId++;
         }
 
+        // Create tab using centralized homepage logic
+        const { pageType, title } = await navigateToHomepage();
+
         const newTab: Tab = {
             id: newId,
-            title: PAGE_TITLES['kezayit-landing'],
+            title,
             isActive: true,
-            currentPage: 'kezayit-landing'
+            currentPage: pageType
         };
         tabs.value.push(newTab);
 
@@ -95,12 +159,12 @@ export const useTabStore = defineStore('tabs', () => {
         nextId.value = Math.max(newId + 1, nextId.value);
     };
 
-    const closeTab = () => {
+    const closeTab = async () => {
         const currentIndex = tabs.value.findIndex(tab => tab.isActive);
         tabs.value = tabs.value.filter(tab => !tab.isActive);
 
         if (tabs.value.length === 0) {
-            addTab();
+            await addTab();
         } else {
             const newIndex = Math.min(currentIndex, tabs.value.length - 1);
             const newTab = tabs.value[newIndex];
@@ -116,11 +180,14 @@ export const useTabStore = defineStore('tabs', () => {
         });
     };
 
-    const resetTab = () => {
+    const resetTab = async () => {
         const tab = tabs.value.find(t => t.isActive);
         if (tab) {
-            tab.currentPage = 'kezayit-landing';
-            tab.title = PAGE_TITLES['kezayit-landing'];
+            // Reset to appropriate page using centralized homepage logic
+            const { pageType, title } = await navigateToHomepage();
+
+            tab.currentPage = pageType;
+            tab.title = title;
             delete tab.bookState;
         }
     };
@@ -430,13 +497,15 @@ export const useTabStore = defineStore('tabs', () => {
 
 
 
-    const closeAllTabs = () => {
-        // Clear all tabs and create a new default tab
+    const closeAllTabs = async () => {
+        // Clear all tabs and create a new default tab using centralized homepage logic
+        const { pageType, title } = await navigateToHomepage();
+
         tabs.value = [{
             id: 1,
-            title: PAGE_TITLES['kezayit-landing'],
+            title,
             isActive: true,
-            currentPage: 'kezayit-landing'
+            currentPage: pageType
         }];
         nextId.value = 2;
     };
@@ -446,6 +515,66 @@ export const useTabStore = defineStore('tabs', () => {
         if (tab?.bookState) {
             tab.bookState.isSearchOpen = isOpen;
         }
+    };
+
+    const openKezayitLanding = () => {
+        tabs.value.forEach(tab => tab.isActive = false);
+
+        const existingIds = new Set(tabs.value.map(t => t.id));
+        let newId = 1;
+        while (existingIds.has(newId)) {
+            newId++;
+        }
+
+        const newTab: Tab = {
+            id: newId,
+            title: PAGE_TITLES['kezayit-landing'],
+            isActive: true,
+            currentPage: 'kezayit-landing'
+        };
+
+        tabs.value.push(newTab);
+        nextId.value = Math.max(newId + 1, nextId.value);
+    };
+
+    const openHebrewBooks = () => {
+        tabs.value.forEach(tab => tab.isActive = false);
+
+        const existingIds = new Set(tabs.value.map(t => t.id));
+        let newId = 1;
+        while (existingIds.has(newId)) {
+            newId++;
+        }
+
+        const newTab: Tab = {
+            id: newId,
+            title: PAGE_TITLES['hebrewbooks'],
+            isActive: true,
+            currentPage: 'hebrewbooks'
+        };
+
+        tabs.value.push(newTab);
+        nextId.value = Math.max(newId + 1, nextId.value);
+    };
+
+    const openKezayitSearch = () => {
+        tabs.value.forEach(tab => tab.isActive = false);
+
+        const existingIds = new Set(tabs.value.map(t => t.id));
+        let newId = 1;
+        while (existingIds.has(newId)) {
+            newId++;
+        }
+
+        const newTab: Tab = {
+            id: newId,
+            title: PAGE_TITLES['kezayit-search'],
+            isActive: true,
+            currentPage: 'kezayit-search'
+        };
+
+        tabs.value.push(newTab);
+        nextId.value = Math.max(newId + 1, nextId.value);
     };
 
     return {
@@ -471,6 +600,9 @@ export const useTabStore = defineStore('tabs', () => {
         openPdfWithFile,
         openPdfWithFilePath,
         openPdfWithFilePathAndBlobUrl,
-        toggleBookSearch
+        toggleBookSearch,
+        openKezayitLanding,
+        openHebrewBooks,
+        openKezayitSearch
     };
 });

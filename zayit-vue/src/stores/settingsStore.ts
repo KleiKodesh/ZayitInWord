@@ -11,6 +11,7 @@ export interface Settings {
     censorDivineNames: boolean
     appZoom: number
     enableVirtualization: boolean
+    useOfflineHomepage: boolean
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -20,7 +21,8 @@ const DEFAULT_SETTINGS: Settings = {
     linePadding: 1.6,
     censorDivineNames: false,
     appZoom: 0.95,
-    enableVirtualization: false
+    enableVirtualization: false,
+    useOfflineHomepage: true
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -31,6 +33,7 @@ export const useSettingsStore = defineStore('settings', () => {
     const censorDivineNames = ref(DEFAULT_SETTINGS.censorDivineNames)
     const appZoom = ref(DEFAULT_SETTINGS.appZoom)
     const enableVirtualization = ref(DEFAULT_SETTINGS.enableVirtualization)
+    const useOfflineHomepage = ref(DEFAULT_SETTINGS.useOfflineHomepage)
 
     const loadFromStorage = () => {
         try {
@@ -44,6 +47,7 @@ export const useSettingsStore = defineStore('settings', () => {
                 censorDivineNames.value = settings.censorDivineNames || DEFAULT_SETTINGS.censorDivineNames
                 appZoom.value = settings.appZoom || DEFAULT_SETTINGS.appZoom
                 enableVirtualization.value = settings.enableVirtualization ?? DEFAULT_SETTINGS.enableVirtualization
+                useOfflineHomepage.value = settings.useOfflineHomepage ?? DEFAULT_SETTINGS.useOfflineHomepage
             }
         } catch (e) {
             console.error('Failed to load settings:', e)
@@ -59,7 +63,8 @@ export const useSettingsStore = defineStore('settings', () => {
                 linePadding: linePadding.value,
                 censorDivineNames: censorDivineNames.value,
                 appZoom: appZoom.value,
-                enableVirtualization: enableVirtualization.value
+                enableVirtualization: enableVirtualization.value,
+                useOfflineHomepage: useOfflineHomepage.value
             }))
         } catch (e) {
             console.error('Failed to save settings:', e)
@@ -87,6 +92,7 @@ export const useSettingsStore = defineStore('settings', () => {
         censorDivineNames.value = DEFAULT_SETTINGS.censorDivineNames
         appZoom.value = DEFAULT_SETTINGS.appZoom
         enableVirtualization.value = DEFAULT_SETTINGS.enableVirtualization
+        useOfflineHomepage.value = DEFAULT_SETTINGS.useOfflineHomepage
         localStorage.removeItem(STORAGE_KEY)
         applyCSSVariables()
     }
@@ -96,7 +102,7 @@ export const useSettingsStore = defineStore('settings', () => {
     applyCSSVariables()
 
     // Watch for changes and persist
-    watch([headerFont, textFont, fontSize, linePadding, censorDivineNames, appZoom, enableVirtualization], () => {
+    watch([headerFont, textFont, fontSize, linePadding, censorDivineNames, appZoom, enableVirtualization, useOfflineHomepage], () => {
         saveToStorage()
         applyCSSVariables()
     })
@@ -109,6 +115,7 @@ export const useSettingsStore = defineStore('settings', () => {
         censorDivineNames,
         appZoom,
         enableVirtualization,
+        useOfflineHomepage,
         reset
     }
 })

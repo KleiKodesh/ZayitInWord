@@ -1,6 +1,6 @@
 import type { Book } from './Book'
 
-export type PageType = 'kezayit-landing' | 'bookview' | 'pdfview' | 'search' | 'settings' | 'about';
+export type PageType = 'homepage' | 'kezayit-landing' | 'bookview' | 'pdfview' | 'hebrewbooks-view' | 'search' | 'settings' | 'about' | 'hebrewbooks' | 'kezayit-search';
 
 export interface BookState {
     bookId: number;
@@ -21,6 +21,9 @@ export interface PdfState {
     fileName: string;
     fileUrl: string;
     filePath?: string; // Original file path for persistence
+    source?: string; // Source of the PDF (e.g., 'hebrewbook', 'file')
+    bookId?: string; // Hebrew book ID for session restoration
+    bookTitle?: string; // Hebrew book title for display
 }
 
 export interface Tab {

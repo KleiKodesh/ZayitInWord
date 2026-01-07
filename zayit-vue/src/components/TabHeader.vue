@@ -63,6 +63,13 @@
               <span class="dropdown-label">אודות</span>
             </div>
 
+            <!-- Hebrew Books -->
+            <div @click.stop="handleHebrewBooksClick"
+                 class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
+              <Icon icon="fluent:library-28-regular" />
+              <span class="dropdown-label">היברו-בוקס</span>
+            </div>
+
             <!-- PDF viewer - available in both dev and C# modes -->
             <div @click.stop="handleOpenPdfClick"
                  class="flex-row flex-center-start hover-bg c-pointer dropdown-item">
@@ -245,6 +252,11 @@ const handleSettingsClick = () => {
 
 const handleAboutClick = () => {
   tabStore.openAbout();
+  isDropdownOpen.value = false;
+};
+
+const handleHebrewBooksClick = () => {
+  tabStore.openHebrewBooks();
   isDropdownOpen.value = false;
 };
 

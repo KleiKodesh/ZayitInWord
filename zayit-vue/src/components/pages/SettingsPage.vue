@@ -55,7 +55,7 @@
                     גודל גופן
                     <span class="text-secondary setting-value">{{
                         fontSize
-                    }}%</span>
+                        }}%</span>
                 </label>
                 <input type="range"
                        v-model.number="fontSize"
@@ -70,7 +70,7 @@
                 <label class="flex-between bold setting-label">
                     ריווח שורות
                     <span class="text-secondary setting-value">{{ linePadding
-                    }}</span>
+                        }}</span>
                 </label>
                 <input type="range"
                        v-model.number="linePadding"
@@ -113,6 +113,24 @@
                 </div>
             </div>
 
+            <!-- Homepage Preference - only show when online -->
+            <div v-if="isOnline"
+                 class="setting-group">
+                <label class="flex-row bold setting-label">דף בית מועדף</label>
+                <div class="flex-row theme-toggle">
+                    <button :class="{ active: !useOfflineHomepage }"
+                            @click="setUseOfflineHomepage(false)"
+                            class="flex-110 c-pointer theme-option">
+                        דף בית רגיל
+                    </button>
+                    <button :class="{ active: useOfflineHomepage }"
+                            @click="setUseOfflineHomepage(true)"
+                            class="flex-110 c-pointer theme-option">
+                        איתור - כזית
+                    </button>
+                </div>
+            </div>
+
             <!-- Reset Button -->
             <div class="setting-group">
                 <button @click="resetSettings"
@@ -129,9 +147,11 @@ import { ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { hebrewFonts } from '../../data/hebrewFonts'
+import { useConnectivity } from '../../utils/connectivity'
 
 const settingsStore = useSettingsStore()
-const { headerFont, textFont, fontSize, linePadding, censorDivineNames, appZoom } = storeToRefs(settingsStore)
+const { headerFont, textFont, fontSize, linePadding, censorDivineNames, appZoom, useOfflineHomepage } = storeToRefs(settingsStore)
+const { isOnline } = useConnectivity()
 
 const availableFonts = ref<string[]>([])
 const isHeaderDropdownOpen = ref(false)
@@ -207,6 +227,10 @@ const setCensorDivineNames = (censor: boolean) => {
     censorDivineNames.value = censor
     // Reload to apply censoring from data layer
     window.location.reload()
+}
+
+const setUseOfflineHomepage = (useOffline: boolean) => {
+    useOfflineHomepage.value = useOffline
 }
 
 onMounted(() => {

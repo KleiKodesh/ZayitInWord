@@ -24,8 +24,10 @@ export class CSharpBridge {
      * Send command to C#
      */
     send(command: string, args: any[]): void {
+        console.log(`[CSharpBridge] Sending command: ${command}`, args)
+
         if (!this.isAvailable()) {
-            console.warn('WebView2 not available, cannot send command:', command)
+            console.warn('[CSharpBridge] WebView2 not available, cannot send command:', command)
             return
         }
 
@@ -33,14 +35,19 @@ export class CSharpBridge {
             command,
             args
         })
+
+        console.log(`[CSharpBridge] Command sent successfully: ${command}`)
     }
 
     /**
      * Create a promise that will be resolved when C# responds
      */
     createRequest<T>(requestId: string): Promise<T> {
+        console.log(`[CSharpBridge] Creating request promise for: ${requestId}`)
+
         return new Promise((resolve, reject) => {
             this.pendingRequests.set(requestId, { resolve, reject })
+            console.log(`[CSharpBridge] Promise created and stored for: ${requestId}`)
         })
     }
 
@@ -143,6 +150,79 @@ export class CSharpBridge {
             if (request) {
                 request.resolve(lines)
                 this.pendingRequests.delete(`SearchLines:${bookId}:${searchTerm}`)
+            }
+        }
+
+        // Hebrew book download ready response
+        win.receiveHebrewBookDownloadReady = (bookId: string, action: string) => {
+            console.log(`[CSharpBridge] receiveHebrewBookDownloadReady called - bookId: ${bookId}, action: ${action}`)
+
+            const requestId = `PrepareHebrewBookDownload:${bookId}:${action}`
+            const request = this.pendingRequests.get(requestId)
+
+            if (request) {
+                console.log(`[CSharpBridge] Resolving request: ${requestId}`)
+                request.resolve({ success: true })
+                this.pendingRequests.delete(requestId)
+            } else {
+                console.warn(`[CSharpBridge] No pending request found for: ${requestId}`)
+                console.log('[CSharpBridge] Current pending requests:', Array.from(this.pendingRequests.keys()))
+            }
+        }
+
+        // Hebrew book blob response (for viewing)
+        win.receiveHebrewBookBlob = (bookId: string, title: string | null, base64: string | null) => {
+            console.log(`[CSharpBridge] receiveHebrewBookBlob called - bookId: ${bookId}, title: ${title}, hasBase64: ${!!base64}`)
+
+            // Try multiple possible request keys - prioritize blob request for blob responses
+            const blobRequestId = `HebrewBookBlob:${bookId}`
+            const viewRequestId = `PrepareHebrewBookDownload:${bookId}:view`
+
+            const blobRequest = this.pendingRequests.get(blobRequestId)
+            const viewRequest = this.pendingRequests.get(viewRequestId)
+
+            // Prioritize blob request for blob responses
+            const request = blobRequest || viewRequest
+            const requestId = blobRequest ? blobRequestId : viewRequestId
+
+            if (request) {
+                console.log(`[CSharpBridge] Resolving blob request: ${requestId}`)
+                if (base64 && title) {
+                    request.resolve({ success: true, title, base64 })
+                } else {
+                    console.warn('[CSharpBridge] Blob response missing data - title:', title, 'hasBase64:', !!base64)
+                    request.resolve({ success: false })
+                }
+                if (viewRequest) this.pendingRequests.delete(viewRequestId)
+                if (blobRequest) this.pendingRequests.delete(blobRequestId)
+            } else {
+                console.warn(`[CSharpBridge] No pending request found for blob. Tried: ${viewRequestId}, ${blobRequestId}`)
+                console.log('[CSharpBridge] Current pending requests:', Array.from(this.pendingRequests.keys()))
+            }
+        }
+
+        // Hebrew book download complete response (for downloading)
+        win.receiveHebrewBookDownloadComplete = (bookId: string, filePath: string | null) => {
+            console.log(`[CSharpBridge] receiveHebrewBookDownloadComplete called - bookId: ${bookId}, filePath: ${filePath}`)
+
+            // Try both possible request keys since the flow might use either
+            const downloadRequestId = `PrepareHebrewBookDownload:${bookId}:download`
+            const completeRequestId = `HebrewBookDownloadComplete:${bookId}`
+
+            const downloadRequest = this.pendingRequests.get(downloadRequestId)
+            const completeRequest = this.pendingRequests.get(completeRequestId)
+
+            const request = downloadRequest || completeRequest
+            const requestId = downloadRequest ? downloadRequestId : completeRequestId
+
+            if (request) {
+                console.log(`[CSharpBridge] Resolving download complete request: ${requestId}`)
+                request.resolve({ success: !!filePath, filePath })
+                if (downloadRequest) this.pendingRequests.delete(downloadRequestId)
+                if (completeRequest) this.pendingRequests.delete(completeRequestId)
+            } else {
+                console.warn(`[CSharpBridge] No pending request found for download complete. Tried: ${downloadRequestId}, ${completeRequestId}`)
+                console.log('[CSharpBridge] Current pending requests:', Array.from(this.pendingRequests.keys()))
             }
         }
 
